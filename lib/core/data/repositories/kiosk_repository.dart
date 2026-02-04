@@ -1,0 +1,237 @@
+import 'package:flutter_snaptag_kiosk/core/data/datasources/remote/kiosk_api_client.dart';
+import 'package:flutter_snaptag_kiosk/core/data/models/request/unique_key_request.dart';
+import 'package:flutter_snaptag_kiosk/core/data/models/request/update_back_photo_request.dart';
+import 'package:flutter_snaptag_kiosk/core/domain/request/create_order_request.dart';
+import 'package:flutter_snaptag_kiosk/core/domain/request/create_print_request.dart';
+import 'package:flutter_snaptag_kiosk/core/domain/request/get_back_photo_by_qr_request.dart';
+import 'package:flutter_snaptag_kiosk/core/domain/request/get_orders_request.dart';
+import 'package:flutter_snaptag_kiosk/core/domain/request/update_order_request.dart';
+import 'package:flutter_snaptag_kiosk/core/domain/request/update_print_request.dart';
+import 'package:flutter_snaptag_kiosk/core/domain/response/alert_definition_response.dart';
+import 'package:flutter_snaptag_kiosk/core/domain/response/back_photo_card_response.dart';
+import 'package:flutter_snaptag_kiosk/core/domain/response/back_photo_status_response.dart';
+import 'package:flutter_snaptag_kiosk/core/domain/response/create_order_response.dart';
+import 'package:flutter_snaptag_kiosk/core/domain/response/create_print_response.dart';
+import 'package:flutter_snaptag_kiosk/core/domain/response/kiosk_machine_info.dart';
+import 'package:flutter_snaptag_kiosk/core/domain/response/nominated_photo_list.dart';
+import 'package:flutter_snaptag_kiosk/core/domain/response/order_list_response.dart';
+import 'package:flutter_snaptag_kiosk/core/domain/response/update_order_response.dart';
+import 'package:flutter_snaptag_kiosk/core/domain/response/update_print_response.dart';
+import 'package:flutter_snaptag_kiosk/core/network/dio_client.dart';
+import 'package:flutter_snaptag_kiosk/flavors.dart';
+import 'package:flutter_snaptag_kiosk/lib.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+part 'kiosk_repository.g.dart';
+
+@riverpod
+class KioskRepository extends _$KioskRepository {
+  @override
+  _KioskRepository build() {
+    final dio = ref.watch(dioProvider(F.kioskBaseUrl));
+
+    return _KioskRepository(KioskApiClient(dio), ref);
+  }
+}
+
+class _KioskRepository {
+  final KioskApiClient _apiClient;
+  final Ref _ref;
+
+  _KioskRepository(this._apiClient, this._ref);
+  Future<String> healthCheck() async {
+    try {
+      return await _apiClient.healthCheck();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Slack Alert definitions
+  Future<List<AlertDefinitionResponse>> getAlertDefinition() async {
+    try {
+      return await _apiClient.getAlertDefinitions();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Machine Info Operations
+  Future<KioskMachineInfo> getKioskMachineInfo(int machineId) async {
+    try {
+      return await _apiClient.getKioskMachineInfo(kioskMachineId: machineId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<KioskMachineInfo> getKioskMachineInfoByKey(String uniqueKey) async {
+    try {
+      return await _apiClient.getKioskMachineInfoByKey(uniqueKey: uniqueKey);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Photo Operations
+  Future<NominatedPhotoList> getFrontPhotoList(int eventId) async {
+    try {
+      return await _apiClient.getFrontPhotoList(kioskEventId: eventId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<BackPhotoCardResponse> getBackPhotoCard(int eventId, String authNumber) async {
+    try {
+      return await _apiClient.getBackPhotoCard(
+        kioskEventId: eventId,
+        photoAuthNumber: authNumber,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<BackPhotoStatusResponse> updateBackPhotoStatus(UpdateBackPhotoRequest request) async {
+    try {
+      return await _apiClient.updateBackPhotoStatus(
+        body: request.toJson(),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<OrderListResponse> getOrders(GetOrdersRequest request) async {
+    try {
+      return await _apiClient.getOrders(
+        pageSize: request.pageSize,
+        currentPage: request.currentPage,
+        kioskMachineId: request.kioskMachineId,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<CreateOrderResponse> createOrderStatus(CreateOrderRequest request) async {
+    try {
+      return await _apiClient.createOrder(
+        body: request.toJson(),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<UpdateOrderResponse> updateOrderStatus(int orderId, UpdateOrderRequest request) async {
+    try {
+      return await _apiClient.updateOrder(
+        orderId: orderId,
+        body: request.toJson(),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<CreatePrintResponse> createPrintStatus({
+    required CreatePrintRequest request,
+  }) async {
+    try {
+      return await _apiClient.createPrint(body: request.toJson());
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<UpdatePrintResponse> updatePrintStatus({
+    required int printedPhotoCardId,
+    required UpdatePrintRequest request,
+  }) async {
+    try {
+      return await _apiClient.updatePrint(
+        printedPhotoCardId: printedPhotoCardId,
+        body: request.toJson(),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Future<void> updatePrintLog({
+  //   required PrinterLog request,
+  // }) async {
+  //   try {
+  //     final cardCount = _ref.read(cardCountProvider);
+
+  //     await _apiClient.updatePrintLog(
+  //       body: {
+  //         ...request.toJson(),
+  //         'remainingSingleSidedCount': cardCount.remainingSingleSidedCount,
+  //       },
+  //     );
+  //   } catch (e) {
+  //     rethrow;
+  //   }
+  // }
+
+  Future<void> endKioskApplication({
+    required int kioskEventId,
+    required int machineId,
+    required String remainingSingleSidedCount,
+  }) async {
+    try {
+      await _apiClient.endKioskApplication(
+          kioskEventId: kioskEventId, machineId: machineId, remainingSingleSidedCount: remainingSingleSidedCount);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deleteEndMark({
+    required int kioskEventId,
+    required int machineId,
+    required String remainingSingleSidedCount,
+  }) async {
+    try {
+      await _apiClient.deleteEndMark(
+          kioskEventId: kioskEventId, machineId: machineId, remainingSingleSidedCount: remainingSingleSidedCount);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> checkKioskAlive({
+    required int kioskEventId,
+    required int machineId,
+    required String remainingSingleSidedCount,
+  }) async {
+    try {
+      await _apiClient.checkKioskAlive(
+          kioskEventId: kioskEventId, machineId: machineId, remainingSingleSidedCount: remainingSingleSidedCount);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> createUniqueKeyHistory({required UniqueKeyRequest request}) async {
+    try {
+      await _apiClient.createUniqueKeyHistory(body: request.toJson());
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<BackPhotoCardResponse> getBackPhotoCardByQr(GetBackPhotoByQrRequest request) async {
+    try {
+      return await _apiClient.getBackPhotoCardByQr(
+        body: request.toJson(),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+}
