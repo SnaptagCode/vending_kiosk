@@ -33,8 +33,6 @@ jobs:
           if (-Not (Test-Path $envFilePath)) {
             "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }}" | Out-File -FilePath $envFilePath -Encoding utf8
             "SLACK_WEBHOOK_ERROR_LOG_URL=${{ secrets.SLACK_WEBHOOK_ERROR_LOG_URL }}" | Add-Content -Path $envFilePath
-            "SLACK_WEBHOOK_RIBBON_FILM_WARN_URL=${{ secrets.SLACK_WEBHOOK_RIBBON_FILM_WARN_URL }}" | Add-Content -Path $envFilePath
-            "SLACK_WEBHOOK_WARNING_URL=${{ secrets.SLACK_WEBHOOK_WARNING_URL }}" | Add-Content -Path $envFilePath
             "SLACK_WEBHOOK_BROADCAST_URL=${{ secrets.SLACK_WEBHOOK_BROADCAST_URL }}" | Add-Content -Path $envFilePath
           }
       - name: Generate Windows Icon
