@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'package:flutter_snaptag_kiosk/core/common/logger/slack_log_service.dart';
-import 'package:flutter_snaptag_kiosk/core/data/models/response/kiosk_machine_info.dart';
-import 'package:flutter_snaptag_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
-import 'package:flutter_snaptag_kiosk/presentation/core/card_count_provider.dart';
-import 'package:flutter_snaptag_kiosk/presentation/setup/front_photo_list.dart';
-import 'package:flutter_snaptag_kiosk/presentation/setup/uuid_provider.dart';
+import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
+import 'package:vending_kiosk/core/data/models/response/kiosk_machine_info.dart';
+import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
+import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
+import 'package:vending_kiosk/presentation/setup/front_photo_list.dart';
+import 'package:vending_kiosk/presentation/setup/uuid_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'kiosk_info_service.g.dart';

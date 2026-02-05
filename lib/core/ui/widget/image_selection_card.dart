@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_snaptag_kiosk/core/common/extensions/build_context.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/theme/kiosk_colors.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
+import 'package:vending_kiosk/core/common/extensions/build_context.dart';
+import 'package:vending_kiosk/core/ui/theme/kiosk_colors.dart';
+import 'package:vending_kiosk/lib.dart';
 
 /// 이미지 선택 카드 위젯
 /// 헤더, 로고, 버튼을 포함한 전체 카드 레이아웃

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_snaptag_kiosk/core/common/extensions/build_context.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/theme/kiosk_colors.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
+import 'package:vending_kiosk/core/common/extensions/build_context.dart';
+import 'package:vending_kiosk/core/ui/theme/kiosk_colors.dart';
+import 'package:vending_kiosk/lib.dart';
 
 class KioskColorsWidget extends ConsumerWidget {
   const KioskColorsWidget({super.key});

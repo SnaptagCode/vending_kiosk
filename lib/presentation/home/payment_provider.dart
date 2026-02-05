@@ -1,5 +1,5 @@
-import 'package:flutter_snaptag_kiosk/core/data/repositories/payment_repository.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/payment_response.dart';
+import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
+import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'payment_provider.g.dart';

@@ -3,9 +3,9 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart' as dio show Dio, Options, ResponseType, Response;
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter_snaptag_kiosk/core/common/constants/directory_paths.dart';
-import 'package:flutter_snaptag_kiosk/core/common/errors/store_exception.dart';
-import 'package:flutter_snaptag_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/core/common/constants/directory_paths.dart';
+import 'package:vending_kiosk/core/common/errors/store_exception.dart';
+import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:path/path.dart' as path;
 
 class ImageHelper {

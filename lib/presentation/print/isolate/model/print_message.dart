@@ -1,4 +1,4 @@
-import 'package:flutter_snaptag_kiosk/presentation/print/isolate/print_path.dart';
+import 'package:vending_kiosk/presentation/print/isolate/print_path.dart';
 
 class PrintMessage {
   PrintImageBuffer printPath;

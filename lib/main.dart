@@ -7,10 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_snaptag_kiosk/app.dart';
-import 'package:flutter_snaptag_kiosk/core/common/logger/slack_log_service.dart';
-import 'package:flutter_snaptag_kiosk/flavors.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
+import 'package:vending_kiosk/app.dart';
+import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
+import 'package:vending_kiosk/flavors.dart';
+import 'package:vending_kiosk/lib.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main() async {
@@ -23,6 +23,9 @@ void main() async {
   }
   await dotenv.load(fileName: "assets/.env");
   final slackCall = SlackLogService();
+
+  // Preserve default FlutterError behavior so debug console shows root causes.
+  final FlutterExceptionHandler? originalOnError = FlutterError.onError;
   // Zone으로 감싸서 모든 비동기 에러도 캐치
   runZonedGuarded(
     () async {
@@ -35,7 +38,26 @@ void main() async {
 
       // ✅ FlutterError 로그 자동 감지
       FlutterError.onError = (FlutterErrorDetails details) {
+        // Keep default error presentation in debug (so you can see *why* debugger paused).
+        if (kDebugMode) {
+          if (originalOnError != null) {
+            originalOnError(details);
+          } else {
+            FlutterError.presentError(details);
+          }
+        }
         slackCall.sendLogToSlack("[FLUTTER ERROR] ${details.exceptionAsString()}");
+      };
+
+      // Catches errors not routed through FlutterError (e.g. platform dispatcher).
+      PlatformDispatcher.instance.onError = (error, stack) {
+        if (kDebugMode) {
+          FlutterError.dumpErrorToConsole(
+            FlutterErrorDetails(exception: error, stack: stack),
+          );
+        }
+        slackCall.sendLogToSlack("[DISPATCHER ERROR] $error\nStackTrace: $stack");
+        return true;
       };
 
       await EasyLocalization.ensureInitialized();

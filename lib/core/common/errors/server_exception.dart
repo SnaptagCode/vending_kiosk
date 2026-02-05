@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/server_error.dart';
+import 'package:vending_kiosk/core/data/models/response/server_error.dart';
 
 class ServerException extends DioException {
   final ServerError serverError;

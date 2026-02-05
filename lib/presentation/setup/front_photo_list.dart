@@ -2,17 +2,17 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart' as dio;
-import 'package:flutter_snaptag_kiosk/core/common/constants/directory_paths.dart';
-import 'package:flutter_snaptag_kiosk/core/common/errors/store_exception.dart';
-import 'package:flutter_snaptag_kiosk/core/common/image/image_helper.dart';
-import 'package:flutter_snaptag_kiosk/core/common/logger/logger_service.dart';
-import 'package:flutter_snaptag_kiosk/core/common/random/random_photo_util.dart';
-import 'package:flutter_snaptag_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:flutter_snaptag_kiosk/core/datasources/local/file_system_service.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/nominated_photo.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/nominated_photo_list.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
-import 'package:flutter_snaptag_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
+import 'package:vending_kiosk/core/common/constants/directory_paths.dart';
+import 'package:vending_kiosk/core/common/errors/store_exception.dart';
+import 'package:vending_kiosk/core/common/image/image_helper.dart';
+import 'package:vending_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/core/common/random/random_photo_util.dart';
+import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
+import 'package:vending_kiosk/core/datasources/local/file_system_service.dart';
+import 'package:vending_kiosk/core/data/models/response/nominated_photo.dart';
+import 'package:vending_kiosk/core/data/models/response/nominated_photo_list.dart';
+import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'front_photo_list.g.dart';

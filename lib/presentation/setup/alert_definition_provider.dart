@@ -1,6 +1,5 @@
-import 'package:flutter_snaptag_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/alert_definition_response.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
+import 'package:vending_kiosk/core/data/models/response/alert_definition_response.dart';
+import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:collection/collection.dart';
 

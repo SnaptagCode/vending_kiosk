@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_snaptag_kiosk/core/common/constants/alert_key.dart';
-import 'package:flutter_snaptag_kiosk/core/common/constants/image_paths.dart';
-import 'package:flutter_snaptag_kiosk/core/common/logger/slack_log_service.dart';
-import 'package:flutter_snaptag_kiosk/core/data/models/response/kiosk_machine_info.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/enums/keypad_mode.dart';
-import 'package:flutter_snaptag_kiosk/flavors.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/widget/dialog_helper.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/widget/kiosk_info_widget.dart';
-import 'package:flutter_snaptag_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
+import 'package:vending_kiosk/core/common/constants/alert_key.dart';
+import 'package:vending_kiosk/core/common/constants/image_paths.dart';
+import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
+import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
+import 'package:vending_kiosk/core/data/models/response/kiosk_machine_info.dart';
+import 'package:vending_kiosk/flavors.dart';
+import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
+import 'package:vending_kiosk/core/ui/widget/kiosk_info_widget.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class KioskInfoScreen extends ConsumerWidget {
@@ -27,7 +27,7 @@ class KioskInfoScreen extends ConsumerWidget {
           padding: EdgeInsets.only(left: 30.w),
           icon: SvgPicture.asset(SnaptagSvg.arrowBack),
           onPressed: () async {
-            final result = await DialogHelper.showKioskDialog(
+            final result = await DialogHelper.showSetupDialog(
               context,
               title: '메인페이지로 이동합니다.',
             );
@@ -47,7 +47,7 @@ class KioskInfoScreen extends ConsumerWidget {
 
               if (value == null || value.isEmpty) return; // 값이 없으면 종료
 
-              final result = await DialogHelper.showKioskDialog(context, title: '최신 이벤트로 새로고침 됩니다.');
+              final result = await DialogHelper.showSetupDialog(context, title: '최신 이벤트로 새로고침 됩니다.');
               if (result == true) {
                 await ref.read(kioskInfoServiceProvider.notifier).refreshWithMachineId(int.parse(value));
                 SlackLogService().sendBroadcastLogToSlack(InfoKey.inspectionStart.key);

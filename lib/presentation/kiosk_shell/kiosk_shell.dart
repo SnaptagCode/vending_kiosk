@@ -3,13 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_snaptag_kiosk/core/common/logger/slack_log_service.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/widget/back_button.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/widget/kiosk_navigator_button.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/widget/printer_status_badge.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/widget/triple_tap_fab.dart';
-import 'package:flutter_snaptag_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
+import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
+import 'package:vending_kiosk/core/ui/widget/back_button.dart';
+import 'package:vending_kiosk/core/ui/widget/kiosk_navigator_button.dart';
+import 'package:vending_kiosk/core/ui/widget/printer_status_badge.dart';
+import 'package:vending_kiosk/core/ui/widget/triple_tap_fab.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:loader_overlay/loader_overlay.dart';
 
 class KioskShell extends ConsumerStatefulWidget {
@@ -103,12 +102,11 @@ class _KioskShellState extends ConsumerState<KioskShell> {
                           ),
                         ),
                         Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              widget.child,
-                            ],
-                          ),
+                          // IMPORTANT:
+                          // `Column` gives non-flex children an unbounded height (maxHeight = infinity).
+                          // When `widget.child` is a `Navigator`/`Scaffold`, that can crash with:
+                          // "RenderCustomMultiChildLayoutBox was given an infinite size during layout."
+                          child: SizedBox.expand(child: widget.child),
                         ),
                       ],
                     ),

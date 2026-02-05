@@ -6,30 +6,30 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_snaptag_kiosk/core/common/constants/alert_key.dart';
-import 'package:flutter_snaptag_kiosk/core/common/constants/image_paths.dart';
-import 'package:flutter_snaptag_kiosk/core/common/extensions/build_context.dart';
-import 'package:flutter_snaptag_kiosk/core/common/logger/slack_log_service.dart';
-import 'package:flutter_snaptag_kiosk/core/common/sound/sound_manager.dart';
-import 'package:flutter_snaptag_kiosk/core/data/models/request/unique_key_request.dart';
-import 'package:flutter_snaptag_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:flutter_snaptag_kiosk/core/data/repositories/payment_repository.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/enums/keypad_mode.dart';
-import 'package:flutter_snaptag_kiosk/flavors.dart';
-import 'package:flutter_snaptag_kiosk/locale_keys.dart';
-import 'package:flutter_snaptag_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
-import 'package:flutter_snaptag_kiosk/presentation/core/card_count_provider.dart';
-import 'package:flutter_snaptag_kiosk/presentation/print/state/printer_connect_state.dart';
-import 'package:flutter_snaptag_kiosk/presentation/routers/router.dart';
-import 'package:flutter_snaptag_kiosk/presentation/setup/page_print_provider.dart';
-import 'package:flutter_snaptag_kiosk/presentation/setup/uuid_provider.dart';
-import 'package:flutter_snaptag_kiosk/presentation/setup/alert_definition_provider.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/widget/dialog_helper.dart';
+import 'package:vending_kiosk/core/common/constants/alert_key.dart';
+import 'package:vending_kiosk/core/common/constants/image_paths.dart';
+import 'package:vending_kiosk/core/common/extensions/build_context.dart';
+import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
+import 'package:vending_kiosk/core/common/sound/sound_manager.dart';
+import 'package:vending_kiosk/core/data/models/request/unique_key_request.dart';
+import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
+import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
+import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
+import 'package:vending_kiosk/flavors.dart';
+import 'package:vending_kiosk/locale_keys.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
+import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
+import 'package:vending_kiosk/presentation/print/state/printer_connect_state.dart';
+import 'package:vending_kiosk/presentation/routers/router.dart';
+import 'package:vending_kiosk/presentation/setup/page_print_provider.dart';
+import 'package:vending_kiosk/presentation/setup/uuid_provider.dart';
+import 'package:vending_kiosk/presentation/setup/alert_definition_provider.dart';
+import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:flutter_snaptag_kiosk/core/providers/version_notifier.dart';
-import 'package:flutter_snaptag_kiosk/core/common/launcher/launcher_service.dart';
-import 'package:flutter_snaptag_kiosk/core/data/datasources/local/id_writer.dart';
+import 'package:vending_kiosk/core/providers/version_notifier.dart';
+import 'package:vending_kiosk/core/common/launcher/launcher_service.dart';
+import 'package:vending_kiosk/core/data/datasources/local/id_writer.dart';
 
 class SetupMainScreen extends ConsumerStatefulWidget {
   const SetupMainScreen({super.key});
@@ -42,37 +42,6 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
   Timer? _timer;
 
   @override
-  void initState() {
-    super.initState();
-
-    // _timer = Timer.periodic(Duration(seconds: 2), (timer) async {
-    //   final connected = await ref.read(printerServiceProvider.notifier).connectedPrinter();
-    //   if (connected) {
-    //     final settingCompleted = await ref.read(printerServiceProvider.notifier).checkSettingPrinter();
-    //     if (mounted) {
-    //       setState(() {
-    //         ref.read(printerConnectProvider.notifier).update(
-    //               connected && settingCompleted
-    //                   ? PrinterConnectState.connected
-    //                   : settingCompleted
-    //                       ? PrinterConnectState.connected
-    //                       : PrinterConnectState.setupInComplete,
-    //             );
-    //       });
-    //     } else {
-    //       ref.read(printerConnectProvider.notifier).update(PrinterConnectState.disconnected);
-    //     }
-    //   } else {
-    //     if (mounted) {
-    //       setState(() {
-    //         ref.read(printerConnectProvider.notifier).update(PrinterConnectState.disconnected);
-    //       });
-    //     }
-    //   }
-    // });
-  }
-
-  @override
   void dispose() {
     _timer?.cancel();
     super.dispose();
@@ -80,10 +49,6 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
 
   Future<void> _onRunEventTap(BuildContext context) async {
     await SoundManager().playSound();
-
-    final isReady = await _validatePrinterReadyAndShowDialogs(context);
-
-    if (!isReady) return;
 
     final kioskInfo = ref.read(kioskInfoServiceProvider);
 
@@ -94,7 +59,7 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
           kioskInfo?.kioskEventId == null ||
           kioskInfo?.kioskMachineId == 0 ||
           kioskInfo?.kioskMachineId == null) {
-        await DialogHelper.showKioskDialog(
+        await DialogHelper.showSetupDialog(
           context,
           title: LocaleKeys.alert_title_empty_event.tr(),
         );
@@ -104,33 +69,34 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
 
     await _writePhotocodeMeta();
 
-    final confirmed = await DialogHelper.showKioskDialog(
+    final confirmed = await DialogHelper.showSetupDialog(
       context,
       title: '이벤트를 실행합니다.',
+      showCancelButton: true,
     );
     if (!confirmed) return;
 
     await _startEventFlow(context);
   }
 
-  Future<bool> _validatePrinterReadyAndShowDialogs(BuildContext context) async {
-    // final connected = await ref.read(printerServiceProvider.notifier).connectedPrinter();
-    // final settingPrinter = await ref.read(printerServiceProvider.notifier).checkSettingPrinter();
-    // if (!connected) {
-    //   await DialogHelper.showKioskDialog(
-    //     context,
-    //     title: '프린트가 준비중입니다.',
-    //   );
-    //   return false;
-    // }
-    // if (!settingPrinter) {
-    //   await DialogHelper.showKioskDialog(
-    //     context,
-    //     title: '프린트 기기 상태를 확인해주세요.',
-    //   );
-    //   return false;
-    // }
-    return true;
+  Future<bool> _checkPaymentDevice() async {
+    try {
+      final response = await ref.read(paymentRepositoryProvider).check();
+      SlackLogService().sendInspectionEndBroadcastLogToSlack(InfoKey.inspectionEnd.key, isPaymentOn: true);
+      SlackLogService().sendLogToSlack("Payment Device check: $response");
+
+      return true;
+    } catch (e) {
+      SlackLogService().sendInspectionEndBroadcastLogToSlack(InfoKey.inspectionEnd.key, isPaymentOn: false);
+      SlackLogService().sendErrorLogToSlack("Payment Device check: $e");
+
+      DialogHelper.showSetupDialog(
+        context,
+        title: '리더기 점검',
+        content: '리더기 응답이 없습니다.\n연결 상태를 확인한 뒤 다시 시도해 주세요.',
+      );
+      return false;
+    }
   }
 
   Future<void> _writePhotocodeMeta() async {
@@ -188,15 +154,6 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
     }
 
     HomeRouteData().go(context);
-
-    try {
-      final response = await ref.read(paymentRepositoryProvider).check();
-      SlackLogService().sendInspectionEndBroadcastLogToSlack(InfoKey.inspectionEnd.key, isPaymentOn: true);
-      SlackLogService().sendLogToSlack("Payment Device check: $response");
-    } catch (e) {
-      SlackLogService().sendInspectionEndBroadcastLogToSlack(InfoKey.inspectionEnd.key, isPaymentOn: false);
-      SlackLogService().sendErrorLogToSlack("Payment Device check: $e");
-    }
   }
 
   @override
@@ -229,9 +186,10 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
           actions: [
             InkWell(
               onTap: () async {
-                final result = await DialogHelper.showKioskDialog(
+                final result = await DialogHelper.showSetupDialog(
                   context,
                   title: '프로그램을 종료합니다.',
+                  showCancelButton: true,
                 );
                 if (result) {
                   await ref.read(kioskRepositoryProvider).endKioskApplication(

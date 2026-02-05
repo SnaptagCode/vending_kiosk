@@ -1,4 +1,5 @@
-import 'package:flutter_snaptag_kiosk/core/data/models/enums/enums.dart';
+import 'package:vending_kiosk/core/data/models/enums/order_status.dart';
+import 'package:vending_kiosk/core/data/models/enums/printed_status.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'order_entity.freezed.dart';

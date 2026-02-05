@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_snaptag_kiosk/core/providers/network_status_provider.dart';
+import 'package:vending_kiosk/core/providers/network_status_provider.dart';
 
 /// 네트워크 연결 상태를 표시하는 배지 위젯
 class NetworkStatusBadge extends ConsumerWidget {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/theme/kiosk_colors.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/theme/kiosk_typography.dart';
+import 'package:vending_kiosk/core/ui/theme/kiosk_colors.dart';
+import 'package:vending_kiosk/core/ui/theme/kiosk_typography.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'theme_provider.g.dart';

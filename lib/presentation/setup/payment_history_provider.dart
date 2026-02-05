@@ -1,9 +1,9 @@
-import 'package:flutter_snaptag_kiosk/core/common/logger/logger_service.dart';
-import 'package:flutter_snaptag_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/request/get_orders_request.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/order_list_response.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
-import 'package:flutter_snaptag_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
+import 'package:vending_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/core/data/models/request/get_orders_request.dart';
+import 'package:vending_kiosk/core/data/models/response/order_list_response.dart';
+import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
+import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 

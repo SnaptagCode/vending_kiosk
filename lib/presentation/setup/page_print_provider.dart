@@ -1,8 +1,8 @@
-import 'package:flutter_snaptag_kiosk/core/common/constants/alert_key.dart';
-import 'package:flutter_snaptag_kiosk/core/common/logger/slack_log_service.dart';
-import 'package:flutter_snaptag_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
+import 'package:vending_kiosk/core/common/constants/alert_key.dart';
+import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
+import 'package:vending_kiosk/lib.dart';
 
 part 'page_print_provider.g.dart';
 

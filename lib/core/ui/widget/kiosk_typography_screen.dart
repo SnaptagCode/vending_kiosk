@@ -1,7 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_snaptag_kiosk/core/common/extensions/build_context.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/theme/kiosk_typography.dart';
+import 'package:vending_kiosk/core/common/extensions/build_context.dart';
+import 'package:vending_kiosk/core/ui/theme/kiosk_typography.dart';
 
 class KioskTypographyWidget extends StatelessWidget {
   const KioskTypographyWidget({super.key});

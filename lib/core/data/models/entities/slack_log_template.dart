@@ -1,4 +1,4 @@
-import 'package:flutter_snaptag_kiosk/core/data/models/response/kiosk_machine_info.dart';
+import 'package:vending_kiosk/core/data/models/response/kiosk_machine_info.dart';
 
 class SlackLogTemplate {
   final String key;

@@ -2,14 +2,14 @@
 import 'dart:io';
 
 // Utf8 사용을 위한 임포트
-import 'package:flutter_snaptag_kiosk/presentation/core/card_count_provider.dart';
-import 'package:flutter_snaptag_kiosk/presentation/core/printer_log_provider.dart';
-import 'package:flutter_snaptag_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
-import 'package:flutter_snaptag_kiosk/core/data/datasources/remote/slack_log_service.dart';
-import 'package:flutter_snaptag_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:flutter_snaptag_kiosk/presentation/print/isolate/printer_manager.dart';
-import 'package:flutter_snaptag_kiosk/presentation/print/state/printer_log.dart';
-import 'package:flutter_snaptag_kiosk/presentation/print/state/ribbon_status.dart';
+import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
+import 'package:vending_kiosk/presentation/core/printer_log_provider.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
+import 'package:vending_kiosk/core/data/datasources/remote/slack_log_service.dart';
+import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
+import 'package:vending_kiosk/presentation/print/isolate/printer_manager.dart';
+import 'package:vending_kiosk/presentation/print/state/printer_log.dart';
+import 'package:vending_kiosk/presentation/print/state/ribbon_status.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'card_printer.g.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter_snaptag_kiosk/core/data/models/response/error_response.dart';
+import 'package:vending_kiosk/core/data/models/response/error_response.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'server_error.freezed.dart';

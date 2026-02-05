@@ -1,4 +1,4 @@
-import 'package:flutter_snaptag_kiosk/core/data/models/response/nominated_back_photo_card.dart';
+import 'package:vending_kiosk/core/data/models/response/nominated_back_photo_card.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'event_video.dart';

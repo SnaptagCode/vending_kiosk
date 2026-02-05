@@ -1,9 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_snaptag_kiosk/core/common/errors/server_exception.dart';
-import 'package:flutter_snaptag_kiosk/core/common/extensions/build_context.dart';
-import 'package:flutter_snaptag_kiosk/core/common/logger/logger_service.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
+import 'package:vending_kiosk/core/common/errors/server_exception.dart';
+import 'package:vending_kiosk/core/common/extensions/build_context.dart';
+import 'package:vending_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/lib.dart';
 
 class GeneralErrorWidget extends StatelessWidget {
   const GeneralErrorWidget({

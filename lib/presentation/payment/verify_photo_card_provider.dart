@@ -1,8 +1,8 @@
-import 'package:flutter_snaptag_kiosk/core/common/logger/logger_service.dart';
-import 'package:flutter_snaptag_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/back_photo_card_response.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
-import 'package:flutter_snaptag_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
+import 'package:vending_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/core/data/models/response/back_photo_card_response.dart';
+import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
+import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'verify_photo_card_provider.g.dart';

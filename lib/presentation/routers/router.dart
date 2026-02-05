@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_snaptag_kiosk/global_shell.dart';
-import 'package:flutter_snaptag_kiosk/presentation/setup/kiosk_info_screen.dart';
-import 'package:flutter_snaptag_kiosk/presentation/kiosk_shell/kiosk_shell.dart';
-import 'package:flutter_snaptag_kiosk/presentation/setup/maintenance_screen.dart';
-import 'package:flutter_snaptag_kiosk/presentation/home/home_screen.dart';
-import 'package:flutter_snaptag_kiosk/presentation/setup/payment_history_screen.dart';
-import 'package:flutter_snaptag_kiosk/presentation/setup/setup_main_screen.dart';
-import 'package:flutter_snaptag_kiosk/presentation/print/print_process_screen.dart';
+import 'package:vending_kiosk/global_shell.dart';
+import 'package:vending_kiosk/presentation/setup/kiosk_info_screen.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_shell.dart';
+import 'package:vending_kiosk/presentation/setup/maintenance_screen.dart';
+import 'package:vending_kiosk/presentation/home/home_screen.dart';
+import 'package:vending_kiosk/presentation/setup/payment_history_screen.dart';
+import 'package:vending_kiosk/presentation/setup/setup_main_screen.dart';
+import 'package:vending_kiosk/presentation/print/print_process_screen.dart';
 import 'package:go_router/go_router.dart';
 
 part 'router.g.dart';

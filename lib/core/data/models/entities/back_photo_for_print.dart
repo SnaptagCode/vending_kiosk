@@ -1,4 +1,4 @@
-import 'package:flutter_snaptag_kiosk/core/data/data.dart';
+import 'package:vending_kiosk/core/data/models/enums/printed_status.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'back_photo_for_print.freezed.dart';

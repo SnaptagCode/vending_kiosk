@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_snaptag_kiosk/flavors.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
+import 'package:vending_kiosk/flavors.dart';
+import 'package:vending_kiosk/lib.dart';
 
 class FlavorInfoWidget extends StatelessWidget {
   const FlavorInfoWidget({super.key});

@@ -1,5 +1,5 @@
-import 'package:flutter_snaptag_kiosk/core/domain/enums/printed_status.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
+import 'package:vending_kiosk/core/data/models/enums/printed_status.dart';
+import 'package:vending_kiosk/lib.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'update_print_request.freezed.dart';

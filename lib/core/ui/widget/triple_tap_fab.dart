@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_snaptag_kiosk/core/common/constants/alert_key.dart';
-import 'package:flutter_snaptag_kiosk/core/common/extensions/build_context.dart';
-import 'package:flutter_snaptag_kiosk/core/common/logger/slack_log_service.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/enums/keypad_mode.dart';
-import 'package:flutter_snaptag_kiosk/flavors.dart';
-import 'package:flutter_snaptag_kiosk/presentation/home/triple_tap_state.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/widget/dialog_helper.dart';
-import 'package:flutter_snaptag_kiosk/presentation/routers/router.dart';
+import 'package:vending_kiosk/core/common/constants/alert_key.dart';
+import 'package:vending_kiosk/core/common/extensions/build_context.dart';
+import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
+import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
+import 'package:vending_kiosk/flavors.dart';
+import 'package:vending_kiosk/presentation/home/triple_tap_state.dart';
+import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
+import 'package:vending_kiosk/presentation/routers/router.dart';
 import 'package:intl/intl.dart';
 
 class TripleTapFloatingButton extends ConsumerWidget {

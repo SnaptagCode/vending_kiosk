@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_snaptag_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 

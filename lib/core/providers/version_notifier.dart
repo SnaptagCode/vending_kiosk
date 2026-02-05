@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_snaptag_kiosk/core/providers/version_repository.dart';
+import 'package:vending_kiosk/core/providers/version_repository.dart';
 
 final versionRepositoryProvider = Provider((ref) => VersionRepository());
 

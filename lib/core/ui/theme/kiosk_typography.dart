@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/theme/kiosk_colors.dart';
+import 'package:vending_kiosk/core/ui/theme/kiosk_colors.dart';
 
 class KioskTypography extends ThemeExtension<KioskTypography> {
   const KioskTypography({

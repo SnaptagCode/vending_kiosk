@@ -1,4 +1,5 @@
-import 'package:flutter_snaptag_kiosk/core/data/data.dart';
+import 'package:vending_kiosk/core/data/models/enums/order_status.dart';
+import 'package:vending_kiosk/core/data/models/enums/payment_type.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'update_order_response.freezed.dart';

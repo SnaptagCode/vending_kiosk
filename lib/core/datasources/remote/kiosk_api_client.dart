@@ -1,15 +1,15 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/alert_definition_response.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/back_photo_card_response.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/back_photo_status_response.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/create_order_response.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/create_print_response.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/kiosk_machine_info.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/nominated_photo_list.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/order_list_response.dart' show OrderListResponse;
-import 'package:flutter_snaptag_kiosk/core/domain/response/update_order_response.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/update_print_response.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
+import 'package:vending_kiosk/core/data/models/response/alert_definition_response.dart';
+import 'package:vending_kiosk/core/data/models/response/back_photo_card_response.dart';
+import 'package:vending_kiosk/core/data/models/response/back_photo_status_response.dart';
+import 'package:vending_kiosk/core/data/models/response/create_order_response.dart';
+import 'package:vending_kiosk/core/data/models/response/create_print_response.dart';
+import 'package:vending_kiosk/core/data/models/response/kiosk_machine_info.dart';
+import 'package:vending_kiosk/core/data/models/response/nominated_photo_list.dart';
+import 'package:vending_kiosk/core/data/models/response/order_list_response.dart' show OrderListResponse;
+import 'package:vending_kiosk/core/data/models/response/update_order_response.dart';
+import 'package:vending_kiosk/core/data/models/response/update_print_response.dart';
+import 'package:vending_kiosk/lib.dart';
 import 'package:retrofit/retrofit.dart';
 
 part 'kiosk_api_client.g.dart';

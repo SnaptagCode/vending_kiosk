@@ -2,12 +2,16 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_snaptag_kiosk/core/common/extensions/build_context.dart';
-import 'package:flutter_snaptag_kiosk/locale_keys.dart';
-import 'package:flutter_snaptag_kiosk/presentation/home/payment_provider.dart';
-import 'package:flutter_snaptag_kiosk/presentation/home/quantity_provider.dart';
-import 'package:flutter_snaptag_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
-import 'package:flutter_snaptag_kiosk/presentation/routers/router.dart';
+import 'package:vending_kiosk/core/common/extensions/build_context.dart';
+import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
+import 'package:vending_kiosk/locale_keys.dart';
+import 'package:vending_kiosk/presentation/home/payment_provider.dart';
+import 'package:vending_kiosk/presentation/home/quantity_provider.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/home_timeout_provider.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
+import 'package:vending_kiosk/presentation/payment/payment_failed_type.dart';
+import 'package:vending_kiosk/presentation/payment/photo_card_preview_screen_provider.dart';
+import 'package:vending_kiosk/presentation/routers/router.dart';
 import 'package:loader_overlay/loader_overlay.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -39,11 +43,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final totalPrice = unitPrice * quantity;
     final formattedPrice = NumberFormat.currency(locale: 'ko_KR', symbol: '').format(totalPrice);
 
-    // 결제 상태 리스너
-    ref.listen<AsyncValue<dynamic>>(
-      paymentNotifierProvider,
-      (previous, next) {
-        // 로딩 처리
+    ref.listen<AsyncValue<void>>(
+      photoCardPreviewScreenProviderProvider,
+      (previous, next) async {
+        final timeoutNotifier = ref.read(homeTimeoutNotifierProvider.notifier);
+
+        // 로딩 상태 처리
         if (next.isLoading) {
           if (mounted) {
             context.loaderOverlay.show();
@@ -51,24 +56,61 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           return;
         }
 
-        // 로딩 숨기기
+        // 로딩 오버레이 숨기기
         if (mounted && context.loaderOverlay.visible) {
           context.loaderOverlay.hide();
         }
 
-        // 결제 성공/실패 처리
-        next.when(
-          data: (response) {
-            if (response != null) {
-              // 결제 성공 - 프린트 화면으로 이동
-              PrintProcessRouteData().go(context);
+        // 에러/성공 처리
+        await next.when(
+          error: (error, stack) async {
+            if (mounted) {
+              timeoutNotifier.resumeTimer();
             }
+
+            if (error is PaymentFailedException) {
+              if (error is TimeoutPaymentException) {
+                await DialogHelper.showTimeoutPaymentDialog(
+                  context,
+                );
+                return;
+              }
+              if (error.description?.contains('한도') ?? false) {
+                await DialogHelper.showCardLimitExceededDialog(
+                  context,
+                );
+                return;
+              }
+              if (error.description?.contains('잔액') ?? false) {
+                await DialogHelper.showInsufficientBalanceDialog(
+                  context,
+                );
+                return;
+              }
+              if (error.description?.contains('인증') ?? false) {
+                await DialogHelper.showVerificationErrorDialog(
+                  context,
+                );
+                return;
+              }
+              if (error.description?.contains('가맹점') ?? false) {
+                await DialogHelper.showMerchantRestrictionDialog(
+                  context,
+                );
+                return;
+              }
+            }
+
+            await DialogHelper.showPurchaseFailedDialog(
+              context,
+            );
+            return;
           },
-          error: (error, stack) {
-            // 결제 실패 다이얼로그
-            _showErrorDialog(context, error.toString());
+          loading: () => null,
+          data: (_) async {
+            // 결제 성공 시 출력 화면으로 이동
+            PrintProcessRouteData().go(context);
           },
-          loading: () {},
         );
       },
     );
@@ -81,9 +123,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ? Color(int.parse(kiosk!.buttonTextColor.replaceFirst('#', '0xff')))
         : Colors.white;
 
-    final mainTextColor = kiosk?.mainTextColor != null
-        ? Color(int.parse(kiosk!.mainTextColor.replaceFirst('#', '0xff')))
-        : Colors.white;
+    final mainTextColor =
+        kiosk?.mainTextColor != null ? Color(int.parse(kiosk!.mainTextColor.replaceFirst('#', '0xff'))) : Colors.white;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -220,8 +261,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             GestureDetector(
               onTap: paymentState.isLoading
                   ? null
-                  : () {
-                      ref.read(paymentNotifierProvider.notifier).processPayment(totalPrice);
+                  : () async {
+                      await ref.read(photoCardPreviewScreenProviderProvider.notifier).payment();
                     },
               child: Container(
                 width: 600.w,

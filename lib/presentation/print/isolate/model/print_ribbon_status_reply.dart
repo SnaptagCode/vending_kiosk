@@ -1,5 +1,4 @@
-
-import 'package:flutter_snaptag_kiosk/presentation/print/state/ribbon_status.dart';
+import 'package:vending_kiosk/presentation/print/state/ribbon_status.dart';
 
 class PrintRibbonStatusReply {
   RibbonStatus? ribbonStatus;

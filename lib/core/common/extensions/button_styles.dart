@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_snaptag_kiosk/core/common/extensions/extensions.dart';
+import 'package:vending_kiosk/core/common/extensions/extensions.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 extension ButtonStyles on BuildContext {

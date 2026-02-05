@@ -1,12 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_snaptag_kiosk/core/data/datasources/remote/payment_api_client.dart';
-import 'package:flutter_snaptag_kiosk/core/data/models/request/kscat_device_request.dart';
-import 'package:flutter_snaptag_kiosk/core/data/models/response/kscat_device_response.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/entities/invoice.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/request/payment_request.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/payment_response.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
-import 'package:flutter_snaptag_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
+import 'package:vending_kiosk/core/data/datasources/remote/payment_api_client.dart';
+import 'package:vending_kiosk/core/data/models/request/kscat_device_request.dart';
+import 'package:vending_kiosk/core/data/models/response/kscat_device_response.dart';
+import 'package:vending_kiosk/core/data/models/request/payment_request.dart';
+import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
+import 'package:vending_kiosk/core/domain/entities/invoice.dart';
+import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'payment_repository.g.dart';

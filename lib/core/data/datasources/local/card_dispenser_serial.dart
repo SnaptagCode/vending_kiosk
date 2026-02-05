@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'package:flutter_snaptag_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:serial_port_win32/serial_port_win32.dart';
 
 /// 카드 배출기 시리얼 통신 클래스

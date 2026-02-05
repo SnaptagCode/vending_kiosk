@@ -3,11 +3,11 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
-import 'package:flutter_snaptag_kiosk/core/common/constants/directory_paths.dart';
-import 'package:flutter_snaptag_kiosk/core/common/logger/logger_service.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
-import 'package:flutter_snaptag_kiosk/presentation/print/state/printer_status.dart';
-import 'package:flutter_snaptag_kiosk/presentation/print/state/ribbon_status.dart';
+import 'package:vending_kiosk/core/common/constants/directory_paths.dart';
+import 'package:vending_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/presentation/print/state/printer_status.dart';
+import 'package:vending_kiosk/presentation/print/state/ribbon_status.dart';
 import 'package:image/image.dart' as img;
 
 part 'printer_bindings.typedef.dart';

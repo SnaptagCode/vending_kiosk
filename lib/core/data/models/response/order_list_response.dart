@@ -1,5 +1,5 @@
-import 'package:flutter_snaptag_kiosk/core/data/models/entities/order_entity.dart';
-import 'package:flutter_snaptag_kiosk/core/data/models/entities/paging_entity.dart';
+import 'package:vending_kiosk/core/data/models/entities/order_entity.dart';
+import 'package:vending_kiosk/core/data/models/entities/paging_entity.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'order_list_response.freezed.dart';

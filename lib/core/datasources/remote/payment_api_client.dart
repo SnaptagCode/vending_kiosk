@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_snaptag_kiosk/core/common/cp949/cp949_codec.dart';
-import 'package:flutter_snaptag_kiosk/core/common/logger/logger_service.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/kscat_device_response.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/payment_response.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
+import 'package:vending_kiosk/core/common/cp949/cp949_codec.dart';
+import 'package:vending_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/core/data/models/response/kscat_device_response.dart';
+import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
+import 'package:vending_kiosk/lib.dart';
 import 'package:http/http.dart' as http;
 
 class PaymentApiClient {

@@ -1,14 +1,14 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_snaptag_kiosk/core/common/constants/image_paths.dart';
-import 'package:flutter_snaptag_kiosk/core/common/extensions/box_decoration.dart';
-import 'package:flutter_snaptag_kiosk/core/common/extensions/build_context.dart';
-import 'package:flutter_snaptag_kiosk/core/common/extensions/button_styles.dart';
-import 'package:flutter_snaptag_kiosk/core/common/sound/sound_manager.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/enums/keypad_mode.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
-import 'package:flutter_snaptag_kiosk/locale_keys.dart';
+import 'package:vending_kiosk/core/common/constants/image_paths.dart';
+import 'package:vending_kiosk/core/common/extensions/box_decoration.dart';
+import 'package:vending_kiosk/core/common/extensions/build_context.dart';
+import 'package:vending_kiosk/core/common/extensions/button_styles.dart';
+import 'package:vending_kiosk/core/common/sound/sound_manager.dart';
+import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
+import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/locale_keys.dart';
 
 class AuthCodeKeypad extends StatefulWidget {
   const AuthCodeKeypad({

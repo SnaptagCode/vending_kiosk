@@ -1,7 +1,7 @@
 import 'dart:math';
 
-import 'package:flutter_snaptag_kiosk/core/domain/response/nominated_photo.dart';
-import 'package:flutter_snaptag_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/core/data/models/response/nominated_photo.dart';
+import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 
 class RandomPhotoUtil {
   static NominatedPhoto? getRandomPhotoByWeight(List<NominatedPhoto> dataList) {

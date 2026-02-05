@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/kiosk_machine_info.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/nominated_photo.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
-import 'package:flutter_snaptag_kiosk/presentation/setup/front_photo_list.dart';
+import 'package:vending_kiosk/core/data/models/response/kiosk_machine_info.dart';
+import 'package:vending_kiosk/core/data/models/response/nominated_photo.dart';
+import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/presentation/setup/front_photo_list.dart';
 
 class KioskInfoWidget extends ConsumerWidget {
   const KioskInfoWidget({

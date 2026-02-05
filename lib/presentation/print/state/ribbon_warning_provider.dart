@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_snaptag_kiosk/core/common/constants/alert_key.dart';
-import 'package:flutter_snaptag_kiosk/presentation/print/state/ribbon_status.dart';
+import 'package:vending_kiosk/core/common/constants/alert_key.dart';
+import 'package:vending_kiosk/presentation/print/state/ribbon_status.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
-import 'package:flutter_snaptag_kiosk/core/data/datasources/remote/slack_log_service.dart';
+import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/core/data/datasources/remote/slack_log_service.dart';
 
 part 'ribbon_warning_provider.g.dart';
 

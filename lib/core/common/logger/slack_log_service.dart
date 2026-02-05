@@ -1,17 +1,17 @@
 import 'dart:convert';
 import 'dart:developer';
 
-import 'package:flutter_snaptag_kiosk/core/data/models/entities/slack_log_template.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
+import 'package:vending_kiosk/core/data/models/entities/slack_log_template.dart';
+import 'package:vending_kiosk/lib.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_snaptag_kiosk/presentation/core/printer_log_provider.dart';
-import 'package:flutter_snaptag_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
-import 'package:flutter_snaptag_kiosk/presentation/setup/alert_definition_provider.dart';
-import 'package:flutter_snaptag_kiosk/presentation/core/card_count_provider.dart';
+import 'package:vending_kiosk/presentation/core/printer_log_provider.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
+import 'package:vending_kiosk/presentation/setup/alert_definition_provider.dart';
+import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:collection/collection.dart';
-import 'package:flutter_snaptag_kiosk/core/providers/version_notifier.dart';
+import 'package:vending_kiosk/core/providers/version_notifier.dart';
 
 class SlackLogService {
   static final SlackLogService _instance = SlackLogService._internal();

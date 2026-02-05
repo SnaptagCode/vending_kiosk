@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_snaptag_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'home_timeout_provider.g.dart';

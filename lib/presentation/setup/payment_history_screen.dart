@@ -2,17 +2,17 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_snaptag_kiosk/core/common/constants/image_paths.dart';
-import 'package:flutter_snaptag_kiosk/core/common/sound/sound_manager.dart';
-import 'package:flutter_snaptag_kiosk/core/data/models/entities/order_entity.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/enums/order_status.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/enums/printed_status.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
-import 'package:flutter_snaptag_kiosk/presentation/setup/payment_history_provider.dart';
-import 'package:flutter_snaptag_kiosk/presentation/setup/setup_refund_process_provider.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/widget/dialog_helper.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/widget/general_error_widget.dart';
-import 'package:flutter_snaptag_kiosk/presentation/routers/router.dart';
+import 'package:vending_kiosk/core/common/constants/image_paths.dart';
+import 'package:vending_kiosk/core/common/sound/sound_manager.dart';
+import 'package:vending_kiosk/core/data/models/entities/order_entity.dart';
+import 'package:vending_kiosk/core/data/models/enums/order_status.dart';
+import 'package:vending_kiosk/core/data/models/enums/printed_status.dart';
+import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/presentation/setup/payment_history_provider.dart';
+import 'package:vending_kiosk/presentation/setup/setup_refund_process_provider.dart';
+import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
+import 'package:vending_kiosk/core/ui/widget/general_error_widget.dart';
+import 'package:vending_kiosk/presentation/routers/router.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:loader_overlay/loader_overlay.dart';
 
@@ -69,7 +69,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
               padding: EdgeInsets.only(left: 30.w),
               icon: SvgPicture.asset(SnaptagSvg.arrowBack),
               onPressed: () async {
-                final result = await DialogHelper.showKioskDialog(
+                final result = await DialogHelper.showSetupDialog(
                   context,
                   title: '메인페이지로 이동합니다.',
                 );
@@ -320,7 +320,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
               ),
               onPressed: () async {
                 context.loaderOverlay.show();
-                final result1 = await DialogHelper.showKioskDialog(
+                final result1 = await DialogHelper.showSetupDialog(
                   context,
                   title: '환불을 진행합니다.',
                 );
@@ -328,7 +328,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   context.loaderOverlay.hide();
                   return;
                 }
-                final result2 = await DialogHelper.showKioskDialog(
+                final result2 = await DialogHelper.showSetupDialog(
                   context,
                   title: '결제한 카드를 삽입해 주세요.',
                   cancelButtonText: '환불 취소',
@@ -363,7 +363,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
               onPressed: () async {
                 context.loaderOverlay.show();
                 await SoundManager().playSound();
-                final result1 = await DialogHelper.showKioskDialog(
+                final result1 = await DialogHelper.showSetupDialog(
                   context,
                   title: '환불을 진행합니다.',
                 );
@@ -371,7 +371,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   context.loaderOverlay.hide();
                   return;
                 }
-                final result2 = await DialogHelper.showKioskDialog(
+                final result2 = await DialogHelper.showSetupDialog(
                   context,
                   title: '결제한 카드를 삽입해 주세요.',
                   cancelButtonText: '환불 취소',

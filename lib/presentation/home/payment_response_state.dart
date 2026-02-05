@@ -1,7 +1,7 @@
-import 'package:flutter_snaptag_kiosk/core/common/logger/slack_log_service.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/payment_response.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
-import 'package:flutter_snaptag_kiosk/presentation/home/create_order_info_state.dart';
+import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
+import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
+import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/presentation/home/create_order_info_state.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'payment_response_state.g.dart';

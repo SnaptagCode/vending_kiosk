@@ -3,87 +3,219 @@ import 'dart:async';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_snaptag_kiosk/core/common/extensions/build_context.dart';
-import 'package:flutter_snaptag_kiosk/core/common/extensions/button_styles.dart';
-import 'package:flutter_snaptag_kiosk/core/common/sound/sound_manager.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/enums/keypad_mode.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/widget/code_keypad.dart';
-import 'package:flutter_snaptag_kiosk/locale_keys.dart';
+import 'package:vending_kiosk/core/common/extensions/build_context.dart';
+import 'package:vending_kiosk/core/common/extensions/button_styles.dart';
+import 'package:vending_kiosk/core/common/sound/sound_manager.dart';
+import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
+import 'package:vending_kiosk/core/ui/widget/code_keypad.dart';
+import 'package:vending_kiosk/locale_keys.dart';
 
 class DialogHelper {
-  static Future<bool> showKioskDialog(
+  /// 공통 확인/취소 다이얼로그. [showSetupDialog], [showKioskDialog]에서 사용.
+  static Future<bool> _showConfirmDialog(
     BuildContext context, {
     required String title,
-    String? contentText,
-    String? cancelButtonText,
-    String? confirmButtonText,
+    String? content,
+    bool showCancelButton = false,
+    String cancelButtonText = '취소',
+    required String confirmButtonText,
+    required ButtonStyle cancelButtonStyle,
+    required ButtonStyle confirmButtonStyle,
+    TextStyle? cancelTextStyle,
+    TextStyle? confirmTextStyle,
   }) async {
-    final confirmButtonTextValue = confirmButtonText ?? LocaleKeys.common_btn_back.tr();
-    return await showDialog(
+    final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return DefaultTextStyle(
           style: TextStyle(
             fontFamily: context.locale.languageCode == 'ja' ? 'MPLUSRounded' : 'Cafe24Ssurround2',
           ),
           child: AlertDialog(
             backgroundColor: Colors.white,
-            insetPadding: EdgeInsets.symmetric(horizontal: 100.h),
+            insetPadding: EdgeInsets.symmetric(horizontal: 100.w),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20.r),
             ),
+            titlePadding: EdgeInsets.zero,
+            contentPadding: EdgeInsets.zero,
+            actionsPadding: EdgeInsets.zero,
             title: Center(
-              child: Text(
-                title,
-                textAlign: TextAlign.center,
-                style: context.typography.kioskAlert1B.copyWith(
-                  fontFamily: 'Pretendard',
-                  color: Colors.black,
+              child: Padding(
+                padding: EdgeInsets.only(top: 60.h, left: 40.w, right: 40.w),
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: context.typography.kioskAlert1B.copyWith(
+                    fontFamily: 'Pretendard',
+                    color: Colors.black,
+                  ),
                 ),
               ),
             ),
-            content: contentText != null
-                ? Text(
-                    contentText,
-                    textAlign: TextAlign.center,
-                    style: context.typography.kioskAlert2M.copyWith(
-                      fontFamily: 'Pretendard',
-                      color: Color(0xFF414448),
+            content: content != null
+                ? Padding(
+                    padding: EdgeInsets.only(top: 20.h, left: 40.w, right: 40.w),
+                    child: Text(
+                      content,
+                      textAlign: TextAlign.center,
+                      style: context.typography.kioskAlert2M.copyWith(
+                        color: Colors.black,
+                        fontFamily: 'Pretendard',
+                      ),
                     ),
                   )
                 : null,
             actions: [
-              Row(
-                children: [
-                  if (cancelButtonText != null)
+              Padding(
+                padding: EdgeInsets.only(top: 36.h, bottom: 40.h, left: 40.w, right: 40.w),
+                child: Row(
+                  children: [
+                    if (showCancelButton)
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            await SoundManager().playSound();
+                            Navigator.of(dialogContext).pop(false);
+                          },
+                          style: cancelButtonStyle,
+                          child: Text(cancelButtonText, style: cancelTextStyle),
+                        ),
+                      ),
+                    if (showCancelButton) SizedBox(width: 12.w),
                     Expanded(
-                      child: OutlinedButton(
+                      child: ElevatedButton(
                         onPressed: () async {
                           await SoundManager().playSound();
-                          Navigator.of(context).pop(false);
+                          Navigator.of(dialogContext).pop(true);
                         },
-                        style: context.refundDialogCancelButtonStyle,
-                        child: Text(cancelButtonText, style: TextStyle(color: Color(0xFF999999))),
+                        style: confirmButtonStyle,
+                        child: Text(confirmButtonText, style: confirmTextStyle),
                       ),
                     ),
-                  if (cancelButtonText != null) SizedBox(width: 12.w),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        await SoundManager().playSound();
-                        Navigator.of(context).pop(true);
-                      },
-                      style: context.dialogKioskStyle,
-                      child: Text(confirmButtonTextValue, style: TextStyle(color: Color(0xFFFFFFFF))),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               )
             ],
           ),
         );
       },
+    );
+    return result ?? false;
+  }
+
+  static Future<void> showPurchaseFailedDialog(BuildContext context) async {
+    await showKioskDialog(
+      context,
+      title: LocaleKeys.alert_title_purchase_failure.tr(),
+      contentText: LocaleKeys.alert_txt_purchase_failure.tr(),
+      confirmButtonText: LocaleKeys.alert_btn_purchase_failure.tr(),
+    );
+  }
+
+  static Future<void> showCardLimitExceededDialog(BuildContext context) async {
+    await showKioskDialog(
+      context,
+      title: LocaleKeys.alert_title_purchase_failure.tr(),
+      contentText: LocaleKeys.alert_txt_card_limit_exceeded.tr(),
+      confirmButtonText: LocaleKeys.alert_btn_paymentcard_failure.tr(),
+    );
+  }
+
+  static Future<void> showInsufficientBalanceDialog(BuildContext context) async {
+    await showKioskDialog(
+      context,
+      title: LocaleKeys.alert_title_purchase_failure.tr(),
+      contentText: LocaleKeys.alert_txt_insufficient_balance.tr(),
+      confirmButtonText: LocaleKeys.alert_btn_paymentcard_failure.tr(),
+    );
+  }
+
+  static Future<void> showVerificationErrorDialog(BuildContext context) async {
+    await showKioskDialog(
+      context,
+      title: LocaleKeys.alert_title_purchase_failure.tr(),
+      contentText: LocaleKeys.alert_txt_verification_error.tr(),
+      confirmButtonText: LocaleKeys.alert_btn_paymentcard_failure.tr(),
+    );
+  }
+
+  static Future<void> showMerchantRestrictionDialog(BuildContext context) async {
+    await showKioskDialog(
+      context,
+      title: LocaleKeys.alert_title_purchase_failure.tr(),
+      contentText: LocaleKeys.alert_txt_merchant_restriction.tr(),
+      confirmButtonText: LocaleKeys.alert_btn_paymentcard_failure.tr(),
+    );
+  }
+
+  static Future<void> showTimeoutPaymentDialog(BuildContext context) async {
+    await showKioskDialog(
+      context,
+      title: LocaleKeys.alert_title_purchase_failure.tr(),
+      contentText: LocaleKeys.alert_txt_timeout_payment.tr(),
+      confirmButtonText: LocaleKeys.alert_btn_paymentcard_failure.tr(),
+    );
+  }
+
+  static Future<void> showAuthNumReissueCompleteDialog(BuildContext context) async {
+    await showKioskDialog(
+      context,
+      title: LocaleKeys.alert_title_authNum_reissue_complete.tr(),
+      contentText: LocaleKeys.alert_txt_authNum_reissue_complete.tr(),
+      confirmButtonText: LocaleKeys.alert_btn_authNum_reissue_complete.tr(),
+    );
+  }
+
+  static Future<void> showAuthNumReissueFailureDialog(BuildContext context) async {
+    await showKioskDialog(
+      context,
+      title: LocaleKeys.alert_title_authNum_reissue_failure.tr(),
+      contentText: LocaleKeys.alert_txt_authNum_reissue_failure.tr(),
+      confirmButtonText: LocaleKeys.alert_btn_authNum_reissue_failure.tr(),
+    );
+  }
+
+  static Future<bool> showSetupDialog(
+    BuildContext context, {
+    required String title,
+    String? content,
+    bool showCancelButton = false,
+    String cancelButtonText = '취소',
+    String confirmButtonText = '확인',
+  }) async {
+    return await _showConfirmDialog(
+      context,
+      title: title,
+      content: content,
+      showCancelButton: showCancelButton,
+      cancelButtonText: cancelButtonText,
+      confirmButtonText: confirmButtonText,
+      cancelButtonStyle: context.setupDialogCancelButtonStyle,
+      confirmButtonStyle: context.setupDialogConfirmButtonStyle,
+    );
+  }
+
+  static Future<bool> showKioskDialog(
+    BuildContext context, {
+    required String title,
+    required String contentText,
+    String? cancelButtonText,
+    required String confirmButtonText,
+    ButtonStyle? confirmButtonStyle,
+  }) async {
+    return await _showConfirmDialog(
+      context,
+      title: title,
+      content: contentText,
+      showCancelButton: cancelButtonText != null,
+      cancelButtonText: cancelButtonText ?? '취소',
+      confirmButtonText: confirmButtonText,
+      cancelButtonStyle: context.refundDialogCancelButtonStyle,
+      confirmButtonStyle: confirmButtonStyle ?? context.dialogKioskStyle,
+      cancelTextStyle: const TextStyle(color: Color(0xFF999999)),
+      confirmTextStyle: const TextStyle(color: Color(0xFFFFFFFF)),
     );
   }
 

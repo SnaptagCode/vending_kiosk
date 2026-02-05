@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_snaptag_kiosk/core/common/constants/directory_paths.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/nominated_photo.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
-import 'package:flutter_snaptag_kiosk/presentation/setup/front_photo_list.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/widget/file_path_actions.dart';
+import 'package:vending_kiosk/core/common/constants/directory_paths.dart';
+import 'package:vending_kiosk/core/data/models/response/nominated_photo.dart';
+import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/presentation/setup/front_photo_list.dart';
+import 'package:vending_kiosk/core/ui/widget/file_path_actions.dart';
 
 class FrontImagesAction extends ConsumerWidget {
   const FrontImagesAction({super.key});

@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter_snaptag_kiosk/lib.dart';
+import 'package:vending_kiosk/lib.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'kscat_device_response.freezed.dart';

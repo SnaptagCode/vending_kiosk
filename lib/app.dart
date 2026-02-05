@@ -5,21 +5,23 @@ import 'dart:ui';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_snaptag_kiosk/core/common/extensions/button_styles.dart';
-import 'package:flutter_snaptag_kiosk/core/common/logger/logger_service.dart';
-import 'package:flutter_snaptag_kiosk/core/providers/network_status_provider.dart';
-import 'package:flutter_snaptag_kiosk/core/providers/theme_provider.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/theme/kiosk_colors.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/theme/kiosk_typography.dart';
-import 'package:flutter_snaptag_kiosk/flavors.dart';
-import 'package:flutter_snaptag_kiosk/locale_keys.dart';
-import 'package:flutter_snaptag_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
-import 'package:flutter_snaptag_kiosk/presentation/routers/go_router.dart';
-import 'package:flutter_snaptag_kiosk/presentation/kiosk_shell/home_timeout_provider.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/widget/dialog_helper.dart';
-import 'package:flutter_snaptag_kiosk/core/ui/widget/general_error_widget.dart';
-import 'package:flutter_snaptag_kiosk/presentation/routers/router.dart';
+import 'package:vending_kiosk/core/common/extensions/button_styles.dart';
+import 'package:vending_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
+import 'package:vending_kiosk/core/providers/network_status_provider.dart';
+import 'package:vending_kiosk/core/providers/theme_provider.dart';
+import 'package:vending_kiosk/core/ui/theme/kiosk_colors.dart';
+import 'package:vending_kiosk/core/ui/theme/kiosk_typography.dart';
+import 'package:vending_kiosk/flavors.dart';
+import 'package:vending_kiosk/locale_keys.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
+import 'package:vending_kiosk/presentation/routers/go_router.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/home_timeout_provider.dart';
+import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
+import 'package:vending_kiosk/core/ui/widget/general_error_widget.dart';
+import 'package:vending_kiosk/presentation/routers/router.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vending_kiosk/presentation/setup/alert_definition_provider.dart';
 import 'package:window_manager/window_manager.dart';
 
 class App extends ConsumerStatefulWidget {
@@ -42,27 +44,27 @@ class _AppState extends ConsumerState<App> with WindowListener {
     }
 
     // // 앱 실행과 동시에 KioskInfo 미리 로드
-    // WidgetsBinding.instance.addPostFrameCallback((_) async {
-    //   if (_hasInitializedKioskInfo) return;
-    //   _hasInitializedKioskInfo = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (_hasInitializedKioskInfo) return;
+      _hasInitializedKioskInfo = true;
 
-    //   // Alert Definition 로드
-    //   try {
-    //     await ref.read(alertDefinitionProvider.notifier).load();
-    //   } catch (error) {
-    //     SlackLogService().sendErrorLogToSlack('Alert definition load failed: $error');
-    //   }
+      // Alert Definition 로드
+      try {
+        await ref.read(alertDefinitionProvider.notifier).load();
+      } catch (error) {
+        SlackLogService().sendErrorLogToSlack('Alert definition load failed: $error');
+      }
 
-    //   // 이미 데이터가 있으면 API 호출하지 않음
-    //   final currentInfo = ref.read(kioskInfoServiceProvider);
-    //   if (currentInfo == null) {
-    //     try {
-    //       await ref.read(kioskInfoServiceProvider.notifier).getKioskMachineInfo();
-    //     } catch (error) {
-    //       SlackLogService().sendErrorLogToSlack('Kiosk info load failed at app startup: $error');
-    //     }
-    //   }
-    // });
+      // 이미 데이터가 있으면 API 호출하지 않음
+      final currentInfo = ref.read(kioskInfoServiceProvider);
+      if (currentInfo == null) {
+        try {
+          await ref.read(kioskInfoServiceProvider.notifier).getKioskMachineInfo();
+        } catch (error) {
+          SlackLogService().sendErrorLogToSlack('Kiosk info load failed at app startup: $error');
+        }
+      }
+    });
   }
 
   @override
@@ -79,13 +81,13 @@ class _AppState extends ConsumerState<App> with WindowListener {
 
     if (Platform.isWindows) {
       WindowOptions windowOptions = WindowOptions(
-        fullScreen: true,
+        // fullScreen: true,
         backgroundColor: Colors.transparent,
         skipTaskbar: false,
         titleBarStyle: TitleBarStyle.hidden,
       );
       await windowManager.waitUntilReadyToShow(windowOptions, () async {
-        await windowManager.setFullScreen(true);
+        // await windowManager.setFullScreen(true);
         await windowManager.show();
       });
     }
@@ -319,7 +321,7 @@ class _NetworkStatusAlertWrapperState extends ConsumerState<_NetworkStatusAlertW
 
   void _displayNetworkDialog(BuildContext context) {
     try {
-      DialogHelper.showKioskDialog(
+      DialogHelper.showSetupDialog(
         context,
         title: _networkAlertTitle,
         confirmButtonText: _networkAlertConfirmText,

@@ -1,18 +1,18 @@
 import 'dart:io';
 
-import 'package:flutter_snaptag_kiosk/core/common/image/image_helper.dart';
-import 'package:flutter_snaptag_kiosk/core/common/logger/logger_service.dart';
-import 'package:flutter_snaptag_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/enums/printed_status.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/request/create_print_request.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/request/update_print_request.dart';
-import 'package:flutter_snaptag_kiosk/core/domain/response/nominated_photo.dart';
-import 'package:flutter_snaptag_kiosk/lib.dart';
-import 'package:flutter_snaptag_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
-import 'package:flutter_snaptag_kiosk/presentation/print/card_printer.dart';
-import 'package:flutter_snaptag_kiosk/presentation/setup/front_photo_list.dart';
-import 'package:flutter_snaptag_kiosk/presentation/setup/page_print_provider.dart';
-import 'package:flutter_snaptag_kiosk/presentation/payment/payment_response_state.dart';
+import 'package:vending_kiosk/core/common/image/image_helper.dart';
+import 'package:vending_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/core/data/models/enums/printed_status.dart';
+import 'package:vending_kiosk/core/data/models/request/create_print_request.dart';
+import 'package:vending_kiosk/core/data/models/request/update_print_request.dart';
+import 'package:vending_kiosk/core/data/models/response/nominated_photo.dart';
+import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
+import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
+import 'package:vending_kiosk/presentation/print/card_printer.dart';
+import 'package:vending_kiosk/presentation/setup/front_photo_list.dart';
+import 'package:vending_kiosk/presentation/setup/page_print_provider.dart';
+import 'package:vending_kiosk/presentation/payment/payment_response_state.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'print_service.g.dart';
 
