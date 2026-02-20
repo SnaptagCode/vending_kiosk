@@ -207,8 +207,8 @@ class CardDispenserManager {
   /// Dispense and wait until completion
   Future<void> dispenseAndWait({
     required int count,
-    Duration pollInterval = const Duration(milliseconds: 150),
-    Duration overallTimeout = const Duration(seconds: 2),
+    required Duration pollInterval,
+    required Duration overallTimeout,
   }) async {
     try {
       logger.i('CardDispenserManager: Starting dispense and wait for $count card(s)...');

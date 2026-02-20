@@ -46,12 +46,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final kiosk = ref.watch(kioskInfoServiceProvider);
-    final quantity = ref.watch(printQuantityProvider);
+    final quantity = ref.watch(printQuantityNotifierProvider);
     final paymentState = ref.watch(paymentNotifierProvider);
 
     // 가격 계산
     final unitPrice = kiosk?.photoCardPrice ?? 1000;
-    final totalPrice = unitPrice * quantity;
+    final totalPrice = unitPrice * quantity.total;
     final formattedPrice = NumberFormat.currency(locale: 'ko_KR', symbol: '').format(totalPrice);
 
     ref.listen<AsyncValue<void>>(
@@ -307,10 +307,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     Color buttonColor,
     Color buttonTextColor,
   ) {
-    final isSelected = ref.watch(printQuantityProvider) == value;
+    final isSelected = ref.watch(printQuantityNotifierProvider) == value;
 
     return GestureDetector(
-      onTap: () => ref.read(printQuantityProvider.notifier).setQuantity(value),
+      onTap: () => ref.read(printQuantityNotifierProvider.notifier).setQuantity(value),
       child: Container(
         width: 145.w,
         height: 77.h,

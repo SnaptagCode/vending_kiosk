@@ -2,7 +2,6 @@ import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
-import 'package:vending_kiosk/lib.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
 import 'package:vending_kiosk/presentation/home/payment_response_state.dart';
 import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
@@ -10,7 +9,6 @@ import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
 import 'package:vending_kiosk/presentation/setup/page_print_provider.dart';
 import 'package:vending_kiosk/presentation/home/payment/payment_service.dart';
-import 'package:vending_kiosk/presentation/setup/uuid_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'photo_card_preview_screen_provider.g.dart';
@@ -31,7 +29,7 @@ class PhotoCardPreviewScreenProvider extends _$PhotoCardPreviewScreenProvider {
     try {
       // Step 1: 카드 재고 확인
       final kioskInfo = ref.read(kioskInfoServiceProvider);
-      final quantity = ref.read(printQuantityProvider);
+      final quantity = ref.read(printQuantityNotifierProvider);
 
       if (kioskInfo != null) {
         final kioskRepo = ref.read(kioskRepositoryProvider);
@@ -40,9 +38,9 @@ class PhotoCardPreviewScreenProvider extends _$PhotoCardPreviewScreenProvider {
         final stockResponse = await kioskRepo.getMachineCardStock(kioskInfo.kioskMachineId);
 
         // 재고 확인
-        if (stockResponse.cardCurrentCount < quantity) {
+        if (stockResponse.cardCurrentCount < quantity.total) {
           throw InsufficientCardStockException(
-            requestedQuantity: quantity,
+            requestedQuantity: quantity.total,
             availableStock: stockResponse.cardCurrentCount,
             description: '카드 재고가 부족하여 결제를 진행할 수 없습니다.',
           );

@@ -113,7 +113,9 @@ class _KioskRepository {
         body: request.toJson(),
       );
 
-      _ref.read(cardCountProvider.notifier).update(response.cardCurrentCount);
+      _ref
+          .read(dispenseProgressNotifierProvider.notifier)
+          .updateCurrent(response.cardCurrentCount, response.cardCapacity);
 
       return response;
     } catch (e) {

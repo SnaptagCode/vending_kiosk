@@ -13,6 +13,7 @@ import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
 import 'package:vending_kiosk/presentation/home/payment_response_state.dart';
+import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
 import 'package:vending_kiosk/presentation/setup/page_print_provider.dart';
@@ -279,9 +280,9 @@ class _PrintCountText extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final progress = ref.watch(dispenseProgressNotifierProvider);
-    final current = progress.current;
-    final total = progress.total;
+    final quantity = ref.watch(printQuantityNotifierProvider);
+    final current = quantity.current;
+    final total = quantity.total;
 
     String label;
     if (total == 0) {

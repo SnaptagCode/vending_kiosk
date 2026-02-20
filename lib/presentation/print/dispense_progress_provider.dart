@@ -31,18 +31,6 @@ class DispenseProgressNotifier extends StateNotifier<DispenseProgress> {
     state = DispenseProgress(current: 0, total: total);
   }
 
-  void increment() {
-    if (state.current < state.total) {
-      state = state.copyWith(current: state.current + 1);
-    }
-  }
-
-  void decrement() {
-    if (state.current > 0) {
-      state = state.copyWith(current: state.current - 1);
-    }
-  }
-
   void updateCurrent(int current, int total) {
     state = state.copyWith(current: current, total: total);
   }
