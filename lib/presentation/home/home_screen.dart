@@ -1,16 +1,19 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
 import 'package:vending_kiosk/presentation/home/payment_provider.dart';
-import 'package:vending_kiosk/presentation/home/quantity_provider.dart';
+import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/home_timeout_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
-import 'package:vending_kiosk/presentation/payment/payment_failed_type.dart';
-import 'package:vending_kiosk/presentation/payment/photo_card_preview_screen_provider.dart';
+import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
+import 'package:vending_kiosk/presentation/home/payment/photo_card_preview_screen_provider.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
 import 'package:loader_overlay/loader_overlay.dart';
 
@@ -22,20 +25,28 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  // late final FlutterTts _flutterTts;
+  // Timer? _ttsTimer;
+
   @override
   void initState() {
     super.initState();
-    // 화면 진입 시 수량 초기화
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(quantityProvider.notifier).reset();
-      ref.read(paymentNotifierProvider.notifier).reset();
-    });
+    // _initializeTts();
   }
+
+  @override
+  void dispose() {
+    // _ttsTimer?.cancel();
+    // _flutterTts.stop();
+    super.dispose();
+  }
+
+  // ㅌ
 
   @override
   Widget build(BuildContext context) {
     final kiosk = ref.watch(kioskInfoServiceProvider);
-    final quantity = ref.watch(quantityProvider);
+    final quantity = ref.watch(printQuantityProvider);
     final paymentState = ref.watch(paymentNotifierProvider);
 
     // 가격 계산
@@ -69,6 +80,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             }
 
             if (error is PaymentFailedException) {
+              if (error is InsufficientCardStockException) {
+                await DialogHelper.showInsufficientCardStockDialog(
+                  context,
+                  requestedQuantity: error.requestedQuantity,
+                  availableStock: error.availableStock,
+                );
+                return;
+              }
               if (error is TimeoutPaymentException) {
                 await DialogHelper.showTimeoutPaymentDialog(
                   context,
@@ -134,139 +153,116 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: [
             // 타이틀
             Text(
-              '사진 카드 주문',
+              '구매 수량을 선택해 주세요.',
               style: context.typography.kioskBtn1B.copyWith(
-                fontSize: 60.sp,
+                fontSize: 53.sp,
                 color: mainTextColor,
               ),
             ),
-            SizedBox(height: 60.h),
+            SizedBox(height: 42.h),
 
             // 수량 선택 컨테이너
-            Container(
-              width: 800.w,
-              padding: EdgeInsets.all(40.r),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(30.r),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 2.w,
-                ),
-              ),
-              child: Column(
-                children: [
-                  // 수량 라벨
-                  Text(
-                    '수량 선택',
-                    style: context.typography.kioskBtn1B.copyWith(
-                      fontSize: 40.sp,
-                      color: mainTextColor,
-                    ),
-                  ),
-                  SizedBox(height: 30.h),
-
-                  // 빠른 선택 버튼들 (1, 5, 10)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildQuickSelectButton(context, 1, buttonColor, buttonTextColor),
-                      SizedBox(width: 20.w),
-                      _buildQuickSelectButton(context, 5, buttonColor, buttonTextColor),
-                      SizedBox(width: 20.w),
-                      _buildQuickSelectButton(context, 10, buttonColor, buttonTextColor),
-                    ],
-                  ),
-                  SizedBox(height: 40.h),
-
-                  // 수량 조정 영역
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // - 버튼
-                      _buildAdjustButton(
-                        context,
-                        icon: Icons.remove,
-                        onTap: () => ref.read(quantityProvider.notifier).decrement(),
-                        buttonColor: buttonColor,
-                        buttonTextColor: buttonTextColor,
-                      ),
-
-                      // 현재 수량 표시
-                      Container(
-                        width: 200.w,
-                        margin: EdgeInsets.symmetric(horizontal: 20.w),
-                        padding: EdgeInsets.symmetric(vertical: 20.h),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(15.r),
-                        ),
-                        child: Text(
-                          '$quantity',
-                          style: TextStyle(
-                            fontSize: 60.sp,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-
-                      // + 버튼
-                      _buildAdjustButton(
-                        context,
-                        icon: Icons.add,
-                        onTap: () => ref.read(quantityProvider.notifier).increment(),
-                        buttonColor: buttonColor,
-                        buttonTextColor: buttonTextColor,
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 40.h),
-
-                  // 가격 표시
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 40.w, vertical: 20.h),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(15.r),
-                    ),
-                    child: Column(
+            Column(
+              children: [
+                // 수량 버튼 1~10 (2행)
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          '단가: ${NumberFormat.currency(locale: 'ko_KR', symbol: '').format(unitPrice)}${LocaleKeys.currency_won.tr()}',
-                          style: TextStyle(
-                            fontSize: 28.sp,
-                            color: mainTextColor.withOpacity(0.8),
-                          ),
-                        ),
-                        SizedBox(height: 10.h),
-                        Text(
-                          '합계: $formattedPrice${LocaleKeys.currency_won.tr()}',
-                          style: TextStyle(
-                            fontSize: 40.sp,
-                            fontWeight: FontWeight.bold,
-                            color: mainTextColor,
-                          ),
-                        ),
+                        for (int i = 1; i <= 5; i++) ...[
+                          if (i > 1) SizedBox(width: 16.w),
+                          _buildQuantityButton(context, i, buttonColor, buttonTextColor),
+                        ],
                       ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 60.h),
+                    SizedBox(height: 16.h),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        for (int i = 6; i <= 10; i++) ...[
+                          if (i > 6) SizedBox(width: 16.w),
+                          _buildQuantityButton(context, i, buttonColor, buttonTextColor),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: 42.h),
 
+                // 가격 표시
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 30.w, vertical: 32.h),
+                  width: 789.w,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15.r),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '구매 수량',
+                            style: TextStyle(
+                              fontSize: 18.sp,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          Text(
+                            '$quantity',
+                            style: TextStyle(
+                              fontSize: 18.sp,
+                              color: mainTextColor,
+                            ),
+                          )
+                        ],
+                      ),
+                      SizedBox(height: 15.h),
+                      Divider(
+                        color: Colors.grey,
+                        height: 1.h,
+                      ),
+                      SizedBox(height: 15.h),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '총 금액',
+                            style: TextStyle(
+                              fontSize: 20.sp,
+                              color: buttonColor,
+                            ),
+                          ),
+                          Text(
+                            '$formattedPrice${LocaleKeys.currency_won.tr()}',
+                            style: TextStyle(
+                              fontSize: 18.sp,
+                              color: mainTextColor,
+                            ),
+                          )
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 40.h),
             // 결제 버튼
             GestureDetector(
               onTap: paymentState.isLoading
                   ? null
                   : () async {
                       await ref.read(photoCardPreviewScreenProviderProvider.notifier).payment();
+                      // 결제 성공 시 출력 화면으로 이동
+                      // PrintProcessRouteData().go(context);
                     },
               child: Container(
-                width: 600.w,
-                height: 100.h,
+                width: 789.w,
+                height: 92.h,
                 decoration: BoxDecoration(
                   color: buttonColor,
                   borderRadius: BorderRadius.circular(20.r),
@@ -291,7 +287,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       : Text(
                           '결제하기',
                           style: context.typography.kioskBtn1B.copyWith(
-                            fontSize: 45.sp,
+                            fontSize: 34.sp,
                             color: buttonTextColor,
                           ),
                         ),
@@ -304,25 +300,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // 빠른 선택 버튼 (1, 5, 10)
-  Widget _buildQuickSelectButton(
+  // 수량 버튼 1~10 (선택: 흰색, 미선택: mainButtonColor)
+  Widget _buildQuantityButton(
     BuildContext context,
     int value,
     Color buttonColor,
     Color buttonTextColor,
   ) {
-    final isSelected = ref.watch(quantityProvider) == value;
+    final isSelected = ref.watch(printQuantityProvider) == value;
 
     return GestureDetector(
-      onTap: () => ref.read(quantityProvider.notifier).setQuantity(value),
+      onTap: () => ref.read(printQuantityProvider.notifier).setQuantity(value),
       child: Container(
-        width: 150.w,
-        height: 80.h,
+        width: 145.w,
+        height: 77.h,
         decoration: BoxDecoration(
-          color: isSelected ? buttonColor : Colors.white.withOpacity(0.2),
+          color: isSelected ? Colors.white : buttonColor,
           borderRadius: BorderRadius.circular(15.r),
           border: Border.all(
-            color: isSelected ? buttonColor : Colors.white.withOpacity(0.5),
+            color: isSelected ? Colors.white : buttonColor,
             width: 2.w,
           ),
         ),
@@ -330,44 +326,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Text(
             '$value',
             style: TextStyle(
-              fontSize: 40.sp,
+              fontSize: 36.sp,
               fontWeight: FontWeight.bold,
-              color: isSelected ? buttonTextColor : Colors.white,
+              color: isSelected ? buttonColor : buttonTextColor,
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  // +/- 조정 버튼
-  Widget _buildAdjustButton(
-    BuildContext context, {
-    required IconData icon,
-    required VoidCallback onTap,
-    required Color buttonColor,
-    required Color buttonTextColor,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 100.r,
-        height: 100.r,
-        decoration: BoxDecoration(
-          color: buttonColor,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Icon(
-          icon,
-          size: 50.sp,
-          color: buttonTextColor,
         ),
       ),
     );

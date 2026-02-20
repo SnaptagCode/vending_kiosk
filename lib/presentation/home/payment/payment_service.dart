@@ -15,13 +15,13 @@ import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
 import 'package:vending_kiosk/lib.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
-import 'package:vending_kiosk/presentation/payment/verify_photo_card_provider.dart';
+import 'package:vending_kiosk/presentation/home/payment/verify_photo_card_provider.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
 import 'package:vending_kiosk/presentation/setup/page_print_provider.dart';
-import 'package:vending_kiosk/presentation/payment/create_order_info_state.dart';
-import 'package:vending_kiosk/presentation/payment/payment_response_state.dart';
+import 'package:vending_kiosk/presentation/home/payment/create_order_info_state.dart';
+import 'package:vending_kiosk/presentation/home/payment/payment_response_state.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:vending_kiosk/presentation/payment/payment_failed_type.dart';
+import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
 import 'package:intl/intl.dart';
 
 part 'payment_service.g.dart';
@@ -113,7 +113,7 @@ class PaymentService extends _$PaymentService {
 
   /// 승인번호가 없는 결제 처리
   Future<void> _handleEmptyApprovalNumber(PaymentResponse paymentResponse, String machineId) async {
-    SlackLogService().sendWarningLogToSlack('*[MachineId: $machineId]*\nNull approvalNo Card');
+    SlackLogService().sendLogToSlack('*[MachineId: $machineId]*\nNull approvalNo Card');
 
     await ref.read(kioskRepositoryProvider).updateBackPhotoStatus(UpdateBackPhotoRequest(
           photoAuthNumber: '',
@@ -281,7 +281,7 @@ class PaymentService extends _$PaymentService {
       ref.read(paymentResponseStateProvider.notifier).update(paymentResponse);
       isSuccess = paymentResponse.isSuccess;
     } catch (e) {
-      SlackLogService().sendWarningLogToSlack('error409 refund fail error : $e');
+      SlackLogService().sendLogToSlack('error409 refund fail error : $e');
       logger.e('Refund failed', error: e);
       rethrow;
     } finally {
@@ -370,7 +370,7 @@ class PaymentService extends _$PaymentService {
 
       return await ref.read(kioskRepositoryProvider).updateOrderStatus(orderId.toInt(), request);
     } catch (e) {
-      SlackLogService().sendWarningLogToSlack('update order error: $e');
+      SlackLogService().sendErrorLogToSlack('update order error: $e');
       rethrow;
     }
   }

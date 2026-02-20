@@ -33,3 +33,18 @@ class TimeoutPaymentException extends PaymentFailedException {
 class CancelledPaymentException extends PaymentFailedException {
   CancelledPaymentException({String? description}) : super('취소된 결제 실패', description: description);
 }
+
+// 카드 재고 부족으로 인한 결제 실패
+class InsufficientCardStockException extends PaymentFailedException {
+  final int requestedQuantity;
+  final int availableStock;
+
+  InsufficientCardStockException({
+    required this.requestedQuantity,
+    required this.availableStock,
+    String? description,
+  }) : super(
+          '카드 재고가 부족합니다. (요청: $requestedQuantity, 재고: $availableStock)',
+          description: description,
+        );
+}

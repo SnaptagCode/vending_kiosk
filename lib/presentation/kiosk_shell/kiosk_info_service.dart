@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/response/kiosk_machine_info.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vending_kiosk/lib.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
 import 'package:vending_kiosk/presentation/setup/front_photo_list.dart';
@@ -9,6 +10,10 @@ import 'package:vending_kiosk/presentation/setup/uuid_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'kiosk_info_service.g.dart';
+
+/// getInfoByKey 값만 별도 provider로 두어, API 실패 시 state가 null→null로 바뀌지 않아도
+/// Setup 화면 listen이 호출되도록 함 (미리보기 표시 여부 반영).
+final getInfoByKeyProvider = StateProvider<bool>((ref) => true);
 
 @Riverpod(keepAlive: true)
 class KioskInfoService extends _$KioskInfoService {
@@ -45,7 +50,7 @@ class KioskInfoService extends _$KioskInfoService {
       _isLoading = true;
       final kioskRepo = ref.read(kioskRepositoryProvider);
       final deviceUUID = await ref.read(deviceUuidProvider.future);
-      final response = await kioskRepo.getKioskMachineInfoByKey(deviceUUID) as KioskMachineInfo;
+      final response = await kioskRepo.getKioskMachineInfoByKey(deviceUUID);
 
       state = response;
 
@@ -60,11 +65,14 @@ class KioskInfoService extends _$KioskInfoService {
 
       _getInfoByKey = true;
       _isLoading = false;
+      ref.read(getInfoByKeyProvider.notifier).state = true;
 
       return response;
     } catch (e) {
       _getInfoByKey = false;
       _isLoading = false;
+      ref.read(getInfoByKeyProvider.notifier).state = false;
+      state = null;
       return null;
     }
   }
@@ -79,9 +87,7 @@ class KioskInfoService extends _$KioskInfoService {
       // API를 통해 최신 정보 가져오기
       final kioskRepo = ref.read(kioskRepositoryProvider);
 
-      final response = await kioskRepo.getKioskMachineInfo(
-        machineId,
-      ) as KioskMachineInfo;
+      final response = await kioskRepo.getKioskMachineInfo(machineId);
 
       state = response;
 

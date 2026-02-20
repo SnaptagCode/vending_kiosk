@@ -18,6 +18,7 @@ import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/routers/go_router.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/home_timeout_provider.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
+import 'package:vending_kiosk/core/services/card_dispenser_manager.dart';
 import 'package:vending_kiosk/core/ui/widget/general_error_widget.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
 import 'package:go_router/go_router.dart';
@@ -72,7 +73,29 @@ class _AppState extends ConsumerState<App> with WindowListener {
     if (Platform.isWindows) {
       windowManager.removeListener(this);
     }
+    // 앱 종료 시 시리얼 포트 정리 (재시작 시 포트 정상 연결 보장)
+    _cleanupSerialPort();
     super.dispose();
+  }
+
+  /// 시리얼 포트를 정리하여 재시작 시 정상 연결 보장
+  Future<void> _cleanupSerialPort() async {
+    try {
+      await CardDispenserManager.disconnectAll();
+      logger.i('App: Serial port cleaned up successfully');
+    } catch (e) {
+      logger.w('App: Failed to cleanup serial port on dispose', error: e);
+    }
+  }
+
+  @override
+  Future<void> onWindowClose() async {
+    // 윈도우가 닫힐 때 시리얼 포트 정리
+    logger.i('App: Window closing, cleaning up serial port...');
+    await _cleanupSerialPort();
+    // 포트가 완전히 닫힐 때까지 약간 대기
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await windowManager.destroy();
   }
 
   Future<void> _ensureFullScreenOnce() async {
@@ -325,13 +348,12 @@ class _NetworkStatusAlertWrapperState extends ConsumerState<_NetworkStatusAlertW
         context,
         title: _networkAlertTitle,
         confirmButtonText: _networkAlertConfirmText,
-      ).then((_) {
+      ).then((_) async {
         logger.i('_hasKioskInfo: $_hasKioskInfo');
-        // 이벤트를 불러오지 않은 상태면 앱 종료.
         if (!_hasKioskInfo) {
+          await CardDispenserManager.disconnectAll();
           exit(0);
         }
-        // 확인 버튼을 눌렀을 때 네트워크 상태를 다시 체크
         _resetAlertFlag();
         _recheckNetworkStatusAfterDialogClose();
       }).catchError((error) {

@@ -1,11 +1,22 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/core/data/datasources/local/card_dispenser_protocol.dart';
 import 'package:serial_port_win32/serial_port_win32.dart';
 
 /// 카드 배출기 시리얼 통신 클래스
 /// ONEPLUS Card Dispenser RS-232 통신 사양서 기반
+///
+/// - **포트 설정**: 9600bps, 8 data bits, 1 stop bit, no parity
+/// - **패킷**: `'$'(0x24)` + `Command(1)` + `Data(2)` + `Checksum(1)`
+/// - **Checksum**: (unsigned char)(Command + Data1 + Data2)
+/// - **DIP SW3**:
+///   - OFF: TX는 대문자 ASCII, RX는 소문자 ASCII (기존)
+///   - ON : TX는 소문자 ASCII, RX는 소문자 ASCII (신규, 일부 command 제외)
 class CardDispenserSerial {
+  /// DIP SW3에 따른 프로토콜
+  final CardDispenserProtocol protocol;
+
   // 통신 설정
   static const int baudRate = 9600;
   static const int dataBits = 8;
@@ -47,7 +58,49 @@ class CardDispenserSerial {
   SerialPort? _port;
   bool _isConnected = false;
 
-  CardDispenserSerial({String? portName}) : _portName = portName;
+  CardDispenserSerial({
+    String? portName,
+    this.protocol = CardDispenserProtocol.txUpperRxLower,
+  }) : _portName = portName;
+
+  String? get portName => _portName;
+
+  int _toTxAscii(int byte) {
+    if (protocol != CardDispenserProtocol.txLowerRxLower) return byte;
+    // ASCII uppercase A-Z -> lowercase a-z
+    if (byte >= 0x41 && byte <= 0x5A) return byte + 0x20;
+    return byte;
+  }
+
+  bool _isAsciiEitherCase(int actual, int upper) {
+    final lower = (upper >= 0x41 && upper <= 0x5A) ? upper + 0x20 : upper;
+    return actual == upper || actual == lower;
+  }
+
+  /// Win32 오류 코드에 따른 안내 문구 (접근 거부 등)
+  static String _win32ErrorHint(Object e) {
+    final msg = e.toString();
+    final match = RegExp(r'win32 error code is (\d+)').firstMatch(msg);
+    if (match == null) {
+      return 'Ensure the port exists, is not in use, and try running as Administrator.';
+    }
+    final code = int.tryParse(match.group(1) ?? '') ?? -1;
+    switch (code) {
+      case 0:
+        return 'Error 0: 이전 실행에서 포트가 아직 해제 중일 수 있습니다. 2초 후 자동 재시도합니다.';
+      case 2:
+        return 'Error 2 (파일 없음): COM 포트가 없거나 장치가 분리되었습니다. 장치 관리자에서 포트를 확인하세요.';
+      case 5:
+        return 'Error 5 (접근 거부): COM 포트가 사용 중입니다. '
+            '앱을 강제 종료한 경우: 장치 관리자 → [포트(COM & LPT)] 또는 [범용 직렬 버스 컨트롤러]에서 '
+            '해당 장치 우클릭 → [제거] → 상단 [동작] → [하드웨어 변경 사항 검사] (PC 재시작 불필요).';
+      case 32:
+        return 'Error 32 (공유 위반): COM 포트가 사용 중입니다. '
+            '앱 강제 종료 후: 장치 관리자에서 해당 COM 장치 [제거] → [동작] → [하드웨어 변경 사항 검사] (PC 재시작 불필요).';
+      default:
+        return 'Win32 error $code. Try closing other apps using this port or run as Administrator.';
+    }
+  }
 
   /// 사용 가능한 시리얼 포트 목록 조회
   static List<String> getAvailablePorts() {
@@ -64,43 +117,102 @@ class CardDispenserSerial {
     disconnect();
   }
 
-  /// 시리얼 포트 연결  ///
+  /// 시리얼 포트 연결
   /// [portName] 예: 'COM1', 'COM3' (Windows)
+  /// 앱 재실행 시 포트가 아직 해제되지 않았을 수 있어, error 0/5 시 재시도합니다.
   Future<bool> connect(String portName) async {
+    final didConnect = await _connectOnce(portName);
+    if (didConnect) return true;
+
+    final lastError = _lastConnectError;
+    final errorMsg = lastError?.toString() ?? '';
+    final isError0 = errorMsg.contains('win32 error code is 0');
+    final isError5 = errorMsg.contains('win32 error code is 5');
+
+    // Error 0 또는 5일 때 재시도 (포트가 해제 중이거나 다른 프로세스가 막 종료한 경우)
+    if (isError0 || isError5) {
+      final retryMsg = isError0
+          ? '포트 해제 대기 중'
+          : '포트 액세스 재시도 중 (앱 재시작 직후 또는 이전 연결이 완전히 닫히지 않았을 수 있음)';
+      logger.w('Card dispenser: $retryMsg - 2초 후 재시도...');
+      await Future<void>.delayed(const Duration(seconds: 2));
+
+      final secondAttempt = await _connectOnce(portName);
+      if (secondAttempt) return true;
+
+      // Error 5가 계속되면 추가로 한 번 더 시도 (총 3회)
+      if (isError5) {
+        logger.w('Card dispenser: 2차 재시도 (3초 대기 후)...');
+        await Future<void>.delayed(const Duration(seconds: 3));
+        final thirdAttempt = await _connectOnce(portName);
+        if (thirdAttempt) return true;
+
+        // 마지막 시도 (총 4회)
+        logger.w('Card dispenser: 최종 재시도 (5초 대기 후)...');
+        await Future<void>.delayed(const Duration(seconds: 5));
+        return await _connectOnce(portName);
+      }
+    }
+
+    return false;
+  }
+
+  Object? _lastConnectError;
+
+  Future<bool> _connectOnce(String portName) async {
+    _lastConnectError = null;
     try {
-      // 이미 연결되어 있으면 먼저 닫기
+      // 기존 연결이 있으면 완전히 정리
       if (_isConnected && _port != null) {
         await disconnect();
       }
 
+      // 기존 인스턴스가 남아있으면 명시적으로 제거 (재시도 시 완전히 새로 생성)
+      if (_port != null) {
+        try {
+          if (_port!.isOpened) {
+            _port!.close();
+          }
+        } catch (e) {
+          logger.w('Failed to close previous port instance during cleanup', error: e);
+        }
+        _port = null;
+        // 포트 리소스가 완전히 해제될 때까지 대기
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      }
+
       _portName = portName;
 
-      // 시리얼 포트 생성 및 설정
-      // Windows API 상수 값 사용:
-      // NOPARITY = 0, ONESTOPBIT = 0, CBR_9600 = 9600
+      // 완전히 새로운 SerialPort 인스턴스 생성
       _port = SerialPort(
         portName,
         openNow: false,
         ByteSize: dataBits,
-        BaudRate: baudRate, // 9600
-        StopBits: 0, // ONESTOPBIT = 0
-        Parity: 0, // NOPARITY = 0
+        BaudRate: baudRate,
+        StopBits: 0,
+        Parity: 0,
       );
 
-      // 포트 열기
       await _port!.open();
 
-      // 연결 확인
       if (_port!.isOpened) {
         _isConnected = true;
-        logger.i('Card dispenser connected to $portName');
+        logger.i('Card dispenser connected to $portName (protocol: $protocol)');
         return true;
       } else {
         logger.e('Failed to open serial port $portName');
+        _port = null;
         return false;
       }
     } catch (e) {
-      logger.e('Failed to connect to card dispenser', error: e);
+      _lastConnectError = e;
+      final available = getAvailablePorts();
+      final hint = _win32ErrorHint(e);
+      logger.e(
+        'Failed to connect to card dispenser at $portName. '
+        'Available ports: $available. $hint',
+        error: e,
+      );
       _isConnected = false;
       _port = null;
       return false;
@@ -112,10 +224,13 @@ class CardDispenserSerial {
     try {
       if (_port != null && _port!.isOpened) {
         _port!.close();
+        logger.d('Card dispenser port closed, waiting for OS release...');
+        // Windows가 COM 포트 리소스를 완전히 해제할 때까지 대기
+        await Future<void>.delayed(const Duration(milliseconds: 500));
       }
       _isConnected = false;
       _port = null;
-      logger.i('Card dispenser disconnected');
+      logger.i('Card dispenser disconnected (${_portName ?? '-'})');
     } catch (e) {
       logger.e('Failed to disconnect card dispenser', error: e);
       _isConnected = false;
@@ -135,12 +250,15 @@ class CardDispenserSerial {
   /// 패킷 생성
   /// 형식: "$" + Command + Data1 + Data2 + Checksum
   Uint8List _createPacket(int cmd, int data1, int data2) {
-    final checksum = _calculateChecksum(cmd, data1, data2);
+    final txCmd = _toTxAscii(cmd);
+    final txData1 = _toTxAscii(data1);
+    final txData2 = _toTxAscii(data2);
+    final checksum = _calculateChecksum(txCmd, txData1, txData2);
     return Uint8List.fromList([
       stxByte,
-      cmd,
-      data1,
-      data2,
+      txCmd,
+      txData1,
+      txData2,
       checksum,
     ]);
   }
@@ -287,15 +405,25 @@ class CardDispenserSerial {
   /// 초기화 (Reset)
   ///
   /// 명령: "$" + "I" + 0x00 + 0x00
-  /// 응답: "$" + "i" + "n" + "s" + "!" (정상) 또는 "$" + "n" + "s" + "!" (불능)
+  /// 응답(정상): "$" + "i" + 0x00 + "a"
+  /// 응답(불능): "$" + "n" + "s" + "!"
   Future<bool> reset() async {
     try {
       final response = await _sendCommand(cmdReset, 0x00, 0x00);
       if (response != null) {
-        // 정상 응답: "i" + "n" + "s" + "!" 또는 "I" + "N" + "S" + "!"
-        final isSuccess = (response[1] == 0x69 && response[2] == 0x6E && response[3] == 0x73) ||
-            (response[1] == 0x49 && response[2] == 0x4E && response[3] == 0x53);
-        return isSuccess;
+        // 정상 응답: (i/I) + 0x00 + (a/A)
+        final ok = _isAsciiEitherCase(response[1], 0x49) /* I */ &&
+            response[2] == 0x00 &&
+            _isAsciiEitherCase(response[3], 0x41) /* A */;
+        if (ok) return true;
+
+        // 불능 응답: (n/N) + (s/S) + '!'
+        final ns = _isAsciiEitherCase(response[1], 0x4E) /* N */ &&
+            _isAsciiEitherCase(response[2], 0x53) /* S */ &&
+            response[3] == 0x21;
+        if (ns) return false;
+
+        return false;
       }
       return false;
     } catch (e) {
@@ -444,8 +572,10 @@ class CardDispenserSerial {
     try {
       final response = await _sendCommand(cmdDisable, 0x00, 0x00);
       if (response != null) {
-        // 정상 응답: "h" + 0x00 + "a" 또는 "H" + 0x00 + "A"
-        final isSuccess = (response[1] == 0x68 && response[3] == 0x61) || (response[1] == 0x48 && response[3] == 0x41);
+        // 정상 응답: (h/H) + 0x00 + (a/A)
+        final isSuccess = _isAsciiEitherCase(response[1], 0x48) /* H */ &&
+            response[2] == 0x00 &&
+            _isAsciiEitherCase(response[3], 0x41) /* A */;
         return isSuccess;
       }
       return false;
@@ -486,6 +616,45 @@ sealed class CardDispenserStatus {
   const factory CardDispenserStatus.completed(int count) = _CompletedStatus;
   const factory CardDispenserStatus.error(int count) = _ErrorStatus;
   const factory CardDispenserStatus.unknown() = _UnknownStatus;
+}
+
+enum CardDispenserStatusKind {
+  standby,
+  dispensing,
+  disabled,
+  completed,
+  error,
+  unknown,
+}
+
+extension CardDispenserStatusX on CardDispenserStatus {
+  CardDispenserStatusKind get kind {
+    switch (this) {
+      case _StandbyStatus():
+        return CardDispenserStatusKind.standby;
+      case _DispensingStatus():
+        return CardDispenserStatusKind.dispensing;
+      case _DisabledStatus():
+        return CardDispenserStatusKind.disabled;
+      case _CompletedStatus():
+        return CardDispenserStatusKind.completed;
+      case _ErrorStatus():
+        return CardDispenserStatusKind.error;
+      case _UnknownStatus():
+        return CardDispenserStatusKind.unknown;
+    }
+  }
+
+  int? get count {
+    switch (this) {
+      case _CompletedStatus(:final count):
+        return count;
+      case _ErrorStatus(:final count):
+        return count;
+      default:
+        return null;
+    }
+  }
 }
 
 class _StandbyStatus extends CardDispenserStatus {

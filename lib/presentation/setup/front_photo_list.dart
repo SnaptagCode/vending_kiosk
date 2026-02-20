@@ -8,7 +8,7 @@ import 'package:vending_kiosk/core/common/image/image_helper.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/random/random_photo_util.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:vending_kiosk/core/datasources/local/file_system_service.dart';
+import 'package:vending_kiosk/core/data/datasources/local/file_system_service.dart';
 import 'package:vending_kiosk/core/data/models/response/nominated_photo.dart';
 import 'package:vending_kiosk/core/data/models/response/nominated_photo_list.dart';
 import 'package:vending_kiosk/lib.dart';

@@ -9,6 +9,9 @@ import 'package:vending_kiosk/core/data/models/response/nominated_photo_list.dar
 import 'package:vending_kiosk/core/data/models/response/order_list_response.dart';
 import 'package:vending_kiosk/core/data/models/response/update_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/update_print_response.dart';
+import 'package:vending_kiosk/core/data/models/response/card_stock_consume_response.dart';
+import 'package:vending_kiosk/core/data/models/response/card_stock_recharge_response.dart';
+import 'package:vending_kiosk/core/data/models/response/machine_card_stock_response.dart';
 import 'package:vending_kiosk/lib.dart';
 import 'package:retrofit/retrofit.dart';
 
@@ -36,6 +39,22 @@ abstract class KioskApiClient {
   @GET('/v1/machine/info/by-key')
   Future<KioskMachineInfo> getKioskMachineInfoByKey({
     @Query('uniqueKey') required String uniqueKey,
+  });
+
+  @GET('/v1/machine/card-stock')
+  Future<MachineCardStockResponse> getMachineCardStock({
+    @Query('machineId') required int machineId,
+    @Query('uniqueKey') String? uniqueKey,
+  });
+
+  @POST('/v1/machine/card-stock/consume')
+  Future<CardStockConsumeResponse> consumeCardStock({
+    @Body() required Map<String, dynamic> body,
+  });
+
+  @POST('/v1/machine/card-stock/recharge')
+  Future<CardStockRechargeResponse> rechargeCardStock({
+    @Body() required Map<String, dynamic> body,
   });
 
   @GET('/v1/kiosk-event/back-photo')
@@ -86,11 +105,12 @@ abstract class KioskApiClient {
   @GET('/v1/error-code')
   Future<List<AlertDefinitionResponse>> getAlertDefinitions();
 
+  @POST('/v1/internal/slack-alert')
+  Future<void> sendSlackAlert(@Body() Map<String, dynamic> body);
+
   @POST('/v1/internal/event/{kioskEventId}/machine/{machineId}/end')
   Future<void> endKioskApplication(
-      {@Path('kioskEventId') required int kioskEventId,
-      @Path('machineId') required int machineId,
-      @Query('remainingSingleSidedCount') required String remainingSingleSidedCount});
+      {@Path('kioskEventId') required int kioskEventId, @Path('machineId') required int machineId});
 
   @DELETE('/v1/internal/event/{kioskEventId}/machine/{machineId}/end')
   Future<void> deleteEndMark(

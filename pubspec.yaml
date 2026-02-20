@@ -57,6 +57,9 @@ dependencies:
   # Serial Port Communication (Windows)
   serial_port_win32: ^2.3.0
 
+  # Text to Speech
+  flutter_tts: ^4.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

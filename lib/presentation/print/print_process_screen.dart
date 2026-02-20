@@ -9,14 +9,14 @@ import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/providers/network_status_provider.dart';
 import 'package:vending_kiosk/core/providers/version_notifier.dart';
-import 'package:vending_kiosk/core/ui/theme/kiosk_colors.dart';
-import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
 import 'package:vending_kiosk/presentation/home/payment_response_state.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
+import 'package:vending_kiosk/presentation/routers/router.dart';
 import 'package:vending_kiosk/presentation/setup/page_print_provider.dart';
-import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
+import 'package:vending_kiosk/presentation/print/dispense_progress_provider.dart';
 import 'package:vending_kiosk/presentation/print/print_process_screen_provider.dart';
 
 import 'dart:io';
@@ -29,91 +29,36 @@ class PrintProcessScreen extends ConsumerStatefulWidget {
   ConsumerState<PrintProcessScreen> createState() => _PrintProcessScreenState();
 }
 
-class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> with SingleTickerProviderStateMixin {
-  late final AnimationController _progressController;
+class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
   bool _progressCompleted = false;
   bool _progressFrozen = false;
+  bool _printStarted = false;
 
   @override
   void initState() {
     super.initState();
 
-    _progressController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 30), // 초기값(단면) - 아래에서 실제 duration 설정
-    );
-
-    // 단면(약 30초) / 양면(약 60초) 기준으로 99%까지 부드럽게 증가
-    final pagePrintType = ref.read(pagePrintProvider);
-    final seconds = pagePrintType == PagePrintType.double ? 60 : 30;
-    _progressController.duration = Duration(seconds: seconds);
-
-    // 0% -> 99% (0.99)까지 선형으로 진행
-    _progressController.animateTo(
-      0.99,
-      curve: Curves.linear,
-    );
-  }
-
-  @override
-  void dispose() {
-    _progressController.dispose();
-    super.dispose();
+    // 프린트/카드배출 작업을 "listen 방식"으로 처리: 화면이 그려진 직후 한 번만 시작
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _printStarted) return;
+      _printStarted = true;
+      ref.read(printProcessScreenProviderProvider.notifier).startPrint();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    // print 카드 출력 트리거 (provider build에서 printCard 수행)
-    ref.watch(printProcessScreenProviderProvider);
-
     final randomAdImage = getRandomAdImageFilePath(ref);
-    /**
-        final printProcess = ref.watch(printProcessScreenProviderProvider);
-        if (printProcess.isLoading) {
-        if (!context.loaderOverlay.visible) context.loaderOverlay.show();
-        } else {
-        if (context.loaderOverlay.visible) context.loaderOverlay.hide();
-        }
-     */
 
     // listen 부분에서는 로딩 오버레이 처리를 제거
     ref.listen(printProcessScreenProviderProvider, (previous, next) async {
-      /**
-          if (next.isLoading && !context.loaderOverlay.visible) {
-          context.loaderOverlay.show();
-          return;
-          }
-
-          if (context.loaderOverlay.visible) {
-          context.loaderOverlay.hide();
-          }
-       */
       if (!next.isLoading) {
         // 로딩이 아닐 때만 처리
         await next.when(
           error: (error, stack) async {
-            // 오류 발생 시: 현재 진행률에서 멈춤 (요구사항)
             if (!_progressCompleted && !_progressFrozen) {
               _progressFrozen = true;
-              _progressController.stop();
             }
-
-            switch (error.toString().replaceFirst('Exception: ', '').trim()) {
-              case "Card feeder is empty":
-                SlackLogService().sendBroadcastLogToSlack(ErrorKey.printerCardEmpty.key);
-                break;
-              case "Failed to eject card":
-                SlackLogService().sendBroadcastLogToSlack(ErrorKey.printerEjectFail.key);
-                break;
-              case "Printer is not ready":
-                SlackLogService().sendBroadcastLogToSlack(ErrorKey.printerReadyFail.key);
-                break;
-              default:
-                SlackLogService().sendBroadcastLogToSlack(ErrorKey.printerPrintFail.key);
-                break;
-            }
-
-            final errorMessage = error.toString();
 
             // 슬랙에 에러 로그 전송
             errorLogging(error.toString(), stack);
@@ -123,65 +68,40 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> with Si
 
             // 네트워크 오류라면 카드 단일 카드 수량 확인 후 완료 알럿 표시
             if (isNetworkError) {
-              // 카드 단일 카드 수량 확인
-              checkCardSingleCardCount();
-
-              // await DialogHelper.showPrintCompleteDialog(
-              //   context,
-              //   onButtonPressed: () {
-              //     HomeRouteData().go(context);
-              //   },
-              // );
+              await DialogHelper.showPrintCompleteDialog(
+                context,
+                onButtonPressed: () {
+                  HomeRouteData().go(context);
+                },
+              );
               return;
             }
 
-            // 환불 알럿
-            // await DialogHelper.showAutoRefundDescriptionDialog(context, onButtonPressed: () async {
-            //   // 에러 발생 시 환불 처리
-            //   await refund();
-
-            //   // 카드 단일 카드 수량 확인
-            //   checkCardSingleCardCount();
-
-            //   // 카드 공급기가 비어있는지 확인
-            //   if (checkCardFeederIsEmpty(errorMessage)) {
-            //     await DialogHelper.showPrintCardRefillDialog(
-            //       context,
-            //       onButtonPressed: () {
-            //         HomeRouteData().go(context);
-            //       },
-            //     );
-            //   } else {
-            //     await DialogHelper.showPrintErrorDialog(
-            //       context,
-            //       onButtonPressed: () {
-            //         HomeRouteData().go(context);
-            //       },
-            //     );
-            //   }
-            // });
+            final result = await DialogHelper.showKioskDialog(
+              context,
+              title: LocaleKeys.alert_title_print_failure.tr(),
+              contentText: LocaleKeys.alert_txt_print_failure.tr(),
+              confirmButtonText: LocaleKeys.alert_btn_print_failure.tr(),
+            );
+            if (result) {
+              HomeRouteData().go(context);
+            }
           },
           loading: () => null,
           data: (_) async {
             if (!_progressCompleted) {
               _progressCompleted = true;
-              await _progressController.animateTo(
-                1.0,
-                duration: const Duration(milliseconds: 450),
-                curve: Curves.easeOutCubic,
-              );
             }
 
-            checkCardSingleCardCount();
-
+            // Reset payment and quantity state
             ref.read(paymentResponseStateProvider.notifier).reset();
 
-            // await DialogHelper.showPrintCompleteDialog(
-            //   context,
-            //   onButtonPressed: () {
-            //     HomeRouteData().go(context);
-            //   },
-            // );
+            await DialogHelper.showPrintCompleteDialog(
+              context,
+              onButtonPressed: () {
+                HomeRouteData().go(context);
+              },
+            );
           },
         );
       }
@@ -234,18 +154,7 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> with Si
                     fit: BoxFit.fill,
                   ),
             SizedBox(height: 60.h),
-            AnimatedBuilder(
-              animation: _progressController,
-              builder: (context, child) {
-                final raw = _progressController.value;
-                final percent = _progressCompleted ? 100 : (raw * 100).floor().clamp(0, 99);
-
-                return _PrintProgressBar(
-                  progress: _progressCompleted ? 1.0 : raw,
-                  label: '$percent%',
-                );
-              },
-            ),
+            _PrintCountText(progressCompleted: _progressCompleted, progressFrozen: _progressFrozen),
             SizedBox(height: 16.h),
             Text(
               LocaleKeys.sub03_txt_03.tr(),
@@ -278,17 +187,6 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> with Si
     logger.e('Print process error', error: error, stackTrace: stack);
     final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 0;
     SlackLogService().sendErrorLogToSlack('*[MachineId : $machineId]*, Print process error\nError: $error');
-  }
-
-  Future<void> refund(dynamic paymentServiceProvider) async {
-    final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 0;
-    try {
-      await ref.read(paymentServiceProvider.notifier).refund();
-      if (ref.read(pagePrintProvider) == PagePrintType.single) await ref.read(cardCountProvider.notifier).increase();
-    } catch (e) {
-      SlackLogService().sendErrorLogToSlack('*[MachineId : $machineId]*, 환불 처리 중 오류 발생: $e');
-      logger.e('환불 처리 중 오류 발생', error: e);
-    }
   }
 
   /// 사용자 홈 디렉토리를 동기적으로 반환합니다.
@@ -369,68 +267,40 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> with Si
   }
 }
 
-class _PrintProgressBar extends StatelessWidget {
-  const _PrintProgressBar({
-    required this.progress,
-    required this.label,
+/// 출력 개수를 텍스트로 표시 (예: 2 / 5)
+class _PrintCountText extends ConsumerWidget {
+  const _PrintCountText({
+    required this.progressCompleted,
+    required this.progressFrozen,
   });
 
-  /// 0.0 ~ 1.0
-  final double progress;
-  final String label;
+  final bool progressCompleted;
+  final bool progressFrozen;
 
   @override
-  Widget build(BuildContext context) {
-    final clamped = progress.clamp(0.0, 1.0);
-    final kioskColors = context.theme.extension<KioskColors>()!;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress = ref.watch(dispenseProgressNotifierProvider);
+    final current = progress.current;
+    final total = progress.total;
 
-    return SizedBox(
-      width: 540.w,
-      height: 35.h,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30.r),
-        child: DecoratedBox(
-          decoration: const BoxDecoration(
-            color: Color(0x4DFFFFFF), // #FFFFFF4D
-          ),
-          child: Padding(
-            padding: EdgeInsets.all(3.r),
-            child: Stack(
-              children: [
-                FractionallySizedBox(
-                  widthFactor: clamped,
-                  heightFactor: 1,
-                  alignment: Alignment.centerLeft,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(30.r),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            kioskColors.progressBarStartColor,
-                            kioskColors.progressBarEndColor,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Center(
-                  child: Text(
-                    label,
-                    style: context.typography.kioskBody1B.copyWith(
-                      color: Colors.white,
-                      fontSize: 18.sp,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+    String label;
+    if (total == 0) {
+      label = '0 / 0';
+    } else if (progressCompleted) {
+      label = '$total / $total';
+    } else if (progressFrozen) {
+      label = '$current / $total';
+    } else {
+      label = '$current / $total';
+    }
+
+    return Text(
+      label,
+      style: context.typography.kioskBody1B.copyWith(
+        fontSize: 48.sp,
+        color: Colors.white,
       ),
+      textAlign: TextAlign.center,
     );
   }
 }

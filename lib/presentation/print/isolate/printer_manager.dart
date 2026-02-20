@@ -262,11 +262,6 @@ class PrinterManager {
     try {
       bool result = bindings.connectPrinter();
 
-      if (!result) {
-        logger.e('Printer connection failed with code: $result');
-        return false;
-      }
-
       final printerLog = _getPrinterLogData(bindings);
 
       final isReady = printerLog?.printerMainStatusCode == "1004";
@@ -274,7 +269,7 @@ class PrinterManager {
       return result && isReady;
     } catch (e) {
       logger.e('Error checking printer connection: $e');
-      return false;
+      rethrow; // 상세한 에러 메시지를 상위로 전달
     }
   }
 

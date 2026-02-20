@@ -1,9 +1,9 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-part 'quantity_provider.g.dart';
+part 'print_quantity_provider.g.dart';
 
 @riverpod
-class Quantity extends _$Quantity {
+class PrintQuantity extends _$PrintQuantity {
   @override
   int build() => 1;
 

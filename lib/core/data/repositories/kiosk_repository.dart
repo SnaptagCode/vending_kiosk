@@ -1,4 +1,6 @@
 import 'package:vending_kiosk/core/data/datasources/remote/kiosk_api_client.dart';
+import 'package:vending_kiosk/core/data/models/request/card_stock_consume_request.dart';
+import 'package:vending_kiosk/core/data/models/request/card_stock_recharge_request.dart';
 import 'package:vending_kiosk/core/data/models/request/unique_key_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_back_photo_request.dart';
 import 'package:vending_kiosk/core/data/models/request/create_order_request.dart';
@@ -10,6 +12,8 @@ import 'package:vending_kiosk/core/data/models/request/update_print_request.dart
 import 'package:vending_kiosk/core/data/models/response/alert_definition_response.dart';
 import 'package:vending_kiosk/core/data/models/response/back_photo_card_response.dart';
 import 'package:vending_kiosk/core/data/models/response/back_photo_status_response.dart';
+import 'package:vending_kiosk/core/data/models/response/card_stock_consume_response.dart';
+import 'package:vending_kiosk/core/data/models/response/card_stock_recharge_response.dart';
 import 'package:vending_kiosk/core/data/models/response/create_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/create_print_response.dart';
 import 'package:vending_kiosk/core/data/models/response/kiosk_machine_info.dart';
@@ -17,11 +21,14 @@ import 'package:vending_kiosk/core/data/models/response/nominated_photo_list.dar
 import 'package:vending_kiosk/core/data/models/response/order_list_response.dart';
 import 'package:vending_kiosk/core/data/models/response/update_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/update_print_response.dart';
+import 'package:vending_kiosk/core/data/models/response/machine_card_stock_response.dart';
 import 'package:vending_kiosk/core/network/dio_client.dart';
 import 'package:vending_kiosk/flavors.dart';
 import 'package:vending_kiosk/lib.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
+import 'package:vending_kiosk/presentation/print/dispense_progress_provider.dart';
 
 part 'kiosk_repository.g.dart';
 
@@ -57,6 +64,15 @@ class _KioskRepository {
     }
   }
 
+  /// POST /v1/internal/slack-alert — 서버가 타입·메시지에 따라 Slack 전송
+  Future<void> sendSlackAlert(String type, String message) async {
+    try {
+      await _apiClient.sendSlackAlert({'type': type, 'message': message});
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // Machine Info Operations
   Future<KioskMachineInfo> getKioskMachineInfo(int machineId) async {
     try {
@@ -69,6 +85,51 @@ class _KioskRepository {
   Future<KioskMachineInfo> getKioskMachineInfoByKey(String uniqueKey) async {
     try {
       return await _apiClient.getKioskMachineInfoByKey(uniqueKey: uniqueKey);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<MachineCardStockResponse> getMachineCardStock(int machineId, {String? uniqueKey}) async {
+    try {
+      final response = await _apiClient.getMachineCardStock(
+        machineId: machineId,
+        uniqueKey: uniqueKey,
+      );
+
+      _ref
+          .read(dispenseProgressNotifierProvider.notifier)
+          .updateCurrent(response.cardCurrentCount, response.cardCapacity);
+
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<CardStockConsumeResponse> consumeCardStock(CardStockConsumeRequest request) async {
+    try {
+      final response = await _apiClient.consumeCardStock(
+        body: request.toJson(),
+      );
+
+      _ref.read(cardCountProvider.notifier).update(response.cardCurrentCount);
+
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<CardStockRechargeResponse> rechargeCardStock(CardStockRechargeRequest request) async {
+    try {
+      final response = await _apiClient.rechargeCardStock(
+        body: request.toJson(),
+      );
+
+      _ref.read(dispenseProgressNotifierProvider.notifier).initialize(response.cardCurrentCount);
+
+      return response;
     } catch (e) {
       rethrow;
     }
@@ -181,11 +242,9 @@ class _KioskRepository {
   Future<void> endKioskApplication({
     required int kioskEventId,
     required int machineId,
-    required String remainingSingleSidedCount,
   }) async {
     try {
-      await _apiClient.endKioskApplication(
-          kioskEventId: kioskEventId, machineId: machineId, remainingSingleSidedCount: remainingSingleSidedCount);
+      await _apiClient.endKioskApplication(kioskEventId: kioskEventId, machineId: machineId);
     } catch (e) {
       rethrow;
     }

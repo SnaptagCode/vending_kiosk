@@ -1,5 +1,4 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:vending_kiosk/core/data/datasources/local/id_writer.dart';
 
 part 'card_count_provider.g.dart';
 
@@ -47,21 +46,11 @@ class CardCount extends _$CardCount {
   Future<void> increase([int step = 1]) async {
     final next = state.currentCount + step;
     state = state.copyWith(currentCount: next);
-    try {
-      await writeSingleCardCount("${next.toString()} / ${state.initialCount}");
-    } catch (e) {
-      // print('writeSingleCardCount failed: $e');
-    }
   }
 
   Future<void> decrease([int step = 1]) async {
     final next = state.currentCount - step;
     final clamped = next < 0 ? 0 : next;
     state = state.copyWith(currentCount: clamped);
-    try {
-      await writeSingleCardCount("${clamped.toString()} / ${state.initialCount}");
-    } catch (e) {
-      // print('writeSingleCardCount failed: $e');
-    }
   }
 }

@@ -7,6 +7,7 @@ import 'package:vending_kiosk/presentation/home/home_screen.dart';
 import 'package:vending_kiosk/presentation/setup/payment_history_screen.dart';
 import 'package:vending_kiosk/presentation/setup/setup_main_screen.dart';
 import 'package:vending_kiosk/presentation/print/print_process_screen.dart';
+import 'package:vending_kiosk/presentation/setup/card_dispenser_test_screen.dart';
 import 'package:go_router/go_router.dart';
 
 part 'router.g.dart';
@@ -23,6 +24,7 @@ final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>(d
         TypedGoRoute<KioskInfoRouteData>(path: 'kiosk-info'),
         TypedGoRoute<PaymentHistoryRouteData>(path: 'payment-history'),
         TypedGoRoute<MaintenanceRouteData>(path: 'maintenance'),
+        TypedGoRoute<CardDispenserTestRouteData>(path: 'card-dispenser-test'),
       ],
     ),
     TypedGoRoute<KioskRouteData>(
@@ -129,6 +131,17 @@ class MaintenanceRouteData extends GoRouteData with _$MaintenanceRouteData {
   Page<void> buildPage(BuildContext context, GoRouterState state) {
     return NoTransitionPage(
       child: const MaintenanceScreen(),
+    );
+  }
+}
+
+class CardDispenserTestRouteData extends GoRouteData with _$CardDispenserTestRouteData {
+  const CardDispenserTestRouteData();
+
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) {
+    return NoTransitionPage(
+      child: const CardDispenserTestScreen(),
     );
   }
 }

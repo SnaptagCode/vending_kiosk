@@ -1,18 +1,16 @@
-import 'dart:convert';
 import 'dart:developer';
 
 import 'package:vending_kiosk/core/data/models/entities/slack_log_template.dart';
-import 'package:vending_kiosk/lib.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:collection/collection.dart';
 import 'package:vending_kiosk/presentation/core/printer_log_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/setup/alert_definition_provider.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:collection/collection.dart';
 import 'package:vending_kiosk/core/providers/version_notifier.dart';
 
+/// 서버 API POST /v1/internal/slack-alert 로 Slack 알림 전송 (type + message)
 class SlackLogService {
   static final SlackLogService _instance = SlackLogService._internal();
   factory SlackLogService() => _instance;
@@ -20,35 +18,29 @@ class SlackLogService {
 
   late ProviderContainer _container;
 
-  final slackWebhookUrl = dotenv.env['SLACK_WEBHOOK_URL'];
-
-  final slackWebhookErrorUrl = dotenv.env['SLACK_WEBHOOK_ERROR_LOG_URL'];
-
-  final slackWebhookRibbonFilmWarnUrl = dotenv.env['SLACK_WEBHOOK_RIBBON_FILM_WARN_URL'];
-
-  final slackWebhookWarningUrl = dotenv.env['SLACK_WEBHOOK_WARNING_URL'];
-
-  final slackWebhookBroadcastUrl = dotenv.env['SLACK_WEBHOOK_BROADCAST_URL'];
-
   void init(ProviderContainer container) {
     _container = container;
     sendLogToSlack("🚀 Flutter App Started!");
   }
 
+  Future<void> _sendSlackAlert(String type, String message) async {
+    if (message.isEmpty) {
+      log("❌ Slack 알림 메시지가 없습니다.");
+      return;
+    }
+    try {
+      // await _container.read(kioskRepositoryProvider).sendSlackAlert(type, message);
+    } catch (e) {
+      log("❌ Slack 알림 API 오류: $e");
+    }
+  }
+
   Future<void> sendErrorLogToSlack(String message) async {
-    await sendLog(slackWebhookErrorUrl, message);
+    await _sendSlackAlert('error', message);
   }
 
   Future<void> sendLogToSlack(String message) async {
-    await sendLog(slackWebhookUrl, message);
-  }
-
-  Future<void> sendRibbonFilmWarningLog(String message) async {
-    await sendLog(slackWebhookRibbonFilmWarnUrl, message);
-  }
-
-  Future<void> sendWarningLogToSlack(String message) async {
-    await sendLog(slackWebhookWarningUrl, message);
+    await _sendSlackAlert('log', message);
   }
 
   // 1) 객체 만드는 함수 LogState
@@ -119,7 +111,7 @@ ${slackLogTemplate.description}
         cardCount: cardCount.currentCount,
       );
 
-      await sendLog(slackWebhookBroadcastUrl, message);
+      await _sendSlackAlert('broadcast', message);
     }
   }
 
@@ -136,7 +128,7 @@ ${slackLogTemplate.description}
 
       final message = buildSlackAlertMessage(slackLogTemplate: slackLogTemplate.copyWith(description: description));
 
-      await sendLog(slackWebhookBroadcastUrl, message);
+      await _sendSlackAlert('broadcast', message);
     }
   }
 
@@ -160,7 +152,7 @@ ${slackLogTemplate.description}
       final message = buildSlackAlertMessage(
           slackLogTemplate: slackLogTemplate.copyWith(title: '프린트 상태', category: 'info', description: description));
 
-      await sendLog(slackWebhookBroadcastUrl, message);
+      await _sendSlackAlert('broadcast', message);
     }
   }
 
@@ -174,36 +166,7 @@ ${slackLogTemplate.description}
         cardCount: cardCount.currentCount,
       );
 
-      await sendLog(slackWebhookBroadcastUrl, message);
-    }
-  }
-
-  Future<void> sendLog(String? url, String message) async {
-    if (url == null) {
-      log("❌ Slack Webhook URL이 없습니다.");
-      return;
-    }
-    if (message.isEmpty) {
-      log("❌ Slack Webhook 메시지가 없습니다.");
-      return;
-    } else {
-      final payload = jsonEncode({"text": message});
-
-      try {
-        final response = await http.post(
-          Uri.parse(url),
-          headers: {"Content-Type": "application/json"},
-          body: payload,
-        );
-
-        if (response.statusCode != 200) {
-          log("❌ Slack Webhook 오류: ${response.body}");
-          log("curl -X POST -H \"Content-Type: application/json\" -d '$payload' $url");
-        }
-      } catch (e) {
-        log("❌ Slack Webhook 오류: $e");
-        log("curl -X POST -H \"Content-Type: application/json\" -d '$payload' $url");
-      }
+      await _sendSlackAlert('broadcast', message);
     }
   }
 

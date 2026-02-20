@@ -1,7 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "Bash(flutter pub run:*)"
+      "Bash(flutter analyze:*)",
+      "Bash(flutter pub run build_runner build:*)",
+      "Bash(flutter pub get:*)",
+      "Bash(dart run build_runner:*)",
+      "WebSearch",
+      "mcp__notion__notion-search",
+      "mcp__notion__notion-fetch",
+      "mcp__notion__notion-create-database",
+      "mcp__notion__notion-create-pages",
+      "Bash(python:*)",
+      "Bash(git checkout:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(dir:*)"
     ]
   }
 }

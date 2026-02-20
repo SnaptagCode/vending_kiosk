@@ -380,34 +380,62 @@ class PrinterBindings {
     final numPtr = calloc<Int32>()..value = 10;
 
     try {
-      logger.i('Enumerating USB printer...'); // 디버그 로그 추가
+      logger.i('Enumerating USB printer...');
       // USB 프린터만 사용
       int result = _enumUsbPrt(enumListPtr.cast(), listLenPtr, numPtr);
       if (result != 0) {
-        logger.i('Failed to enumerate printer: $result');
-        return false;
+        final errorMsg = _getDetailedErrorMessage(result);
+        logger.e('Failed to enumerate printer: $errorMsg (code: $result)');
+        throw Exception('프린터 열거 실패: $errorMsg\n\n해결 방법:\n1. 프린터가 USB로 연결되어 있는지 확인\n2. 프로그램을 관리자 권한으로 실행\n3. 다른 프로그램에서 프린터를 사용 중인지 확인\n4. 프린터 드라이버가 설치되어 있는지 확인');
       }
 
-      logger.i('Setting USB timeout...'); // 디버그 로그 추가
+      logger.i('Setting USB timeout...');
       result = _usbSetTimeout(3000, 3000);
       if (result != 0) {
-        logger.i('Failed to set USB timeout: $result');
-        return false;
+        final errorMsg = _getDetailedErrorMessage(result);
+        logger.e('Failed to set USB timeout: $errorMsg (code: $result)');
+        throw Exception('USB 타임아웃 설정 실패: $errorMsg');
       }
 
-      logger.i('Selecting printer...'); // 디버그 로그 추가
+      logger.i('Selecting printer...');
       result = _selectPrinter(enumListPtr.cast());
       if (result != 0) {
-        logger.i('Failed to select printer: $result');
-        return false;
+        final errorMsg = _getDetailedErrorMessage(result);
+        logger.e('Failed to select printer: $errorMsg (code: $result)');
+        throw Exception('프린터 선택 실패: $errorMsg\n\n해결 방법:\n1. 프로그램을 관리자 권한으로 실행\n2. 작업 관리자에서 프린터 관련 프로세스 종료\n3. USB 케이블 재연결\n4. 장치 관리자에서 프린터 상태 확인');
       }
 
-      logger.i('Printer connected successfully'); // 디버그 로그 추가
+      logger.i('Printer connected successfully');
       return true;
+    } catch (e) {
+      logger.e('connectPrinter error: $e');
+      rethrow;
     } finally {
       calloc.free(enumListPtr);
       calloc.free(listLenPtr);
       calloc.free(numPtr);
+    }
+  }
+
+  String _getDetailedErrorMessage(int errorCode) {
+    // Win32 에러 코드를 한글 메시지로 변환
+    switch (errorCode) {
+      case 5:
+        return '액세스 거부 (관리자 권한 필요)';
+      case 2:
+        return '프린터를 찾을 수 없음';
+      case 32:
+        return '프린터가 다른 프로세스에서 사용 중';
+      case 121:
+        return '타임아웃';
+      case 1167:
+        return '장치가 준비되지 않음';
+      default:
+        try {
+          return getErrorInfo(errorCode);
+        } catch (e) {
+          return '알 수 없는 에러';
+        }
     }
   }
 

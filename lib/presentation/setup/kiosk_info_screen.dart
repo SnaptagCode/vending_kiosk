@@ -18,7 +18,7 @@ class KioskInfoScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final info = ref.watch(kioskInfoServiceProvider) as KioskMachineInfo;
+    final info = ref.watch(kioskInfoServiceProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -30,6 +30,7 @@ class KioskInfoScreen extends ConsumerWidget {
             final result = await DialogHelper.showSetupDialog(
               context,
               title: '메인페이지로 이동합니다.',
+              showCancelButton: true,
             );
             if (result) {
               Navigator.pop(context);
@@ -47,7 +48,8 @@ class KioskInfoScreen extends ConsumerWidget {
 
               if (value == null || value.isEmpty) return; // 값이 없으면 종료
 
-              final result = await DialogHelper.showSetupDialog(context, title: '최신 이벤트로 새로고침 됩니다.');
+              final result =
+                  await DialogHelper.showSetupDialog(context, title: '최신 이벤트로 새로고침 됩니다.', showCancelButton: true);
               if (result == true) {
                 await ref.read(kioskInfoServiceProvider.notifier).refreshWithMachineId(int.parse(value));
                 SlackLogService().sendBroadcastLogToSlack(InfoKey.inspectionStart.key);

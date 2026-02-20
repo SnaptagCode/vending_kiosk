@@ -14,6 +14,7 @@ import 'package:vending_kiosk/core/common/sound/sound_manager.dart';
 import 'package:vending_kiosk/core/data/models/request/unique_key_request.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
+import 'package:vending_kiosk/core/services/card_dispenser_manager.dart';
 import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
 import 'package:vending_kiosk/flavors.dart';
 import 'package:vending_kiosk/locale_keys.dart';
@@ -22,7 +23,9 @@ import 'package:vending_kiosk/lib.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
 import 'package:vending_kiosk/presentation/print/state/printer_connect_state.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
+import 'package:vending_kiosk/presentation/setup/card_dispenser_connect_state.dart';
 import 'package:vending_kiosk/presentation/setup/page_print_provider.dart';
+import 'package:vending_kiosk/presentation/setup/setup_main_screen_provider.dart';
 import 'package:vending_kiosk/presentation/setup/uuid_provider.dart';
 import 'package:vending_kiosk/presentation/setup/alert_definition_provider.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
@@ -159,14 +162,13 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
   @override
   Widget build(BuildContext context) {
     ref.read(alertDefinitionProvider);
-    final machineId = ref.watch(kioskInfoServiceProvider)?.kioskMachineId ?? 0;
-    final versionState = ref.watch(versionStateProvider);
-    final cardCountState = ref.watch(cardCountProvider);
-    final currentVersion = versionState.currentVersion;
-    final latestVersion = versionState.latestVersion;
-    final isUpdateAvailable = currentVersion != latestVersion;
-    final isConnectedPrinter = ref.watch(printerConnectProvider) == PrinterConnectState.connected;
-    final getInfoByKey = ref.watch(kioskInfoServiceProvider.notifier).getInfoByKey;
+    final setupMainViewModel = ref.watch(setupMainScreenNotifierProvider);
+    final machineId = setupMainViewModel.machineId;
+    final currentVersion = setupMainViewModel.currentVersion;
+    final latestVersion = setupMainViewModel.latestVersion;
+    final isUpdateAvailable = setupMainViewModel.isUpdateAvailable;
+    final isConnectedCardDispenser = setupMainViewModel.cardDispenserState == CardDispenserConnectState.connected;
+    final getInfoByKey = setupMainViewModel.getInfoByKey;
     //final isUpdateAvailable = false;
 
     return Theme(
@@ -192,13 +194,13 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                   showCancelButton: true,
                 );
                 if (result) {
-                  await ref.read(kioskRepositoryProvider).endKioskApplication(
-                        kioskEventId: ref.read(kioskInfoServiceProvider)?.kioskEventId ?? 0,
-                        machineId: ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 0,
-                        remainingSingleSidedCount: cardCountState.remainingSingleSidedCount,
-                      );
+                  // await ref.read(kioskRepositoryProvider).endKioskApplication(
+                  //       kioskEventId: ref.read(kioskInfoServiceProvider)?.kioskEventId ?? 0,
+                  //       machineId: ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 0,
+                  //     );
 
-                  // 종료
+                  await CardDispenserManager.disconnectAll();
+
                   exit(0);
                 }
               },
@@ -230,51 +232,9 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
               SizedBox(height: 50.h),
               Center(
                 child: Text(
-                  getInfoByKey ? '*인쇄 모드 선택 후 이벤트를 실행 해주세요.' : '*인쇄 모드 선택 후 미리보기를 해주세요.',
+                  '*카드 수량 입력 후 이벤트를 실행 해주세요. (최대 300장)',
                   style: context.typography.kioskBody1B.copyWith(color: Colors.red),
                 ),
-              ),
-              SizedBox(height: 20.h),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 390.w,
-                    height: 120.h,
-                    child: SetupSubCard(
-                      label: '양면 인쇄',
-                      mode: PagePrintType.double,
-                      currentModeSelector: (ref) => ref.watch(pagePrintProvider),
-                      activeAssetName: SnaptagSvg.printDoubleActive,
-                      inactiveAssetName: SnaptagSvg.printDoubleInactive,
-                      onTap: () async {
-                        if (cardCountState.currentCount < 1) {
-                          await SoundManager().playSound();
-                          ref.read(pagePrintProvider.notifier).set(PagePrintType.double);
-                          if (machineId != 0) {
-                            SlackLogService().sendBroadcastLogToSlack(InfoKey.cardPrintModeSwitchDuplex.key);
-                          }
-                        }
-                      },
-                    ),
-                  ),
-                  SizedBox(
-                    width: 390.w,
-                    height: 120.h,
-                    child: SetupSubCard(
-                      label: '단면 인쇄',
-                      mode: PagePrintType.single,
-                      currentModeSelector: (ref) => ref.watch(pagePrintProvider),
-                      activeAssetName: SnaptagSvg.printSingleActive,
-                      inactiveAssetName: SnaptagSvg.printSingleInactive,
-                      onTap: () async {
-                        await SoundManager().playSound();
-                        ref.read(pagePrintProvider.notifier).set(PagePrintType.single);
-                      },
-                    ),
-                  ),
-                ],
               ),
               SizedBox(
                 height: 10,
@@ -289,7 +249,7 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                     child: Align(
                       alignment: Alignment.center,
                       child: Text(
-                        '단면 카드 수량',
+                        '카드 수량',
                         textAlign: TextAlign.center,
                         style: context.typography.kioskBody1B.copyWith(color: Colors.black),
                       ),
@@ -302,42 +262,27 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                     //padding: EdgeInsets.only(top: 50.w),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      border: Border.all(
-                        color: ref.watch(pagePrintProvider) == PagePrintType.single ? Colors.black : Color(0xFFECEDEF),
-                      ),
+                      border: Border.all(color: Colors.black),
                       borderRadius: const BorderRadius.all(Radius.circular(12)),
                     ),
                     child: InkWell(
                       borderRadius: const BorderRadius.all(Radius.circular(12)),
                       onTap: () async {
-                        final isActive = ref.read(pagePrintProvider) == PagePrintType.single;
-                        if (isActive) {
-                          String? value = await DialogHelper.showKeypadDialog(context, mode: ModeType.card);
+                        String? value = await DialogHelper.showKeypadDialog(context, mode: ModeType.card);
 
-                          if (value == null || value.isEmpty) return; // 값이 없으면 종료
-                          int cardNumber = int.parse(value);
-                          ref.read(cardCountProvider.notifier).update(cardNumber);
-                          if (cardNumber <= 0) {
-                            ref.read(pagePrintProvider.notifier).set(PagePrintType.double);
-                          } else {
-                            ref.read(pagePrintProvider.notifier).set(PagePrintType.single);
-                            if (machineId != 0) {
-                              SlackLogService().sendBroadcastLogToSlack(InfoKey.cardPrintModeSwitchSingle.key);
-                            }
-                          }
-                        } else {
-                          print('click when pagePringType not single');
-                        }
+                        if (value == null || value.isEmpty) return; // 값이 없으면 종료
+
+                        int cardNumber = int.parse(value);
+
+                        await ref
+                            .read(setupMainScreenNotifierProvider.notifier)
+                            .rechargeCardStock(cardNumber: cardNumber);
                       },
                       child: Align(
                         alignment: Alignment.center,
-                        child: Text(
-                          (cardCountState.currentCount).toString(),
-                          textAlign: TextAlign.center,
-                          style: ref.watch(pagePrintProvider) != PagePrintType.single
-                              ? context.typography.kioskBody2B.copyWith(color: Color(0xFFECEDEF))
-                              : context.typography.kioskBody2B.copyWith(color: Colors.black),
-                        ),
+                        child: Text((setupMainViewModel.cardCurrentCount).toString(),
+                            textAlign: TextAlign.center,
+                            style: context.typography.kioskBody2B.copyWith(color: Colors.black)),
                       ),
                     ),
                   ),
@@ -367,15 +312,9 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                           label: '이벤트\n미리보기',
                           assetName: SnaptagSvg.eventPreview,
                           onTap: () async {
-                            if (ref.read(pagePrintProvider) != PagePrintType.none) {
-                              await SoundManager().playSound();
-                              if (cardCountState.currentCount < 1) {
-                                ref.read(pagePrintProvider.notifier).set(PagePrintType.double);
-                              }
-                              KioskInfoRouteData().go(context);
-                            } else {
-                              print('이벤트를 선택해주세요');
-                            }
+                            await SoundManager().playSound();
+
+                            KioskInfoRouteData().go(context);
                           },
                         ),
                       ),
@@ -454,9 +393,9 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                       width: 260.w,
                       height: 314.h,
                       child: SetupMainCard(
-                        label: isConnectedPrinter ? '프린트\n사용가능' : '프린트\n준비중',
-                        textColor: isConnectedPrinter ? Color(0xFF1C1C1C) : Color(0xFFD5D5D5),
-                        assetName: isConnectedPrinter ? SnaptagSvg.printConnect : SnaptagSvg.printError,
+                        label: isConnectedCardDispenser ? '카드 배출기\n사용가능' : '카드 배출기\n준비중',
+                        textColor: isConnectedCardDispenser ? Color(0xFF1C1C1C) : Color(0xFFD5D5D5),
+                        assetName: isConnectedCardDispenser ? SnaptagSvg.printConnect : SnaptagSvg.printError,
                       ),
                     ),
                   ),
@@ -488,6 +427,7 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                                 mode: ProcessStartMode.detached,
                               );
                               print("Process.start(launcherPath, ['f'])");
+                              await CardDispenserManager.disconnectAll();
                               exit(0);
                             } catch (e) {
                               print("런처 실행 실패: $e");
@@ -521,8 +461,9 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
               SizedBox(
                   width: 820.w, //780
                   height: 88.h,
-                  child:
-                      isUpdateAvailable ? UpdateNoticeBanner(latestVersion: versionState.latestVersion) : SizedBox()),
+                  child: isUpdateAvailable
+                      ? UpdateNoticeBanner(latestVersion: setupMainViewModel.latestVersion)
+                      : SizedBox()),
             ],
           ),
         ),

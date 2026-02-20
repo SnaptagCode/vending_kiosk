@@ -58,7 +58,7 @@ final dioProvider = Provider.family<Dio, String>((ref, baseUrl) {
         sendHook: (log) {
           final formattedMessage = '*[MachineId : $machineId]*\n$log';
           if (statusCode >= 400 && statusCode < 500) {
-            SlackLogService().sendWarningLogToSlack(formattedMessage);
+            SlackLogService().sendLogToSlack(formattedMessage);
           } else if (statusCode >= 500) {
             SlackLogService().sendErrorLogToSlack(formattedMessage);
             SlackLogService().sendBroadcastLogToSlack(ErrorKey.severError.key);

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vending_kiosk/core/common/constants/constants.dart';
-import 'package:vending_kiosk/core/datasources/local/file_system_service.dart';
+import 'package:vending_kiosk/core/data/datasources/local/file_system_service.dart';
 
 class FilePathActions extends StatelessWidget {
   const FilePathActions({

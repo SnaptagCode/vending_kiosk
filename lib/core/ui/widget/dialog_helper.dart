@@ -9,6 +9,7 @@ import 'package:vending_kiosk/core/common/sound/sound_manager.dart';
 import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
 import 'package:vending_kiosk/core/ui/widget/code_keypad.dart';
 import 'package:vending_kiosk/locale_keys.dart';
+import 'package:vending_kiosk/presentation/routers/router.dart';
 
 class DialogHelper {
   /// 공통 확인/취소 다이얼로그. [showSetupDialog], [showKioskDialog]에서 사용.
@@ -105,6 +106,29 @@ class DialogHelper {
     return result ?? false;
   }
 
+  static Future<void> showPrintCompleteDialog(
+    //5초 후 자동으로 닫히고 QR 화면으로 이동
+    BuildContext context, {
+    VoidCallback? onButtonPressed,
+  }) async {
+    Future.delayed(const Duration(seconds: 5), () {
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        HomeRouteData().go(context);
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    });
+    final result = await showKioskDialog(
+      context,
+      title: LocaleKeys.alert_title_print_complete.tr(),
+      contentText: LocaleKeys.alert_txt_print_complete.tr(),
+      confirmButtonText: LocaleKeys.alert_btn_print_complete.tr(),
+    );
+
+    if (result) {
+      HomeRouteData().go(context);
+    }
+  }
+
   static Future<void> showPurchaseFailedDialog(BuildContext context) async {
     await showKioskDialog(
       context,
@@ -156,6 +180,19 @@ class DialogHelper {
       title: LocaleKeys.alert_title_purchase_failure.tr(),
       contentText: LocaleKeys.alert_txt_timeout_payment.tr(),
       confirmButtonText: LocaleKeys.alert_btn_paymentcard_failure.tr(),
+    );
+  }
+
+  static Future<void> showInsufficientCardStockDialog(
+    BuildContext context, {
+    required int requestedQuantity,
+    required int availableStock,
+  }) async {
+    await showKioskDialog(
+      context,
+      title: '재고 부족',
+      contentText: '카드 재고가 부족합니다.',
+      confirmButtonText: '확인',
     );
   }
 

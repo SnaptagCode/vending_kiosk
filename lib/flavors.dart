@@ -34,11 +34,11 @@ class F {
     return 'https://dev-api-spring-kiosk.snaptag.co.kr';
     switch (F.appFlavor) {
       case Flavor.dev:
-        return 'https://kiosk-dev-server.snaptag.co.kr';
+        return 'https://dev-api-spring-kiosk.snaptag.co.kr';
       case Flavor.prod:
-        return 'https://kiosk-server.snaptag.co.kr';
+        return 'https://api-spring-kiosk.snaptag.co.kr';
       default:
-        return 'https://kiosk-server.snaptag.co.kr';
+        return 'https://api-spring-kiosk.snaptag.co.kr';
     }
   }
 
