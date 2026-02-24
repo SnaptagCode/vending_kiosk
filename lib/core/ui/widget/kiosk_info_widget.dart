@@ -31,10 +31,6 @@ class KioskInfoWidget extends ConsumerWidget {
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 Text(
-                  '${info.kioskMachineName} - ${info.kioskMachineDescription}',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                Text(
                   '${info.printedEventName} - ${info.photoCardPrice}',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),

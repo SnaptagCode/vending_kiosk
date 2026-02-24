@@ -30,8 +30,6 @@ class _CardDispenserTestScreenState extends ConsumerState<CardDispenserTestScree
 
   @override
   Widget build(BuildContext context) {
-    final service = ref.read(cardDispenserServiceProvider.notifier);
-    final config = service.readConfigFromEnv();
     final serviceState = ref.watch(cardDispenserServiceProvider);
     final connectState = ref.watch(cardDispenserConnectProvider);
 
@@ -78,8 +76,8 @@ class _CardDispenserTestScreenState extends ConsumerState<CardDispenserTestScree
                 _buildInfoSection(
                   title: '연결 정보',
                   children: [
-                    _buildInfoRow('포트', config?.port ?? '설정되지 않음'),
-                    _buildInfoRow('프로토콜', config?.protocol ?? '설정되지 않음'),
+                    _buildInfoRow('포트', CardDispenserManager.connectedPortName ?? '자동 감지 대기 중'),
+                    _buildInfoRow('감지 방식', '자동 감지'),
                     _buildInfoRow(
                       '연결 상태',
                       _getConnectionStatusText(connectState),
@@ -150,9 +148,7 @@ class _CardDispenserTestScreenState extends ConsumerState<CardDispenserTestScree
                           child: _buildActionButton(
                             label: '연결 테스트',
                             icon: SnaptagSvg.refresh,
-                            onPressed: _isProcessing || config == null
-                                ? null
-                                : () => _testConnection(config.port, config.protocol),
+                            onPressed: _isProcessing ? null : _testConnection,
                           ),
                         ),
                         SizedBox(width: 20.w),
@@ -505,21 +501,25 @@ class _CardDispenserTestScreenState extends ConsumerState<CardDispenserTestScree
     );
   }
 
-  Future<void> _testConnection(String port, String protocol) async {
+  Future<void> _testConnection() async {
     await SoundManager().playSound();
 
     setState(() {
       _isProcessing = true;
-      _statusMessage = '연결 테스트 중...';
+      _statusMessage = '포트 자동 감지 중...';
       _errorMessage = null;
     });
 
     try {
       final service = ref.read(cardDispenserServiceProvider.notifier);
-      await service.ensureConnected(port: port, protocol: protocol);
+      final detected = await service.autoDetectPort();
+
+      if (detected == null) {
+        throw Exception('카드 배출기를 찾을 수 없습니다. 케이블 연결을 확인하세요.');
+      }
 
       setState(() {
-        _statusMessage = '연결 테스트 성공!';
+        _statusMessage = '연결 성공 (${detected.port})';
         _isProcessing = false;
         _lastCommunicationTime = DateTime.now();
       });
@@ -531,7 +531,7 @@ class _CardDispenserTestScreenState extends ConsumerState<CardDispenserTestScree
       await DialogHelper.showSetupDialog(
         context,
         title: '연결 성공',
-        content: '카드 배출기가 정상적으로 연결되었습니다.',
+        content: '카드 배출기가 정상적으로 연결되었습니다.\n포트: ${detected.port}',
       );
     } catch (e) {
       logger.e('Connection test failed', error: e);
@@ -926,9 +926,9 @@ class _CardDispenserTestScreenState extends ConsumerState<CardDispenserTestScree
 
     if (errorMessage.contains('연결') || errorMessage.contains('connect')) {
       guide = '1. 시리얼 포트 케이블 연결을 확인하세요.\n'
-          '2. .env 파일의 CARD_DISPENSER_PORT 설정을 확인하세요.\n'
-          '3. 다른 프로그램이 포트를 사용 중인지 확인하세요.\n'
-          '4. 배출기 전원을 껐다 켜보세요.';
+          '2. 다른 프로그램이 포트를 사용 중인지 확인하세요.\n'
+          '3. 배출기 전원을 껐다 켜보세요.\n'
+          '4. 연결 테스트 버튼을 눌러 자동 감지를 다시 시도하세요.';
     } else if (errorMessage.contains('timeout') || errorMessage.contains('타임아웃')) {
       guide = '1. 배출기가 응답하지 않습니다.\n'
           '2. 배출기 내부에 카드가 걸렸는지 확인하세요.\n'

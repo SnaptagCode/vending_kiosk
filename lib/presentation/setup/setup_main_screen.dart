@@ -137,8 +137,6 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
     final kioskEventId = ref.read(kioskInfoServiceProvider)?.kioskEventId ?? 0;
     final cardCountState = ref.read(cardCountProvider);
 
-    // await ref.read(printerServiceProvider.notifier).printerStateLog();
-
     await ref.read(kioskRepositoryProvider).deleteEndMark(
           kioskEventId: kioskEventId,
           machineId: machineId,
@@ -168,6 +166,7 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
     final latestVersion = setupMainViewModel.latestVersion;
     final isUpdateAvailable = setupMainViewModel.isUpdateAvailable;
     final isConnectedCardDispenser = setupMainViewModel.cardDispenserState == CardDispenserConnectState.connected;
+    final isCheckingDispenser = setupMainViewModel.isCheckingDispenser;
     final getInfoByKey = setupMainViewModel.getInfoByKey;
     //final isUpdateAvailable = false;
 
@@ -194,10 +193,10 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                   showCancelButton: true,
                 );
                 if (result) {
-                  // await ref.read(kioskRepositoryProvider).endKioskApplication(
-                  //       kioskEventId: ref.read(kioskInfoServiceProvider)?.kioskEventId ?? 0,
-                  //       machineId: ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 0,
-                  //     );
+                  await ref.read(kioskRepositoryProvider).endKioskApplication(
+                        kioskEventId: ref.read(kioskInfoServiceProvider)?.kioskEventId ?? 0,
+                        machineId: ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 0,
+                      );
 
                   await CardDispenserManager.disconnectAll();
 
@@ -393,9 +392,21 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                       width: 260.w,
                       height: 314.h,
                       child: SetupMainCard(
-                        label: isConnectedCardDispenser ? '카드 배출기\n사용가능' : '카드 배출기\n준비중',
+                        label: isConnectedCardDispenser
+                            ? '카드 배출기\n사용가능'
+                            : isCheckingDispenser
+                                ? '카드 배출기\n연결 중...'
+                                : '카드 배출기\n준비중',
                         textColor: isConnectedCardDispenser ? Color(0xFF1C1C1C) : Color(0xFFD5D5D5),
-                        assetName: isConnectedCardDispenser ? SnaptagSvg.printConnect : SnaptagSvg.printError,
+                        assetName: isConnectedCardDispenser
+                            ? SnaptagSvg.printConnect
+                            : isCheckingDispenser
+                                ? SnaptagSvg.printError
+                                : SnaptagSvg.refresh,
+                        isLoading: isCheckingDispenser,
+                        onTap: isConnectedCardDispenser || isCheckingDispenser
+                            ? null
+                            : () => ref.read(setupMainScreenNotifierProvider.notifier).retryCardDispenserConnection(),
                       ),
                     ),
                   ),
@@ -477,8 +488,16 @@ class SetupMainCard extends StatelessWidget {
   final String? assetName;
   final void Function()? onTap;
   final Color? textColor;
+  final bool isLoading;
 
-  const SetupMainCard({super.key, required this.label, this.assetName, this.onTap, this.textColor});
+  const SetupMainCard({
+    super.key,
+    required this.label,
+    this.assetName,
+    this.onTap,
+    this.textColor,
+    this.isLoading = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -502,12 +521,27 @@ class SetupMainCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     SizedBox(height: 10.h),
-                    SvgPicture.asset(
-                      assetName ?? '',
-                      width: 260.w,
-                      height: 200.w,
-                      fit: BoxFit.cover,
-                    ),
+                    isLoading
+                        ? SizedBox(
+                            width: 260.w,
+                            height: 200.w,
+                            child: Center(
+                              child: SizedBox(
+                                width: 80.w,
+                                height: 80.w,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 6,
+                                  color: Color(0xFF316FFF),
+                                ),
+                              ),
+                            ),
+                          )
+                        : SvgPicture.asset(
+                            assetName ?? '',
+                            width: 260.w,
+                            height: 200.w,
+                            fit: BoxFit.cover,
+                          ),
                     Spacer(),
                     Padding(
                       padding: EdgeInsets.only(bottom: 22.h),

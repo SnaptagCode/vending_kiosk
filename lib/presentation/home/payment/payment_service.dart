@@ -3,17 +3,15 @@ import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/entities/order_error_entity.dart';
 import 'package:vending_kiosk/core/data/models/enums/order_status.dart';
-import 'package:vending_kiosk/core/data/models/enums/payment_type.dart';
-import 'package:vending_kiosk/core/data/models/request/create_order_request.dart';
+import 'package:vending_kiosk/core/data/models/request/create_vending_order_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_back_photo_request.dart';
-import 'package:vending_kiosk/core/data/models/request/update_order_request.dart';
-import 'package:vending_kiosk/core/data/models/response/back_photo_card_response.dart';
-import 'package:vending_kiosk/core/data/models/response/create_order_response.dart';
+import 'package:vending_kiosk/core/data/models/request/update_vending_order_status_request.dart';
+import 'package:vending_kiosk/core/data/models/response/create_vending_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
-import 'package:vending_kiosk/core/data/models/response/update_order_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_order_status_response.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
-import 'package:vending_kiosk/lib.dart';
+import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/home/payment/verify_photo_card_provider.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
@@ -36,7 +34,10 @@ class PaymentService extends _$PaymentService {
     _validatePreconditions();
 
     // 2. 주문 생성
-    final orderResponse = await _createOrder().catchError((e) => throw OrderCreationException('Create order fail: $e'));
+    final orderResponse = await _createOrder().catchError((e) {
+      SlackLogService().sendLogToSlack('Create order fail: $e');
+      throw OrderCreationException('Create order fail: $e');
+    });
     ref.read(createOrderInfoProvider.notifier).update(orderResponse);
 
     try {
@@ -68,8 +69,9 @@ class PaymentService extends _$PaymentService {
   /// 결제 승인 처리
   Future<PaymentResponse> _approvePayment() async {
     final price = ref.read(kioskInfoServiceProvider)!.photoCardPrice;
+    final printCount = ref.read(printQuantityNotifierProvider).total;
     final paymentResponse = await ref.read(paymentRepositoryProvider).approve(
-          totalAmount: price,
+          totalAmount: price.toInt() * printCount,
         );
     ref.read(paymentResponseStateProvider.notifier).update(paymentResponse);
     return paymentResponse;
@@ -133,20 +135,16 @@ class PaymentService extends _$PaymentService {
   /// 결제 응답 처리
   Future<void> _handlePaymentResponse(PaymentResponse paymentResponse) async {
     SlackLogService().sendLogToSlack("paymentResponse : $paymentResponse");
-    final backPhoto = ref.watch(verifyPhotoCardProvider).value;
-    if (backPhoto == null) {
-      throw PreconditionFailedException('No back photo available');
-    }
 
     switch (paymentResponse.res) {
       case '0000':
         await _handleSuccessfulPayment();
         break;
       case '1004':
-        await _handleTimeoutPayment(backPhoto, paymentResponse);
+        await _handleTimeoutPayment(paymentResponse);
         break;
       case '1000':
-        await _handleCancelledPayment(backPhoto, paymentResponse);
+        await _handleCancelledPayment(paymentResponse);
         break;
       default:
         await _handleUnknownPayment();
@@ -161,7 +159,7 @@ class PaymentService extends _$PaymentService {
   }
 
   /// 시간 초과 결제 처리
-  Future<void> _handleTimeoutPayment(BackPhotoCardResponse backPhoto, PaymentResponse paymentResponse) async {
+  Future<void> _handleTimeoutPayment(PaymentResponse paymentResponse) async {
     final response = await _updateOrder(isRefund: false, description: "시간초과");
     SlackLogService().sendLogToSlack("paymentResponse1004 : $response");
 
@@ -173,7 +171,7 @@ class PaymentService extends _$PaymentService {
   }
 
   /// 취소된 결제 처리
-  Future<void> _handleCancelledPayment(BackPhotoCardResponse backPhoto, PaymentResponse paymentResponse) async {
+  Future<void> _handleCancelledPayment(PaymentResponse paymentResponse) async {
     final response = await _updateOrder(isRefund: false, description: "고객취소");
     SlackLogService().sendLogToSlack("paymentResponse1000 : $response");
 
@@ -210,7 +208,7 @@ class PaymentService extends _$PaymentService {
 
       final price = ref.read(kioskInfoServiceProvider)!.photoCardPrice;
       final paymentResponse = await ref.read(paymentRepositoryProvider).cancel(
-            totalAmount: price,
+            totalAmount: price.toInt(),
             originalApprovalNo: approvalInfo.approvalNo ?? '',
             originalApprovalDate: approvalInfo.tradeTime?.substring(0, 6) ?? '',
           );
@@ -271,7 +269,7 @@ class PaymentService extends _$PaymentService {
 
       final price = ref.read(kioskInfoServiceProvider)!.photoCardPrice;
       final paymentResponse = await ref.read(paymentRepositoryProvider).cancel(
-            totalAmount: price,
+            totalAmount: price.toInt(),
             originalApprovalNo: approvalInfo.authSeqNumber ?? '',
             originalApprovalDate: DateFormat('yyMMdd').format(approvalInfo.completedAt!),
           );
@@ -322,30 +320,29 @@ class PaymentService extends _$PaymentService {
     return isSuccess;
   }
 
-  Future<CreateOrderResponse> _createOrder() async {
+  Future<CreateVendingOrderResponse> _createOrder() async {
     final settings = ref.read(kioskInfoServiceProvider);
-    final backPhoto = ref.watch(verifyPhotoCardProvider).value;
     final isSingleSided = ref.read(pagePrintProvider) == PagePrintType.single;
+    final printCount = ref.read(printQuantityNotifierProvider).total;
 
-    final request = CreateOrderRequest(
+    final request = CreateVendingOrderRequest(
       kioskEventId: settings!.kioskEventId,
       kioskMachineId: settings.kioskMachineId,
-      photoAuthNumber: backPhoto?.photoAuthNumber ?? '',
-      amount: settings.photoCardPrice,
-      paymentType: PaymentType.card,
+      printCount: printCount,
+      amount: settings.photoCardPrice.toInt() * printCount,
       isSingleSided: isSingleSided,
     );
 
-    return await ref.read(kioskRepositoryProvider).createOrderStatus(request);
+    return await ref.read(kioskRepositoryProvider).createVendingOrder(request);
   }
 
-  Future<UpdateOrderResponse> _updateOrder(
+  Future<VendingOrderStatusResponse> _updateOrder(
       {required bool isRefund, int? orderid, String? photoAuthNumber, String? description}) async {
     try {
       final settings = ref.read(kioskInfoServiceProvider);
-      final backPhotoAuthNumber = photoAuthNumber ?? ref.read(verifyPhotoCardProvider).value?.photoAuthNumber; //여기서 예외
       final approval = ref.read(paymentResponseStateProvider);
-      final orderId = orderid ?? ref.read(createOrderInfoProvider)?.orderId;
+      final orderId = orderid ?? ref.read(createOrderInfoProvider)?.order.id;
+      final cardCount = ref.read(printQuantityNotifierProvider).total;
       if (orderId == null) {
         throw Exception('No order id available');
       }
@@ -355,50 +352,47 @@ class PaymentService extends _$PaymentService {
       final OrderStatus orderStatus = (isRefund && approval?.orderState == OrderStatus.failed)
           ? OrderStatus.refunded_failed
           : approval?.orderState ?? defaultStatus;
-      final request = UpdateOrderRequest(
+
+      final request = UpdateVendingOrderStatusRequest(
         kioskEventId: settings!.kioskEventId,
         kioskMachineId: settings.kioskMachineId,
-        photoAuthNumber: backPhotoAuthNumber ?? '-',
-        amount: settings.photoCardPrice,
         status: orderStatus,
-        approvalNumber: approval?.approvalNo ?? '-',
-        purchaseAuthNumber: approval?.approvalNo ?? '-',
+        description: description,
+        amount: settings.photoCardPrice.toInt() * cardCount,
         authSeqNumber: approval?.approvalNo ?? '-',
         detail: approval?.KSNET ?? '{}',
-        description: description,
+        approvalNumber: approval?.approvalNo ?? '-',
       );
 
-      return await ref.read(kioskRepositoryProvider).updateOrderStatus(orderId.toInt(), request);
+      return await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(orderId.toInt(), request);
     } catch (e) {
       SlackLogService().sendErrorLogToSlack('update order error: $e');
       rethrow;
     }
   }
 
-  Future<UpdateOrderResponse> _updateFailOrder({required String description}) async {
+  Future<VendingOrderStatusResponse> _updateFailOrder({required String description}) async {
     try {
       final settings = ref.read(kioskInfoServiceProvider);
-      final backPhoto = ref.watch(verifyPhotoCardProvider).value;
       final approval = ref.watch(paymentResponseStateProvider);
-      final orderId = ref.watch(createOrderInfoProvider)?.orderId;
+      final orderId = ref.watch(createOrderInfoProvider)?.order.id;
       if (orderId == null) {
         throw Exception('No order id available');
       }
       logger.i(
           'respCode: ${approval?.respCode} \trespCode: ${approval?.respCode} \nORDER STATUS: ${approval?.orderState}');
-      final request = UpdateOrderRequest(
-          kioskEventId: settings!.kioskEventId,
-          kioskMachineId: settings.kioskMachineId,
-          photoAuthNumber: backPhoto?.photoAuthNumber ?? '-',
-          amount: settings.photoCardPrice,
-          status: OrderStatus.failed,
-          approvalNumber: '-',
-          purchaseAuthNumber: '-',
-          authSeqNumber: '-',
-          detail: approval?.KSNET ?? '{}',
-          description: description);
+      final request = UpdateVendingOrderStatusRequest(
+        kioskEventId: settings!.kioskEventId,
+        kioskMachineId: settings.kioskMachineId,
+        status: OrderStatus.failed,
+        description: description,
+        amount: settings.photoCardPrice.toInt(),
+        authSeqNumber: approval?.approvalNo ?? '-',
+        detail: approval?.KSNET ?? '{}',
+        approvalNumber: approval?.approvalNo ?? '-',
+      );
 
-      return await ref.read(kioskRepositoryProvider).updateOrderStatus(orderId.toInt(), request);
+      return await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(orderId.toInt(), request);
     } catch (e) {
       rethrow;
     }

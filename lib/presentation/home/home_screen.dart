@@ -212,7 +212,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                           Text(
-                            '$quantity',
+                            '${quantity.total}',
                             style: TextStyle(
                               fontSize: 18.sp,
                               color: mainTextColor,
@@ -307,7 +307,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     Color buttonColor,
     Color buttonTextColor,
   ) {
-    final isSelected = ref.watch(printQuantityNotifierProvider) == value;
+    final isSelected = ref.watch(printQuantityNotifierProvider).total == value;
 
     return GestureDetector(
       onTap: () => ref.read(printQuantityNotifierProvider.notifier).setQuantity(value),

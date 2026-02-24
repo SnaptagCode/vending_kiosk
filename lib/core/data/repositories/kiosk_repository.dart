@@ -232,23 +232,6 @@ class _KioskRepository {
     }
   }
 
-  // Future<void> updatePrintLog({
-  //   required PrinterLog request,
-  // }) async {
-  //   try {
-  //     final cardCount = _ref.read(cardCountProvider);
-
-  //     await _apiClient.updatePrintLog(
-  //       body: {
-  //         ...request.toJson(),
-  //         'remainingSingleSidedCount': cardCount.remainingSingleSidedCount,
-  //       },
-  //     );
-  //   } catch (e) {
-  //     rethrow;
-  //   }
-  // }
-
   Future<void> endKioskApplication({
     required int kioskEventId,
     required int machineId,

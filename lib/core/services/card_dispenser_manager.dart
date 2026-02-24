@@ -53,6 +53,23 @@ class CardDispenserManager {
   /// 실제 시리얼 연결 여부 (재연결 필요 여부 판단용)
   bool get isConnected => _serial != null && _serial!.isConnected;
 
+  /// 인스턴스 생성 없이 현재 연결 여부만 확인
+  static bool get isInstanceConnected => _instance?.isConnected ?? false;
+
+  /// 현재 연결된 포트 이름 (연결 안 됐으면 null)
+  static String? get connectedPortName => _instance?._connectedPort;
+
+  /// 기존 인스턴스로 health check — 인스턴스가 없거나 연결 안 됐으면 false
+  static Future<bool> checkInstanceHealth() async {
+    if (_instance == null || !_instance!.isConnected) return false;
+    try {
+      return await _instance!.healthCheck();
+    } catch (e) {
+      logger.w('CardDispenserManager.checkInstanceHealth failed', error: e);
+      return false;
+    }
+  }
+
   /// Connect to card dispenser (must run on main isolate for Windows COM port).
   Future<bool> connect(String port, String protocol) async {
     try {
@@ -108,6 +125,13 @@ class CardDispenserManager {
       _connectedProtocol = null;
       rethrow;
     }
+  }
+
+  /// 사용 가능한 포트 중 카드 배출기를 자동 감지합니다.
+  static Future<({String port, CardDispenserProtocol protocol})?> autoDetect({
+    List<CardDispenserProtocol>? protocols,
+  }) async {
+    return CardDispenserSerial.autoDetect(protocols: protocols);
   }
 
   /// Health check

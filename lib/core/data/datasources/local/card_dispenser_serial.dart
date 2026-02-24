@@ -77,6 +77,11 @@ class CardDispenserSerial {
     return actual == upper || actual == lower;
   }
 
+  /// Win32 error 6 (ERROR_INVALID_HANDLE) 여부 확인
+  static bool _isInvalidHandleError(Object e) {
+    return e.toString().contains('win32 error code is 6');
+  }
+
   /// Win32 오류 코드에 따른 안내 문구 (접근 거부 등)
   static String _win32ErrorHint(Object e) {
     final msg = e.toString();
@@ -287,7 +292,12 @@ class CardDispenserSerial {
         try {
           _port!.readBytes(1000, timeout: const Duration(milliseconds: 10));
         } catch (e) {
-          // 버퍼가 비어있으면 무시
+          // 버퍼가 비어있으면 무시 (error 6: 핸들 무효화 포함)
+          if (_isInvalidHandleError(e)) {
+            _isConnected = false;
+            _port = null;
+            throw Exception('Serial port handle invalidated (win32 error 6). Reconnect required.');
+          }
         }
 
         // 패킷 전송
@@ -307,6 +317,12 @@ class CardDispenserSerial {
             throw TimeoutException('Read timeout after ${timeoutMs}ms');
           });
         } catch (e) {
+          // 핸들 무효화 시 즉시 연결 해제 처리 후 재시도 불필요
+          if (_isInvalidHandleError(e)) {
+            _isConnected = false;
+            _port = null;
+            throw Exception('Serial port handle invalidated (win32 error 6). Reconnect required.');
+          }
           // 타임아웃 또는 읽기 실패
           if (attempt < retryCount) {
             logger.w('Response timeout on attempt ${attempt + 1}, retrying...', error: e);
@@ -368,6 +384,8 @@ class CardDispenserSerial {
         // 정상 응답 반환
         return response;
       } catch (e) {
+        // 핸들 무효화는 재시도해도 의미 없으므로 즉시 rethrow
+        if (_isInvalidHandleError(e)) rethrow;
         if (attempt < retryCount) {
           logger.w('Command send attempt ${attempt + 1} failed, retrying...', error: e);
           await Future.delayed(Duration(milliseconds: 100));
@@ -385,10 +403,10 @@ class CardDispenserSerial {
   ///
   /// 명령: "$" + "H" + "I" + "?"
   /// 응답: "$" + "m" + "e" + "!" (정상) 또는 "$" + "M" + "E" + "!" (DIP SW 3번 ON)
-  Future<bool> healthCheck() async {
+  Future<bool> healthCheck({int timeoutMs = 500, int retryCount = 5}) async {
     try {
       // '?' = 0x3F
-      final response = await _sendCommand(cmdHealthCheck, 0x49, 0x3F);
+      final response = await _sendCommand(cmdHealthCheck, 0x49, 0x3F, timeoutMs: timeoutMs, retryCount: retryCount);
       if (response != null) {
         // 응답 확인: "m" + "e" + "!" 또는 "M" + "E" + "!"
         final isValid = (response[1] == 0x6D && response[2] == 0x65 && response[3] == 0x21) ||
@@ -400,6 +418,65 @@ class CardDispenserSerial {
       logger.e('Health check failed', error: e);
       return false;
     }
+  }
+
+  /// 단일 연결 시도 (재시도 없음) — autoDetect 전용
+  Future<bool> connectOnce(String portName) => _connectOnce(portName);
+
+  /// 사용 가능한 포트 중 카드 배출기를 자동 감지합니다.
+  ///
+  /// 모든 COM 포트를 순회하며 Health Check에 응답하는 포트를 반환합니다.
+  /// 이미 다른 프로세스가 점유한 포트는 Error 5로 자동 스킵됩니다.
+  static Future<({String port, CardDispenserProtocol protocol})?> autoDetect({
+    List<CardDispenserProtocol>? protocols,
+    int connectTimeoutMs = 1000,
+    int healthCheckTimeoutMs = 500,
+  }) async {
+    final ports = getAvailablePorts();
+    if (ports.isEmpty) {
+      logger.w('CardDispenserSerial.autoDetect: 사용 가능한 COM 포트 없음');
+      return null;
+    }
+
+    logger.i('CardDispenserSerial.autoDetect: 스캔 시작 → 포트: $ports');
+    final tryProtocols = protocols ?? CardDispenserProtocol.values;
+
+    for (final port in ports) {
+      for (final protocol in tryProtocols) {
+        final dispenser = CardDispenserSerial(protocol: protocol);
+        try {
+          bool connected = false;
+          try {
+            connected = await dispenser
+                .connectOnce(port)
+                .timeout(Duration(milliseconds: connectTimeoutMs), onTimeout: () => false);
+          } catch (_) {
+            connected = false;
+          }
+
+          if (!connected) continue;
+
+          final healthy = await dispenser.healthCheck(
+            timeoutMs: healthCheckTimeoutMs,
+            retryCount: 0,
+          );
+
+          if (healthy) {
+            logger.i('CardDispenserSerial.autoDetect: 배출기 감지 성공 → $port ($protocol)');
+            return (port: port, protocol: protocol);
+          }
+        } catch (e) {
+          logger.d('CardDispenserSerial.autoDetect: $port ($protocol) 응답 없음 - $e');
+        } finally {
+          try {
+            await dispenser.disconnect();
+          } catch (_) {}
+        }
+      }
+    }
+
+    logger.w('CardDispenserSerial.autoDetect: 모든 포트 스캔 완료 - 배출기 감지 실패. 포트: $ports');
+    return null;
   }
 
   /// 초기화 (Reset)

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/core/data/datasources/local/card_dispenser_protocol.dart';
 import 'package:vending_kiosk/core/services/card_dispenser_manager.dart';
 
 part 'card_dispenser_service.g.dart';
@@ -63,10 +64,20 @@ class CardDispenserService extends _$CardDispenserService {
     required String port,
     String protocol = 'txUpperRxLower',
   }) async {
+    // 핸들 무효화(win32 error 6) 등으로 isConnected가 false가 된 경우 강제 재연결
     final alreadyConnected =
         _manager != null && _connectedPort == port && _connectedProtocol == protocol && _manager!.isConnected;
     if (alreadyConnected) {
       return;
+    }
+
+    // 이전 연결이 핸들 무효화로 끊긴 경우 인스턴스 초기화
+    if (_manager != null && !_manager!.isConnected) {
+      logger.w('CardDispenserService: 이전 연결이 끊긴 상태 감지, 재연결 시도...');
+      await CardDispenserManager.disconnectAll();
+      _manager = null;
+      _connectedPort = null;
+      _connectedProtocol = null;
     }
 
     state = const CardDispenserServiceState.connecting();
@@ -94,6 +105,31 @@ class CardDispenserService extends _$CardDispenserService {
     }
 
     state = const CardDispenserServiceState.ready();
+  }
+
+  /// 연결된 시리얼 포트 중 카드 배출기를 자동으로 감지하고 연결합니다.
+  ///
+  /// 감지 성공 시 해당 포트로 연결까지 수행하고 포트/프로토콜 정보를 반환합니다.
+  /// 감지 실패 시 null 반환.
+  Future<({String port, String protocol})?> autoDetectPort() async {
+    state = const CardDispenserServiceState.connecting();
+    try {
+      final result = await CardDispenserManager.autoDetect();
+      if (result == null) {
+        state = const CardDispenserServiceState.error('배출기를 감지하지 못했습니다');
+        return null;
+      }
+
+      final protocolStr = result.protocol == CardDispenserProtocol.txLowerRxLower
+          ? 'txLowerRxLower'
+          : 'txUpperRxLower';
+
+      await ensureConnected(port: result.port, protocol: protocolStr);
+      return (port: result.port, protocol: protocolStr);
+    } catch (e) {
+      state = CardDispenserServiceState.error('자동 감지 실패: $e');
+      return null;
+    }
   }
 
   Future<void> disconnect() async {
@@ -144,29 +180,24 @@ class CardDispenserService extends _$CardDispenserService {
   /// Throws [CardDispenserServiceException] on timeout or hardware error.
   Future<void> dispenseAndWait({
     required int count,
-    String? port,
-    String protocol = 'txUpperRxLower',
     Duration pollInterval = _defaultPollInterval,
     Duration overallTimeout = _defaultOverallTimeout,
   }) async {
-    final cfg = port == null ? readConfigFromEnv() : null;
-    final resolvedPort = port ?? cfg?.port;
-    final resolvedProtocol = port != null ? protocol : (cfg?.protocol ?? protocol);
-    logger.d('CardDispenserService dispenseAndWait resolvedPort: $resolvedPort, resolvedProtocol: $resolvedProtocol');
-
-    if (resolvedPort == null || resolvedPort.isEmpty) {
-      // No config: don't block print flow unless explicitly configured.
-      logger.w('CardDispenser: skip dispense (no port configured)');
-      return;
-    }
-
     // Only meaningful on Windows (serial_port_win32).
     if (!defaultTargetPlatform.toString().toLowerCase().contains('windows')) {
       logger.w('CardDispenser: skip dispense (not Windows)');
       return;
     }
 
-    await ensureConnected(port: resolvedPort, protocol: resolvedProtocol);
+    // 연결 안 됐으면 자동 감지 시도
+    if (!CardDispenserManager.isInstanceConnected) {
+      logger.i('CardDispenserService dispenseAndWait: 연결 안 됨 → 자동 감지 시도');
+      final detected = await autoDetectPort();
+      if (detected == null) {
+        logger.w('CardDispenser: skip dispense (자동 감지 실패)');
+        return;
+      }
+    }
 
     state = CardDispenserServiceState.dispensing(count);
 

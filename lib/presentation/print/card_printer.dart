@@ -87,7 +87,7 @@ class PrinterService extends _$PrinterService {
     try {
       state = const AsyncValue.loading();
       final printerManager = await PrinterManager.getInstance();
-      final isMetal = ref.read(kioskInfoServiceProvider)?.isMetal == true ? true : false;
+      final isMetal = false;
 
       final printerLog = await printerManager.startPrint(
           isSingleMode: isSingleMode, frontFile: frontFile, embeddedFile: embeddedFile, isMetal: isMetal);

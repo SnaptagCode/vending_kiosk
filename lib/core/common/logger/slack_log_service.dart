@@ -29,7 +29,7 @@ class SlackLogService {
       return;
     }
     try {
-      // await _container.read(kioskRepositoryProvider).sendSlackAlert(type, message);
+      await _container.read(kioskRepositoryProvider).sendSlackAlert(type, message);
     } catch (e) {
       log("❌ Slack 알림 API 오류: $e");
     }
