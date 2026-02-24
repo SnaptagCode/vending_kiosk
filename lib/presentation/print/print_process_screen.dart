@@ -17,7 +17,6 @@ import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
 import 'package:vending_kiosk/presentation/setup/page_print_provider.dart';
-import 'package:vending_kiosk/presentation/print/dispense_progress_provider.dart';
 import 'package:vending_kiosk/presentation/print/print_process_screen_provider.dart';
 
 import 'dart:io';
@@ -97,10 +96,19 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
             // Reset payment and quantity state
             ref.read(paymentResponseStateProvider.notifier).reset();
 
+            final isReprint = ref.read(reprintModeProvider);
+            if (isReprint) {
+              ref.read(reprintModeProvider.notifier).state = false;
+            }
+
             await DialogHelper.showPrintCompleteDialog(
               context,
               onButtonPressed: () {
-                HomeRouteData().go(context);
+                if (isReprint) {
+                  PaymentHistoryRouteData().go(context);
+                } else {
+                  HomeRouteData().go(context);
+                }
               },
             );
           },

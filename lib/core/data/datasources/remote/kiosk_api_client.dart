@@ -12,6 +12,11 @@ import 'package:vending_kiosk/core/data/models/response/update_print_response.da
 import 'package:vending_kiosk/core/data/models/response/card_stock_consume_response.dart';
 import 'package:vending_kiosk/core/data/models/response/card_stock_recharge_response.dart';
 import 'package:vending_kiosk/core/data/models/response/machine_card_stock_response.dart';
+import 'package:vending_kiosk/core/data/models/response/create_vending_order_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_order_status_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_status_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_list_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_reprint_response.dart';
 import 'package:vending_kiosk/lib.dart';
 import 'package:retrofit/retrofit.dart';
 
@@ -36,7 +41,7 @@ abstract class KioskApiClient {
     @Query('kioskEventId') required int kioskEventId,
   });
 
-  @GET('/v1/machine/info/by-key')
+  @GET('/v1/machine/info/vending')
   Future<KioskMachineInfo> getKioskMachineInfoByKey({
     @Query('uniqueKey') required String uniqueKey,
   });
@@ -105,7 +110,7 @@ abstract class KioskApiClient {
   @GET('/v1/error-code')
   Future<List<AlertDefinitionResponse>> getAlertDefinitions();
 
-  @POST('/v1/internal/slack-alert')
+  @POST('/v1/internal/slack/kiosk-by-type')
   Future<void> sendSlackAlert(@Body() Map<String, dynamic> body);
 
   @POST('/v1/internal/event/{kioskEventId}/machine/{machineId}/end')
@@ -132,5 +137,36 @@ abstract class KioskApiClient {
   @POST('/v1/qr/back-photo')
   Future<BackPhotoCardResponse> getBackPhotoCardByQr({
     @Body() required Map<String, dynamic> body,
+  });
+
+  // Vending APIs
+  @POST('/v1/vending/order')
+  Future<CreateVendingOrderResponse> createVendingOrder({
+    @Body() required Map<String, dynamic> body,
+  });
+
+  @PATCH('/v1/vending/order/{orderId}/status')
+  Future<VendingOrderStatusResponse> updateVendingOrderStatus({
+    @Path('orderId') required int orderId,
+    @Body() required Map<String, dynamic> body,
+  });
+
+  @PATCH('/v1/vending/print/{printedPhotoCardId}/status')
+  Future<VendingPrintStatusResponse> updateVendingPrintStatus({
+    @Path('printedPhotoCardId') required int printedPhotoCardId,
+    @Body() required Map<String, dynamic> body,
+  });
+
+  @GET('/v1/vending/print/list')
+  Future<VendingPrintListResponse> getVendingPrintList({
+    @Query('kioskEventId') required int kioskEventId,
+    @Query('kioskMachineId') required int kioskMachineId,
+    @Query('pageSize') required int pageSize,
+    @Query('currentPage') required int currentPage,
+  });
+
+  @GET('/v1/vending/print/reprint/{orderId}')
+  Future<VendingReprintResponse> reprintVendingOrder({
+    @Path('orderId') required int orderId,
   });
 }

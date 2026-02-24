@@ -9,6 +9,7 @@ import 'package:vending_kiosk/core/data/models/request/get_back_photo_by_qr_requ
 import 'package:vending_kiosk/core/data/models/request/get_orders_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_order_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_print_request.dart';
+import 'package:vending_kiosk/core/data/models/request/update_vending_print_status_request.dart';
 import 'package:vending_kiosk/core/data/models/response/alert_definition_response.dart';
 import 'package:vending_kiosk/core/data/models/response/back_photo_card_response.dart';
 import 'package:vending_kiosk/core/data/models/response/back_photo_status_response.dart';
@@ -22,6 +23,13 @@ import 'package:vending_kiosk/core/data/models/response/order_list_response.dart
 import 'package:vending_kiosk/core/data/models/response/update_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/update_print_response.dart';
 import 'package:vending_kiosk/core/data/models/response/machine_card_stock_response.dart';
+import 'package:vending_kiosk/core/data/models/request/create_vending_order_request.dart';
+import 'package:vending_kiosk/core/data/models/request/update_vending_order_status_request.dart';
+import 'package:vending_kiosk/core/data/models/response/create_vending_order_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_order_status_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_status_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_list_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_reprint_response.dart';
 import 'package:vending_kiosk/core/network/dio_client.dart';
 import 'package:vending_kiosk/flavors.dart';
 import 'package:vending_kiosk/lib.dart';
@@ -67,7 +75,7 @@ class _KioskRepository {
   /// POST /v1/internal/slack-alert — 서버가 타입·메시지에 따라 Slack 전송
   Future<void> sendSlackAlert(String type, String message) async {
     try {
-      await _apiClient.sendSlackAlert({'type': type, 'message': message});
+      await _apiClient.sendSlackAlert({'type': type, 'text': message});
     } catch (e) {
       rethrow;
     }
@@ -291,6 +299,69 @@ class _KioskRepository {
       return await _apiClient.getBackPhotoCardByQr(
         body: request.toJson(),
       );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Vending APIs
+  Future<CreateVendingOrderResponse> createVendingOrder(CreateVendingOrderRequest request) async {
+    try {
+      return await _apiClient.createVendingOrder(body: request.toJson());
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<VendingOrderStatusResponse> updateVendingOrderStatus(
+    int orderId,
+    UpdateVendingOrderStatusRequest request,
+  ) async {
+    try {
+      return await _apiClient.updateVendingOrderStatus(
+        orderId: orderId,
+        body: request.toJson(),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<VendingPrintStatusResponse> updateVendingPrintStatus(
+    int printedPhotoCardId,
+    UpdateVendingPrintStatusRequest request,
+  ) async {
+    try {
+      return await _apiClient.updateVendingPrintStatus(
+        printedPhotoCardId: printedPhotoCardId,
+        body: request.toJson(),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<VendingPrintListResponse> getVendingPrintList({
+    required int kioskEventId,
+    required int kioskMachineId,
+    required int pageSize,
+    required int currentPage,
+  }) async {
+    try {
+      return await _apiClient.getVendingPrintList(
+        kioskEventId: kioskEventId,
+        kioskMachineId: kioskMachineId,
+        pageSize: pageSize,
+        currentPage: currentPage,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<VendingReprintResponse> reprintVendingOrder(int orderId) async {
+    try {
+      return await _apiClient.reprintVendingOrder(orderId: orderId);
     } catch (e) {
       rethrow;
     }

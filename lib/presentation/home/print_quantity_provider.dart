@@ -27,7 +27,7 @@ class PrintQuantityNotifier extends StateNotifier<PrintQuantity> {
   PrintQuantityNotifier() : super(const PrintQuantity(current: 0, total: 0));
 
   void setQuantity(int value) {
-    state = state.copyWith(total: value);
+    state = state.copyWith(current: 0, total: value);
   }
 
   void increment() {
@@ -46,3 +46,9 @@ class PrintQuantityNotifier extends StateNotifier<PrintQuantity> {
 final printQuantityNotifierProvider = StateNotifierProvider<PrintQuantityNotifier, PrintQuantity>(
   (ref) => PrintQuantityNotifier(),
 );
+
+/// 재출력 모드 여부 — true이면 출력 완료 후 출력 내역 화면으로 이동
+final reprintModeProvider = StateProvider<bool>((ref) => false);
+
+/// 재출력 대상 IDs — null이면 일반 출력(createOrderInfoProvider 사용)
+final reprintIdsProvider = StateProvider<List<int>?>((ref) => null);
