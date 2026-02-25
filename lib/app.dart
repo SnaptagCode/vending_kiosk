@@ -88,32 +88,30 @@ class _AppState extends ConsumerState<App> with WindowListener {
     }
   }
 
-  @override
-  Future<void> onWindowClose() async {
-    // 윈도우가 닫힐 때 시리얼 포트 정리
-    logger.i('App: Window closing, cleaning up serial port...');
-    await _cleanupSerialPort();
-    // 포트가 완전히 닫힐 때까지 약간 대기
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    await windowManager.destroy();
-  }
-
   Future<void> _ensureFullScreenOnce() async {
     if (_initializedFullScreen) return;
     _initializedFullScreen = true;
 
     if (Platform.isWindows) {
       WindowOptions windowOptions = WindowOptions(
-        fullScreen: true,
+        // fullScreen: true,
         backgroundColor: Colors.transparent,
         skipTaskbar: false,
         titleBarStyle: TitleBarStyle.hidden,
       );
       await windowManager.waitUntilReadyToShow(windowOptions, () async {
-        await windowManager.setFullScreen(true);
+        // await windowManager.setFullScreen(true);
         await windowManager.show();
       });
     }
+  }
+
+  @override
+  void onWindowClose() async {
+    try {
+      await _cleanupSerialPort().timeout(const Duration(seconds: 3));
+    } catch (_) {}
+    exit(0);
   }
 
   @override

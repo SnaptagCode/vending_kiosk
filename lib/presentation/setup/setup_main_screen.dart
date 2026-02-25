@@ -9,24 +9,18 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:vending_kiosk/core/common/constants/alert_key.dart';
 import 'package:vending_kiosk/core/common/constants/image_paths.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
+import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/common/sound/sound_manager.dart';
-import 'package:vending_kiosk/core/data/models/request/unique_key_request.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
 import 'package:vending_kiosk/core/services/card_dispenser_manager.dart';
 import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
-import 'package:vending_kiosk/flavors.dart';
 import 'package:vending_kiosk/locale_keys.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
-import 'package:vending_kiosk/lib.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
-import 'package:vending_kiosk/presentation/print/state/printer_connect_state.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
 import 'package:vending_kiosk/presentation/setup/card_dispenser_connect_state.dart';
-import 'package:vending_kiosk/presentation/setup/page_print_provider.dart';
 import 'package:vending_kiosk/presentation/setup/setup_main_screen_provider.dart';
-import 'package:vending_kiosk/presentation/setup/uuid_provider.dart';
 import 'package:vending_kiosk/presentation/setup/alert_definition_provider.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -55,7 +49,10 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
 
     final kioskInfo = ref.read(kioskInfoServiceProvider);
 
-    print(
+    // final isPaymentDeviceReady = await _checkPaymentDevice();
+    // if (!isPaymentDeviceReady) return;
+
+    logger.d(
         'kioskInfo: $kioskInfo kioskEventId: ${kioskInfo?.kioskEventId} kioskMachineId: ${kioskInfo?.kioskMachineId}');
     if (kioskInfo == null) {
       if (kioskInfo?.kioskEventId == 0 ||
@@ -83,23 +80,7 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
   }
 
   Future<bool> _checkPaymentDevice() async {
-    try {
-      final response = await ref.read(paymentRepositoryProvider).check();
-      SlackLogService().sendInspectionEndBroadcastLogToSlack(InfoKey.inspectionEnd.key, isPaymentOn: true);
-      SlackLogService().sendLogToSlack("Payment Device check: $response");
-
-      return true;
-    } catch (e) {
-      SlackLogService().sendInspectionEndBroadcastLogToSlack(InfoKey.inspectionEnd.key, isPaymentOn: false);
-      SlackLogService().sendErrorLogToSlack("Payment Device check: $e");
-
-      DialogHelper.showSetupDialog(
-        context,
-        title: '리더기 점검',
-        content: '리더기 응답이 없습니다.\n연결 상태를 확인한 뒤 다시 시도해 주세요.',
-      );
-      return false;
-    }
+    return await ref.read(setupMainScreenNotifierProvider.notifier).checkPaymentDevice();
   }
 
   Future<void> _writePhotocodeMeta() async {
@@ -125,7 +106,7 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
       eventId.toString(),
       cardCountInfo.toString(),
       serviceName.toString(),
-      '$currentVersion',
+      currentVersion,
     );
   }
 
@@ -146,29 +127,20 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
     SlackLogService()
         .sendLogToSlack('machineId:$machineId, currentVersion:$currentVersion, latestVersion:$latestVersion');
 
-    if (cardCountState.currentCount < 1) {
-      ref.read(pagePrintProvider.notifier).set(PagePrintType.double);
-      SlackLogService().sendLogToSlack('machineId: $machineId, singleCard: $cardCountState, set pagePrintType double');
-    } else {
-      ref.read(pagePrintProvider.notifier).set(PagePrintType.single);
-      SlackLogService().sendLogToSlack('machineId: $machineId, singleCard: $cardCountState, set pagePrintType single');
-    }
-
     HomeRouteData().go(context);
+
+    SlackLogService().sendInspectionEndBroadcastLogToSlack(InfoKey.inspectionEnd.key);
   }
 
   @override
   Widget build(BuildContext context) {
     ref.read(alertDefinitionProvider);
     final setupMainViewModel = ref.watch(setupMainScreenNotifierProvider);
-    final machineId = setupMainViewModel.machineId;
     final currentVersion = setupMainViewModel.currentVersion;
-    final latestVersion = setupMainViewModel.latestVersion;
     final isUpdateAvailable = setupMainViewModel.isUpdateAvailable;
     final isConnectedCardDispenser = setupMainViewModel.cardDispenserState == CardDispenserConnectState.connected;
     final isCheckingDispenser = setupMainViewModel.isCheckingDispenser;
     final getInfoByKey = setupMainViewModel.getInfoByKey;
-    //final isUpdateAvailable = false;
 
     return Theme(
       data: Theme.of(context).copyWith(
@@ -192,16 +164,14 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                   title: '프로그램을 종료합니다.',
                   showCancelButton: true,
                 );
-                if (result) {
-                  await ref.read(kioskRepositoryProvider).endKioskApplication(
-                        kioskEventId: ref.read(kioskInfoServiceProvider)?.kioskEventId ?? 0,
-                        machineId: machineId,
-                      );
-
-                  // await CardDispenserManager.disconnectAll();
-
-                  exit(0);
-                }
+                if (!result) return;
+                try {
+                  await ref
+                      .read(setupMainScreenNotifierProvider.notifier)
+                      .exitKioskApp()
+                      .timeout(const Duration(seconds: 5));
+                } catch (_) {}
+                exit(0);
               },
               child: SvgPicture.asset(
                 SnaptagSvg.off,
@@ -231,7 +201,7 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
               SizedBox(height: 50.h),
               Center(
                 child: Text(
-                  '*카드 수량 입력 후 이벤트를 실행 해주세요. (최대 300장)',
+                  '*카드 수량 입력 후 이벤트를 실행 해주세요. (최대 ${setupMainViewModel.cardCapacity}장)',
                   style: context.typography.kioskBody1B.copyWith(color: Colors.red),
                 ),
               ),
