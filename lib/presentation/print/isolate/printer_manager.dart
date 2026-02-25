@@ -29,6 +29,7 @@ import 'package:path_provider/path_provider.dart';
 
 class PrinterManager {
   static PrinterManager? _instance;
+  static Isolate? _isolate;
   late SendPort _sendPort;
   String? _metalWatermarkPath;
 
@@ -46,6 +47,15 @@ class PrinterManager {
     }
   }
 
+  /// 앱 종료 시 호출: 프린터 isolate를 즉시 종료합니다.
+  static void shutdown() {
+    try {
+      _isolate?.kill(priority: Isolate.immediate);
+      _isolate = null;
+    } catch (_) {}
+    _instance = null;
+  }
+
   Future<void> _init() async {
     try {
       logger.i('PrinterManager Starting PrinterManager initialization...');
@@ -61,7 +71,7 @@ class PrinterManager {
       logger.i('PrinterManager Initializing print isolate...');
       final printReceivePort = ReceivePort();
 
-      await Isolate.spawn(_printEntry, {
+      _isolate = await Isolate.spawn(_printEntry, {
         'sendPort': printReceivePort.sendPort,
         'metalWatermarkPath': _metalWatermarkPath,
       });

@@ -1,6 +1,30 @@
 import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 import 'package:path/path.dart' as p;
+
+/// dart:io exit()의 대안. Windows에서 Win32 TerminateProcess를 FFI로 직접 호출.
+///
+/// dart:io exit()은 내부에서 _EventHandler._shutdown()을 먼저 실행하여
+/// InternetConnectionChecker · Dio 소켓 정리 도중 수 초간 블로킹되고
+/// Flutter Windows 창이 "응답없음" 상태로 굳어버리는 문제가 있음.
+/// TerminateProcess는 해당 정리 단계를 건너뛰고 OS가 즉시 프로세스를 종료함.
+void terminateProcess([int exitCode = 0]) {
+  if (Platform.isWindows) {
+    try {
+      final kernel32 = DynamicLibrary.open('kernel32.dll');
+      final terminateFn = kernel32.lookupFunction<
+          Int32 Function(IntPtr, Uint32),
+          int Function(int, int)>('TerminateProcess');
+      final getHandleFn = kernel32.lookupFunction<
+          IntPtr Function(),
+          int Function()>('GetCurrentProcess');
+      terminateFn(getHandleFn(), exitCode);
+      return;
+    } catch (_) {}
+  }
+  exit(exitCode);
+}
 
 class ForceUpdateWriter {
   static Future<void> writeForceUpdateTrue() async {

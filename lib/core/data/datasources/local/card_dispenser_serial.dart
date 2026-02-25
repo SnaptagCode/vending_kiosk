@@ -229,9 +229,7 @@ class CardDispenserSerial {
     try {
       if (_port != null && _port!.isOpened) {
         _port!.close();
-        logger.d('Card dispenser port closed, waiting for OS release...');
-        // Windows가 COM 포트 리소스를 완전히 해제할 때까지 대기
-        await Future<void>.delayed(const Duration(milliseconds: 500));
+        logger.d('Card dispenser port closed');
       }
       _isConnected = false;
       _port = null;
@@ -312,10 +310,14 @@ class CardDispenserSerial {
         Uint8List? response;
 
         try {
-          // 정확히 5바이트 읽기 (타임아웃 적용)
-          response = await _port!.readFixedSizeBytes(packetSize).timeout(timeout, onTimeout: () {
+          // readBytes(timeout:)는 내부적으로 Timer.periodic을 사용하여 타임아웃 시
+          // timer.cancel()을 호출해 이벤트 루프를 막는 orphaned 타이머가 생기지 않음.
+          // readFixedSizeBytes().timeout()은 타임아웃 후에도 Future.delayed 루프가
+          // 계속 남아 UI 스레드를 점령하는 문제가 있어 사용하지 않음.
+          response = await _port!.readBytes(packetSize, timeout: timeout);
+          if (response.length < packetSize) {
             throw TimeoutException('Read timeout after ${timeoutMs}ms');
-          });
+          }
         } catch (e) {
           // 핸들 무효화 시 즉시 연결 해제 처리 후 재시도 불필요
           if (_isInvalidHandleError(e)) {

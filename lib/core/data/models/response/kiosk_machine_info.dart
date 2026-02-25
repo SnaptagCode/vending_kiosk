@@ -30,6 +30,8 @@ abstract class KioskMachineInfo with _$KioskMachineInfo {
     @Default('') String previewImageUrl,
     @Default('') String detailImageUrl,
     @Default(0) int kioskDesignId,
+    @Default(0) int cardCurrentCount,
+    @Default(0) int cardCapacity,
     @Default('#000000') String mainButtonColor,
     @Default('#FFFFFF') String buttonTextColor,
     @Default('#CCCCCC') String keyPadColor,
@@ -42,8 +44,7 @@ abstract class KioskMachineInfo with _$KioskMachineInfo {
     @Default('#000000') String progressBarEndColor,
   }) = _KioskMachineInfo;
 
-  factory KioskMachineInfo.fromJson(Map<String, dynamic> json) =>
-      _$KioskMachineInfoFromJson(json);
+  factory KioskMachineInfo.fromJson(Map<String, dynamic> json) => _$KioskMachineInfoFromJson(json);
 }
 
 extension KioskMachineInfoX on KioskMachineInfo {

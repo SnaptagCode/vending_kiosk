@@ -121,8 +121,10 @@ abstract class KioskApiClient {
   Future<void> sendSlackAlert(@Body() Map<String, dynamic> body);
 
   @POST('/v1/internal/event/{kioskEventId}/machine/{machineId}/end')
-  Future<void> endKioskApplication(
-      {@Path('kioskEventId') required int kioskEventId, @Path('machineId') required int machineId});
+  Future<void> endKioskApplication({
+    @Path('kioskEventId') required int kioskEventId,
+    @Path('machineId') required int machineId,
+  });
 
   @DELETE('/v1/internal/event/{kioskEventId}/machine/{machineId}/end')
   Future<void> deleteEndMark(

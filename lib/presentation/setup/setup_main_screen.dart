@@ -67,7 +67,7 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
       }
     }
 
-    await _writePhotocodeMeta();
+    ref.read(setupMainScreenNotifierProvider.notifier).writePhotocodeMeta();
 
     final confirmed = await DialogHelper.showSetupDialog(
       context,
@@ -81,33 +81,6 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
 
   Future<bool> _checkPaymentDevice() async {
     return await ref.read(setupMainScreenNotifierProvider.notifier).checkPaymentDevice();
-  }
-
-  Future<void> _writePhotocodeMeta() async {
-    final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 0;
-    final eventId = ref.read(kioskInfoServiceProvider)?.kioskEventId ?? 0;
-    final cardCountState = ref.read(cardCountProvider);
-    final cardCountInfo = "${cardCountState.initialCount} / ${cardCountState.currentCount}";
-
-    final serviceNameMap = {
-      "SUF": "수원FC",
-      "SEF": "서울 이랜드 FC",
-      "KEEFO": "성수 B'Day",
-      "AGFC": "안산그리너스FC",
-    };
-    final eventType = ref.read(kioskInfoServiceProvider)?.eventType ?? '-';
-    final serviceName = serviceNameMap[eventType] ?? '-';
-
-    final versionState = ref.read(versionStateProvider);
-    final currentVersion = versionState.currentVersion;
-
-    await writePhotocodeId(
-      machineId.toString(),
-      eventId.toString(),
-      cardCountInfo.toString(),
-      serviceName.toString(),
-      currentVersion,
-    );
   }
 
   Future<void> _startEventFlow(BuildContext context) async {
@@ -171,7 +144,9 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                       .exitKioskApp()
                       .timeout(const Duration(seconds: 5));
                 } catch (_) {}
-                exit(0);
+
+                logger.d('exit(0)');
+                terminateProcess();
               },
               child: SvgPicture.asset(
                 SnaptagSvg.off,
@@ -408,8 +383,7 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                                 mode: ProcessStartMode.detached,
                               );
                               print("Process.start(launcherPath, ['f'])");
-                              await CardDispenserManager.disconnectAll();
-                              exit(0);
+                              terminateProcess();
                             } catch (e) {
                               print("런처 실행 실패: $e");
                             }

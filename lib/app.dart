@@ -18,12 +18,24 @@ import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/routers/go_router.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/home_timeout_provider.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
+import 'package:vending_kiosk/core/common/launcher/launcher_service.dart';
 import 'package:vending_kiosk/core/services/card_dispenser_manager.dart';
 import 'package:vending_kiosk/core/ui/widget/general_error_widget.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vending_kiosk/presentation/setup/alert_definition_provider.dart';
 import 'package:window_manager/window_manager.dart';
+
+bool _appExiting = false;
+
+/// 앱 종료 공통 함수
+/// dart:io exit()은 _EventHandler._shutdown()으로 소켓 정리 중 블로킹 가능.
+/// Win32 TerminateProcess로 즉시 강제 종료.
+Future<void> performAppExit() async {
+  if (_appExiting) return;
+  _appExiting = true;
+  terminateProcess();
+}
 
 class App extends ConsumerStatefulWidget {
   const App({super.key});
@@ -74,7 +86,7 @@ class _AppState extends ConsumerState<App> with WindowListener {
       windowManager.removeListener(this);
     }
     // 앱 종료 시 시리얼 포트 정리 (재시작 시 포트 정상 연결 보장)
-    _cleanupSerialPort();
+    // _cleanupSerialPort();
     super.dispose();
   }
 
@@ -104,20 +116,6 @@ class _AppState extends ConsumerState<App> with WindowListener {
         await windowManager.show();
       });
     }
-  }
-
-  @override
-  void onWindowClose() async {
-    try {
-      await _cleanupSerialPort().timeout(const Duration(seconds: 3));
-    } catch (_) {}
-    exit(0);
-  }
-
-  @override
-  void onWindowFocus() {
-    // 포커스를 받을 때마다 fullscreen 보장
-    // windowManager.setFullScreen(true);
   }
 
   @override
@@ -349,8 +347,8 @@ class _NetworkStatusAlertWrapperState extends ConsumerState<_NetworkStatusAlertW
       ).then((_) async {
         logger.i('_hasKioskInfo: $_hasKioskInfo');
         if (!_hasKioskInfo) {
-          await CardDispenserManager.disconnectAll();
-          exit(0);
+          performAppExit();
+          return;
         }
         _resetAlertFlag();
         _recheckNetworkStatusAfterDialogClose();

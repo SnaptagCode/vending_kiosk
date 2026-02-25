@@ -66,7 +66,12 @@ class NetworkStatusNotifier extends _$NetworkStatusNotifier {
   Timer? _checkTimer;
   int _consecutiveFailures = 0;
   static const int _maxFailures = 3;
-  final _internetChecker = InternetConnectionChecker.instance;
+  // checkInterval을 30초로 설정: 기본값(수 초)이면 TCP 소켓을 너무 자주 열어
+  // Dart 이벤트 루프를 포화시키고 exit() 블로킹 및 콘솔 렉을 유발함
+  final _internetChecker = InternetConnectionChecker.createInstance(
+    checkInterval: const Duration(seconds: 30),
+    checkTimeout: const Duration(seconds: 5),
+  );
 
   @override
   NetworkState build() {
@@ -161,7 +166,6 @@ class NetworkStatusNotifier extends _$NetworkStatusNotifier {
   void _updateInternetStatus(bool hasInternet) {
     NetworkStatus newStatus;
 
-    logger.i('_updateInternetStatus: $hasInternet');
 
     if (state.type == NetworkType.none) {
       newStatus = NetworkStatus.disconnected;
@@ -180,7 +184,6 @@ class NetworkStatusNotifier extends _$NetworkStatusNotifier {
       }
     }
 
-    print('newStatus: $newStatus');
 
     state = state.copyWith(
       status: newStatus,

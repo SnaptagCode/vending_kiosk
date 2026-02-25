@@ -38,17 +38,20 @@ class SlackLogService {
 
   Future<void> sendErrorLogToSlack(String message) async {
     final type = kDebugMode ? 'test_error_log' : 'error_log';
-    await _sendSlackAlert(type, message);
+    await _sendSlackAlert('test_error_log', message);
+    // await _sendSlackAlert(type, message);
   }
 
   Future<void> sendLogToSlack(String message) async {
     final type = kDebugMode ? 'test_log' : 'log';
-    await _sendSlackAlert(type, message);
+    await _sendSlackAlert('test_log', message);
+    // await _sendSlackAlert(type, message);
   }
 
   Future<void> _sendServiceAlarmToSlack(String message) async {
     final type = kDebugMode ? 'test_service' : 'service';
-    await _sendSlackAlert(type, message);
+    await _sendSlackAlert('test_service', message);
+    // await _sendSlackAlert(type, message);
   }
 
   // 1) 객체 만드는 함수 LogState
@@ -89,7 +92,7 @@ class SlackLogService {
             kioskMachineInfo: kioskInfo);
   }
 
-  Future<void> sendInspectionEndBroadcastLogToSlack(String errorKey, {required bool isPaymentOn}) async {
+  Future<void> sendInspectionEndBroadcastLogToSlack(String errorKey) async {
     final slackLogTemplate = await createSlackLogTemplate(errorKey);
     final cardCount = _container.read(cardCountProvider);
 
@@ -108,7 +111,7 @@ ${slackLogTemplate.description}
 - 단면 카드 수량 : ${cardCount.currentCount} / ${cardCount.initialCount}
 - 불러온 이벤트 : $eventName
 - 프린터 연결 상태 : 정상
-- 결제 단말기 연결 상태 : ${isPaymentOn == true ? '정상' : '미연결'}
+- 결제 단말기 연결 상태 : 정상
 - 프린터 온도 : $printerheadTempString°C
 - 리본 잔량 : ${printLog?.rbnRemainingRatio != null ? "${printLog?.rbnRemainingRatio}%" : "알 수 없음"}
 - 필름 잔량 : ${printLog?.filmRemainingRatio != null ? "${printLog?.filmRemainingRatio}%" : "알 수 없음"}

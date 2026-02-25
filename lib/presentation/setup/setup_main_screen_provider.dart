@@ -32,6 +32,7 @@ class SetupMainState {
   final String latestVersion;
   final bool isUpdateAvailable;
   final int cardCurrentCount;
+  final int cardCapacity;
   final bool getInfoByKey;
 
   SetupMainState({
@@ -44,6 +45,7 @@ class SetupMainState {
     this.latestVersion = '',
     this.isUpdateAvailable = false,
     this.cardCurrentCount = 0,
+    this.cardCapacity = 0,
     this.getInfoByKey = true,
   });
 
@@ -57,6 +59,7 @@ class SetupMainState {
     String? latestVersion,
     bool? isUpdateAvailable,
     int? cardCurrentCount,
+    int? cardCapacity,
     bool? getInfoByKey,
   }) {
     return SetupMainState(
@@ -69,6 +72,7 @@ class SetupMainState {
       latestVersion: latestVersion ?? this.latestVersion,
       isUpdateAvailable: isUpdateAvailable ?? this.isUpdateAvailable,
       cardCurrentCount: cardCurrentCount ?? this.cardCurrentCount,
+      cardCapacity: cardCapacity ?? this.cardCapacity,
       getInfoByKey: getInfoByKey ?? this.getInfoByKey,
     );
   }
@@ -91,7 +95,11 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
 
     // 다른 provider들을 listen해서 상태 동기화
     ref.listen(kioskInfoServiceProvider, (previous, next) {
-      state = state.copyWith(machineId: next?.kioskMachineId ?? 0);
+      state = state.copyWith(
+        machineId: next?.kioskMachineId ?? 0,
+        cardCapacity: next?.cardCapacity ?? 0,
+        cardCurrentCount: next?.cardCurrentCount ?? 0,
+      );
     });
 
     ref.listen<bool>(getInfoByKeyProvider, (previous, next) {
@@ -191,17 +199,9 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
   Future<bool> checkPaymentDevice() async {
     try {
       final response = await ref.read(paymentRepositoryProvider).check();
-      SlackLogService().sendInspectionEndBroadcastLogToSlack(
-        'inspection_end',
-        isPaymentOn: true,
-      );
       SlackLogService().sendLogToSlack("Payment Device check: $response");
       return true;
     } catch (e) {
-      SlackLogService().sendInspectionEndBroadcastLogToSlack(
-        'inspection_end',
-        isPaymentOn: false,
-      );
       SlackLogService().sendErrorLogToSlack("Payment Device check: $e");
       return false;
     }
@@ -261,19 +261,6 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
         'machineId:$machineId, currentVersion:$currentVersion, latestVersion:$latestVersion',
       );
 
-      // PagePrintType 설정
-      if (cardCountState.currentCount < 1) {
-        ref.read(pagePrintProvider.notifier).set(PagePrintType.double);
-        SlackLogService().sendLogToSlack(
-          'machineId: $machineId, singleCard: $cardCountState, set pagePrintType double',
-        );
-      } else {
-        ref.read(pagePrintProvider.notifier).set(PagePrintType.single);
-        SlackLogService().sendLogToSlack(
-          'machineId: $machineId, singleCard: $cardCountState, set pagePrintType single',
-        );
-      }
-
       state = state.copyWith(isLoading: false);
     } catch (e) {
       logger.e('Failed to start event flow', error: e);
@@ -329,8 +316,7 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
       );
 
       logger.d("Launcher started, exiting app");
-      await CardDispenserManager.disconnectAll();
-      exit(0);
+      terminateProcess();
     } catch (e) {
       logger.e('Failed to start launcher', error: e);
       state = state.copyWith(
@@ -344,19 +330,13 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
   Future<void> exitKioskApp() async {
     try {
       final kioskInfo = ref.read(kioskInfoServiceProvider);
-      final cardCountState = ref.read(cardCountProvider);
 
       await ref.read(kioskRepositoryProvider).endKioskApplication(
             kioskEventId: kioskInfo?.kioskEventId ?? 0,
             machineId: kioskInfo?.kioskMachineId ?? 0,
           );
-
-      await CardDispenserManager.disconnectAll();
-      exit(0);
     } catch (e) {
       logger.e('Failed to exit kiosk app', error: e);
-      await CardDispenserManager.disconnectAll();
-      exit(0);
     }
   }
 
