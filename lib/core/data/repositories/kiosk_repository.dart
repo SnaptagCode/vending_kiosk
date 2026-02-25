@@ -23,6 +23,7 @@ import 'package:vending_kiosk/core/data/models/response/order_list_response.dart
 import 'package:vending_kiosk/core/data/models/response/update_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/update_print_response.dart';
 import 'package:vending_kiosk/core/data/models/response/machine_card_stock_response.dart';
+import 'package:vending_kiosk/core/data/models/response/machine_maintenance_response.dart';
 import 'package:vending_kiosk/core/data/models/request/create_vending_order_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_vending_order_status_request.dart';
 import 'package:vending_kiosk/core/data/models/response/create_vending_order_response.dart';
@@ -93,6 +94,20 @@ class _KioskRepository {
   Future<KioskMachineInfo> getKioskMachineInfoByKey(String uniqueKey) async {
     try {
       return await _apiClient.getKioskMachineInfoByKey(uniqueKey: uniqueKey);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<MachineMaintenanceResponse> getMachineMaintenance({
+    required int machineId,
+    required String uniqueKey,
+  }) async {
+    try {
+      return await _apiClient.getMachineMaintenance(
+        machineId: machineId,
+        uniqueKey: uniqueKey,
+      );
     } catch (e) {
       rethrow;
     }

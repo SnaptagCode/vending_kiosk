@@ -12,6 +12,7 @@ import 'package:vending_kiosk/core/data/models/response/update_print_response.da
 import 'package:vending_kiosk/core/data/models/response/card_stock_consume_response.dart';
 import 'package:vending_kiosk/core/data/models/response/card_stock_recharge_response.dart';
 import 'package:vending_kiosk/core/data/models/response/machine_card_stock_response.dart';
+import 'package:vending_kiosk/core/data/models/response/machine_maintenance_response.dart';
 import 'package:vending_kiosk/core/data/models/response/create_vending_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_order_status_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_print_status_response.dart';
@@ -43,6 +44,12 @@ abstract class KioskApiClient {
 
   @GET('/v1/machine/info/vending')
   Future<KioskMachineInfo> getKioskMachineInfoByKey({
+    @Query('uniqueKey') required String uniqueKey,
+  });
+
+  @GET('/v1/machine/maintenance')
+  Future<MachineMaintenanceResponse> getMachineMaintenance({
+    @Query('machineId') required int machineId,
     @Query('uniqueKey') required String uniqueKey,
   });
 

@@ -3,6 +3,7 @@ import 'package:vending_kiosk/global_shell.dart';
 import 'package:vending_kiosk/presentation/setup/kiosk_info_screen.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_shell.dart';
 import 'package:vending_kiosk/presentation/setup/maintenance_screen.dart';
+import 'package:vending_kiosk/presentation/home/card_charging_screen.dart';
 import 'package:vending_kiosk/presentation/home/home_screen.dart';
 import 'package:vending_kiosk/presentation/setup/payment_history_screen.dart';
 import 'package:vending_kiosk/presentation/setup/setup_main_screen.dart';
@@ -36,6 +37,7 @@ final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>(d
             TypedGoRoute<PrintProcessRouteData>(path: 'print-process'),
           ],
         ),
+        TypedGoRoute<CardChargingRouteData>(path: 'card-charging'),
       ],
     )
   ],
@@ -120,6 +122,17 @@ class PrintProcessRouteData extends GoRouteData with _$PrintProcessRouteData {
   Page<void> buildPage(BuildContext context, GoRouterState state) {
     return NoTransitionPage(
       child: const PrintProcessScreen(),
+    );
+  }
+}
+
+class CardChargingRouteData extends GoRouteData with _$CardChargingRouteData {
+  const CardChargingRouteData();
+
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) {
+    return NoTransitionPage(
+      child: const CardChargingScreen(),
     );
   }
 }

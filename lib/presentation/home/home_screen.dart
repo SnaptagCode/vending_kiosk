@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
+import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
 import 'package:vending_kiosk/presentation/home/payment_provider.dart';
@@ -15,6 +16,7 @@ import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
 import 'package:vending_kiosk/presentation/home/payment/photo_card_preview_screen_provider.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
+import 'package:vending_kiosk/presentation/setup/uuid_provider.dart';
 import 'package:loader_overlay/loader_overlay.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -25,23 +27,47 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  // late final FlutterTts _flutterTts;
-  // Timer? _ttsTimer;
+  Timer? _maintenanceTimer;
 
   @override
   void initState() {
     super.initState();
-    // _initializeTts();
+    _startMaintenancePolling();
   }
 
   @override
   void dispose() {
-    // _ttsTimer?.cancel();
-    // _flutterTts.stop();
+    _maintenanceTimer?.cancel();
     super.dispose();
   }
 
-  // ㅌ
+  void _startMaintenancePolling() {
+    _maintenanceTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      await _checkMaintenance();
+    });
+  }
+
+  Future<bool> _checkMaintenance() async {
+    try {
+      final kioskInfo = ref.read(kioskInfoServiceProvider);
+      if (kioskInfo == null) return false;
+
+      final uniqueKey = await ref.read(deviceUuidProvider.future);
+      final response = await ref.read(kioskRepositoryProvider).getMachineMaintenance(
+            machineId: kioskInfo.kioskMachineId,
+            uniqueKey: uniqueKey,
+          );
+
+      if (response.isUnderMaintenance && mounted) {
+        _maintenanceTimer?.cancel();
+        CardChargingRouteData().go(context);
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -256,9 +282,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               onTap: paymentState.isLoading
                   ? null
                   : () async {
+                      final isUnderMaintenance = await _checkMaintenance();
+                      if (isUnderMaintenance) return;
                       await ref.read(photoCardPreviewScreenProviderProvider.notifier).payment();
-                      // 결제 성공 시 출력 화면으로 이동
-                      // PrintProcessRouteData().go(context);
                     },
               child: Container(
                 width: 789.w,
