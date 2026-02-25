@@ -5,13 +5,13 @@ import 'package:vending_kiosk/core/common/constants/alert_key.dart';
 import 'package:vending_kiosk/core/common/constants/image_paths.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
-import 'package:vending_kiosk/core/data/models/response/kiosk_machine_info.dart';
-import 'package:vending_kiosk/flavors.dart';
+import 'package:vending_kiosk/core/data/models/request/unique_key_request.dart';
+import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/lib.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
-import 'package:vending_kiosk/core/ui/widget/kiosk_info_widget.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:vending_kiosk/presentation/setup/uuid_provider.dart';
 
 class KioskInfoScreen extends ConsumerWidget {
   const KioskInfoScreen({super.key});
@@ -44,6 +44,9 @@ class KioskInfoScreen extends ConsumerWidget {
         actions: [
           IconButton(
             onPressed: () async {
+              final deviceUUID = await ref.read(deviceUuidProvider.future);
+              final kioskRepository = ref.read(kioskRepositoryProvider);
+
               String? value = await DialogHelper.showKeypadDialog(context, mode: ModeType.event);
 
               if (value == null || value.isEmpty) return; // 값이 없으면 종료
@@ -51,7 +54,16 @@ class KioskInfoScreen extends ConsumerWidget {
               final result =
                   await DialogHelper.showSetupDialog(context, title: '최신 이벤트로 새로고침 됩니다.', showCancelButton: true);
               if (result == true) {
-                await ref.read(kioskInfoServiceProvider.notifier).refreshWithMachineId(int.parse(value));
+                final machineId = int.parse(value);
+                await ref.read(kioskInfoServiceProvider.notifier).refreshWithMachineId(machineId);
+
+                await kioskRepository.createUniqueKeyHistory(
+                  request: UniqueKeyRequest(
+                    machineId: machineId.toString(),
+                    uniqueKey: deviceUUID,
+                  ),
+                );
+
                 SlackLogService().sendBroadcastLogToSlack(InfoKey.inspectionStart.key);
               }
             },

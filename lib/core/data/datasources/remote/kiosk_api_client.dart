@@ -18,7 +18,6 @@ import 'package:vending_kiosk/core/data/models/response/vending_order_status_res
 import 'package:vending_kiosk/core/data/models/response/vending_print_status_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_print_list_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_reprint_response.dart';
-import 'package:vending_kiosk/lib.dart';
 import 'package:retrofit/retrofit.dart';
 
 part 'kiosk_api_client.g.dart';
@@ -31,12 +30,6 @@ abstract class KioskApiClient {
   @GET('/v1/health-check')
   Future<String> healthCheck();
 
-  // Machine APIs
-  @GET('/v1/machine/info')
-  Future<KioskMachineInfo> getKioskMachineInfo({
-    @Query('kioskMachineId') required int kioskMachineId,
-  });
-
   @GET('/v1/kiosk-event/front-photo-list')
   Future<NominatedPhotoList> getFrontPhotoList({
     @Query('kioskEventId') required int kioskEventId,
@@ -44,7 +37,8 @@ abstract class KioskApiClient {
 
   @GET('/v1/machine/info/vending')
   Future<KioskMachineInfo> getKioskMachineInfoByKey({
-    @Query('uniqueKey') required String uniqueKey,
+    @Query('machineId') int? machineId,
+    @Query('uniqueKey') String? uniqueKey,
   });
 
   @GET('/v1/machine/maintenance')
@@ -138,7 +132,7 @@ abstract class KioskApiClient {
       @Path('machineId') required int machineId,
       @Query('remainingSingleSidedCount') required String remainingSingleSidedCount});
 
-  @POST('/v1/machine/unique-key/history')
+  @POST('/v1/machine/unique-key/register')
   Future<void> createUniqueKeyHistory({
     @Body() required Map<String, dynamic> body,
   });

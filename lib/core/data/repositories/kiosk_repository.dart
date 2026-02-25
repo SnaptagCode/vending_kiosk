@@ -85,7 +85,7 @@ class _KioskRepository {
   // Machine Info Operations
   Future<KioskMachineInfo> getKioskMachineInfo(int machineId) async {
     try {
-      return await _apiClient.getKioskMachineInfo(kioskMachineId: machineId);
+      return await _apiClient.getKioskMachineInfoByKey(machineId: machineId);
     } catch (e) {
       rethrow;
     }

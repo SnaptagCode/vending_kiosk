@@ -93,37 +93,10 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
       _isDisposed = true;
     });
 
-    // 다른 provider들을 listen해서 상태 동기화
-    ref.listen(kioskInfoServiceProvider, (previous, next) {
-      state = state.copyWith(
-        machineId: next?.kioskMachineId ?? 0,
-        cardCapacity: next?.cardCapacity ?? 0,
-        cardCurrentCount: next?.cardCurrentCount ?? 0,
-      );
-    });
-
-    ref.listen<bool>(getInfoByKeyProvider, (previous, next) {
-      state = state.copyWith(getInfoByKey: next);
-    });
-
-    ref.listen(versionStateProvider, (previous, next) {
-      state = state.copyWith(
-        currentVersion: next.currentVersion,
-        latestVersion: next.latestVersion,
-        isUpdateAvailable: next.currentVersion != next.latestVersion,
-      );
-    });
-
-    ref.listen(cardCountProvider, (previous, next) {
-      state = state.copyWith(
-        cardCurrentCount: next.currentCount,
-      );
-    });
-
-    // 초기값 설정
-    final kioskInfo = ref.read(kioskInfoServiceProvider);
-    final versionState = ref.read(versionStateProvider);
-    final cardCountState = ref.read(cardCountProvider);
+    final kioskInfo = ref.watch(kioskInfoServiceProvider);
+    final versionState = ref.watch(versionStateProvider);
+    final cardCountState = ref.watch(cardCountProvider);
+    final getInfoByKey = ref.watch(getInfoByKeyProvider);
 
     return SetupMainState(
       machineId: kioskInfo?.kioskMachineId ?? 0,
@@ -131,7 +104,8 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
       latestVersion: versionState.latestVersion,
       isUpdateAvailable: versionState.currentVersion != versionState.latestVersion,
       cardCurrentCount: cardCountState.currentCount,
-      getInfoByKey: ref.read(getInfoByKeyProvider),
+      cardCapacity: kioskInfo?.cardCapacity ?? 0,
+      getInfoByKey: getInfoByKey,
     );
   }
 
@@ -288,7 +262,7 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
 
       logger.d('rechargeCardStock response: $response');
 
-      state = state.copyWith(isLoading: false);
+      state = state.copyWith(isLoading: false, cardCurrentCount: response.cardCurrentCount);
       return response;
     } catch (e) {
       logger.e('Failed to recharge card stock', error: e);

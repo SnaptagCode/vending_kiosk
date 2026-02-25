@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:vending_kiosk/core/data/models/enums/order_status.dart';
 
 part 'vending_print_item_entity.freezed.dart';
 part 'vending_print_item_entity.g.dart';
@@ -12,7 +13,7 @@ abstract class VendingPrintItemEntity with _$VendingPrintItemEntity {
     @Default('') String orderCreated,
     @Default('') String eventName,
     @Default(0) int amount,
-    @Default('') String orderStatus,
+    required OrderStatus orderStatus,
     @Default('') String purchaseAuthNumber,
     String? completedAt,
     String? refundedAt,
@@ -22,6 +23,5 @@ abstract class VendingPrintItemEntity with _$VendingPrintItemEntity {
     @Default(false) bool reprintable,
   }) = _VendingPrintItemEntity;
 
-  factory VendingPrintItemEntity.fromJson(Map<String, dynamic> json) =>
-      _$VendingPrintItemEntityFromJson(json);
+  factory VendingPrintItemEntity.fromJson(Map<String, dynamic> json) => _$VendingPrintItemEntityFromJson(json);
 }

@@ -47,7 +47,6 @@ class App extends ConsumerStatefulWidget {
 class _AppState extends ConsumerState<App> with WindowListener {
   bool _initializedFullScreen = false;
   bool _hasInitializedKioskInfo = false;
-
   @override
   void initState() {
     super.initState();
@@ -85,8 +84,6 @@ class _AppState extends ConsumerState<App> with WindowListener {
     if (Platform.isWindows) {
       windowManager.removeListener(this);
     }
-    // 앱 종료 시 시리얼 포트 정리 (재시작 시 포트 정상 연결 보장)
-    // _cleanupSerialPort();
     super.dispose();
   }
 
@@ -118,7 +115,6 @@ class _AppState extends ConsumerState<App> with WindowListener {
       );
       await windowManager.waitUntilReadyToShow(windowOptions, () async {
         await windowManager.setFullScreen(true);
-        await windowManager.setPreventClose(true); // X 버튼 → onWindowClose() 호출
         await windowManager.show();
       });
     }

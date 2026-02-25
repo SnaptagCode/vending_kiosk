@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 import 'package:path/path.dart' as p;
+import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 
 /// dart:io exit()의 대안. Windows에서 Win32 TerminateProcess를 FFI로 직접 호출.
 ///
@@ -11,14 +12,14 @@ import 'package:path/path.dart' as p;
 /// TerminateProcess는 해당 정리 단계를 건너뛰고 OS가 즉시 프로세스를 종료함.
 void terminateProcess([int exitCode = 0]) {
   if (Platform.isWindows) {
+    logger.d('terminateProcess');
     try {
       final kernel32 = DynamicLibrary.open('kernel32.dll');
-      final terminateFn = kernel32.lookupFunction<
-          Int32 Function(IntPtr, Uint32),
-          int Function(int, int)>('TerminateProcess');
-      final getHandleFn = kernel32.lookupFunction<
-          IntPtr Function(),
-          int Function()>('GetCurrentProcess');
+      final terminateFn =
+          kernel32.lookupFunction<Int32 Function(IntPtr, Uint32), int Function(int, int)>('TerminateProcess');
+      logger.d('terminateFn: $terminateFn');
+      final getHandleFn = kernel32.lookupFunction<IntPtr Function(), int Function()>('GetCurrentProcess');
+      logger.d('getHandleFn: $getHandleFn');
       terminateFn(getHandleFn(), exitCode);
       return;
     } catch (_) {}

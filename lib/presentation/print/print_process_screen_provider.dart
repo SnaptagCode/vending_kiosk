@@ -89,15 +89,23 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
   }
 
   Future<void> _executePrint(int printedPhotoCardId) async {
-    await ref.read(cardDispenserServiceProvider.notifier).dispenseAndWait(count: 1);
+    try {
+      await ref.read(cardDispenserServiceProvider.notifier).dispenseAndWait(count: 1);
+    } catch (e) {
+      rethrow;
+    }
 
-    await ref.read(kioskRepositoryProvider).consumeCardStock(
-          CardStockConsumeRequest(
-            machineId: ref.read(kioskInfoServiceProvider)!.kioskMachineId,
-            uniqueKey: await ref.read(deviceUuidProvider.future),
-            requestCount: 1,
-          ),
-        );
+    try {
+      await ref.read(kioskRepositoryProvider).consumeCardStock(
+            CardStockConsumeRequest(
+              machineId: ref.read(kioskInfoServiceProvider)!.kioskMachineId,
+              uniqueKey: await ref.read(deviceUuidProvider.future),
+              requestCount: 1,
+            ),
+          );
+    } catch (e) {
+      rethrow;
+    }
 
     ref.read(printQuantityNotifierProvider.notifier).increment();
 

@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:vending_kiosk/core/common/constants/image_paths.dart';
 import 'package:vending_kiosk/core/common/sound/sound_manager.dart';
 import 'package:vending_kiosk/core/data/models/entities/vending_print_item_entity.dart';
+import 'package:vending_kiosk/core/data/models/enums/order_status.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/setup/payment_history_provider.dart';
@@ -290,88 +291,127 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
     }
   }
 
-  String _getOrderState(String status) {
-    switch (status) {
-      case 'pending':
+  String _getOrderState(OrderStatus order) {
+    switch (order) {
+      case OrderStatus.pending:
         return '결제 대기';
-      case 'failed':
+      case OrderStatus.failed:
         return '결제 실패';
-      default:
+      case OrderStatus.completed:
+      case OrderStatus.refunded:
+      case OrderStatus.refunded_failed:
         return '결제 완료';
     }
   }
 
   Widget _getRefundWidget(BuildContext context, VendingPrintItemEntity order) {
-    if (order.isRefunded) {
-      return TextButton(
-        onPressed: null,
-        child: Text(
-          '환불 완료',
-          style: TextStyle(
-            color: Color(0xFF414448),
-            fontSize: 16.sp,
+    switch (order.orderStatus) {
+      case OrderStatus.refunded:
+        return TextButton(
+          onPressed: null,
+          child: Text(
+            '환불 완료',
           ),
-        ),
-      );
-    }
-
-    if (order.orderStatus == 'pending' || order.orderStatus == 'failed') {
-      return TextButton(
-        onPressed: null,
-        child: Text(
-          '-',
-          style: TextStyle(
-            color: Color(0xFF414448),
-            fontSize: 16.sp,
-          ),
-        ),
-      );
-    }
-
-    return TextButton(
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: Color(0xFF9D9D9D),
+        );
+      case OrderStatus.refunded_failed:
+        return TextButton(
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Color(0xFFFF333F),
+                ),
+              ),
+            ),
+            child: Text(
+              '환불 실패',
+              style: TextStyle(
+                color: Color(0xFFFF333F),
+                fontSize: 16.sp,
+              ),
             ),
           ),
-        ),
-        child: Text(
-          '환불',
-          style: TextStyle(
-            color: Color(0xFF9D9D9D),
-            fontSize: 16.sp,
+          onPressed: () async {
+            context.loaderOverlay.show();
+            final result1 = await DialogHelper.showSetupDialog(
+              context,
+              title: '환불을 진행합니다.',
+              showCancelButton: true,
+            );
+            if (!result1) {
+              context.loaderOverlay.hide();
+              return;
+            }
+            final result2 = await DialogHelper.showSetupDialog(
+              context,
+              title: '결제한 카드를 삽입해 주세요.',
+              cancelButtonText: '환불 취소',
+              confirmButtonText: '환불 진행',
+              showCancelButton: true,
+            );
+            if (result2) {
+              await ref.read(setupRefundProcessProvider.notifier).startRefund(order);
+              context.loaderOverlay.hide();
+            } else {
+              context.loaderOverlay.hide();
+            }
+          },
+        );
+
+      case OrderStatus.pending:
+      case OrderStatus.failed:
+        return TextButton(
+          onPressed: null,
+          child: Text(
+            '-',
           ),
-        ),
-      ),
-      onPressed: () async {
-        context.loaderOverlay.show();
-        await SoundManager().playSound();
-        final result1 = await DialogHelper.showSetupDialog(
-          context,
-          title: '환불을 진행합니다.',
-          showCancelButton: true,
         );
-        if (!result1) {
-          context.loaderOverlay.hide();
-          return;
-        }
-        final result2 = await DialogHelper.showSetupDialog(
-          context,
-          title: '결제한 카드를 삽입해 주세요.',
-          cancelButtonText: '환불 취소',
-          confirmButtonText: '환불 진행',
-          showCancelButton: true,
+      default:
+        return TextButton(
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Color(0xFF9D9D9D),
+                ),
+              ),
+            ),
+            child: Text(
+              '환불',
+              style: TextStyle(
+                color: Color(0xFF9D9D9D),
+                fontSize: 16.sp,
+              ),
+            ),
+          ),
+          onPressed: () async {
+            context.loaderOverlay.show();
+            await SoundManager().playSound();
+            final result1 = await DialogHelper.showSetupDialog(
+              context,
+              title: '환불을 진행합니다.',
+              showCancelButton: true,
+            );
+            if (!result1) {
+              context.loaderOverlay.hide();
+              return;
+            }
+            final result2 = await DialogHelper.showSetupDialog(
+              context,
+              title: '결제한 카드를 삽입해 주세요.',
+              cancelButtonText: '환불 취소',
+              confirmButtonText: '환불 진행',
+              showCancelButton: true,
+            );
+            if (result2) {
+              await ref.read(setupRefundProcessProvider.notifier).startRefund(order);
+              context.loaderOverlay.hide();
+            } else {
+              context.loaderOverlay.hide();
+            }
+          },
         );
-        if (result2) {
-          await ref.read(setupRefundProcessProvider.notifier).startRefund(order);
-          context.loaderOverlay.hide();
-        } else {
-          context.loaderOverlay.hide();
-        }
-      },
-    );
+    }
   }
 }
 
