@@ -90,6 +90,11 @@ class _AppState extends ConsumerState<App> with WindowListener {
     super.dispose();
   }
 
+  @override
+  void onWindowClose() {
+    performAppExit();
+  }
+
   /// 시리얼 포트를 정리하여 재시작 시 정상 연결 보장
   Future<void> _cleanupSerialPort() async {
     try {
@@ -106,13 +111,14 @@ class _AppState extends ConsumerState<App> with WindowListener {
 
     if (Platform.isWindows) {
       WindowOptions windowOptions = WindowOptions(
-        // fullScreen: true,
+        fullScreen: true,
         backgroundColor: Colors.transparent,
         skipTaskbar: false,
         titleBarStyle: TitleBarStyle.hidden,
       );
       await windowManager.waitUntilReadyToShow(windowOptions, () async {
-        // await windowManager.setFullScreen(true);
+        await windowManager.setFullScreen(true);
+        await windowManager.setPreventClose(true); // X 버튼 → onWindowClose() 호출
         await windowManager.show();
       });
     }
