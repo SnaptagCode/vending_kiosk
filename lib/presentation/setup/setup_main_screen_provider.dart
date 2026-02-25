@@ -141,9 +141,7 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
       if (CardDispenserManager.isInstanceConnected) {
         final isHealthy = await CardDispenserManager.checkInstanceHealth();
         if (_isDisposed) return;
-        final connectState = isHealthy
-            ? CardDispenserConnectState.connected
-            : CardDispenserConnectState.disconnected;
+        final connectState = isHealthy ? CardDispenserConnectState.connected : CardDispenserConnectState.disconnected;
         state = state.copyWith(cardDispenserState: connectState);
         ref.read(cardDispenserConnectProvider.notifier).update(connectState);
         return;

@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:flutter/foundation.dart';
 import 'package:vending_kiosk/core/data/models/entities/slack_log_template.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,11 +37,18 @@ class SlackLogService {
   }
 
   Future<void> sendErrorLogToSlack(String message) async {
-    await _sendSlackAlert('error', message);
+    final type = kDebugMode ? 'test_error_log' : 'error_log';
+    await _sendSlackAlert(type, message);
   }
 
   Future<void> sendLogToSlack(String message) async {
-    await _sendSlackAlert('log', message);
+    final type = kDebugMode ? 'test_log' : 'log';
+    await _sendSlackAlert(type, message);
+  }
+
+  Future<void> _sendServiceAlarmToSlack(String message) async {
+    final type = kDebugMode ? 'test_service' : 'service';
+    await _sendSlackAlert(type, message);
   }
 
   // 1) 객체 만드는 함수 LogState
@@ -111,7 +119,7 @@ ${slackLogTemplate.description}
         cardCount: cardCount.currentCount,
       );
 
-      await _sendSlackAlert('broadcast', message);
+      await _sendServiceAlarmToSlack(message);
     }
   }
 
@@ -128,7 +136,7 @@ ${slackLogTemplate.description}
 
       final message = buildSlackAlertMessage(slackLogTemplate: slackLogTemplate.copyWith(description: description));
 
-      await _sendSlackAlert('broadcast', message);
+      await _sendServiceAlarmToSlack(message);
     }
   }
 
@@ -152,7 +160,7 @@ ${slackLogTemplate.description}
       final message = buildSlackAlertMessage(
           slackLogTemplate: slackLogTemplate.copyWith(title: '프린트 상태', category: 'info', description: description));
 
-      await _sendSlackAlert('broadcast', message);
+      await _sendServiceAlarmToSlack(message);
     }
   }
 
@@ -166,7 +174,7 @@ ${slackLogTemplate.description}
         cardCount: cardCount.currentCount,
       );
 
-      await _sendSlackAlert('broadcast', message);
+      await _sendServiceAlarmToSlack(message);
     }
   }
 

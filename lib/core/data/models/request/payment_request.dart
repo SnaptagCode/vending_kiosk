@@ -52,7 +52,7 @@ class PaymentRequest with _$PaymentRequest {
     required String totalAmount,
     String tax = '0',
     String supplyAmount = '0',
-    bool isTest = false,
+    String terminalId = 'AT0444223A',
   }) {
     return PaymentRequest(
       stx: String.fromCharCode(2),
@@ -60,7 +60,7 @@ class PaymentRequest with _$PaymentRequest {
       businessType: '01',
       messageType: '0200',
       transactionForm: 'N',
-      terminalId: isTest ? 'DPT0TEST03' : 'AT0444223A',
+      terminalId: terminalId,
       companyInfo: '    ',
       seqNo: '000000000000',
       posEntryMode: ' ',
@@ -95,7 +95,7 @@ class PaymentRequest with _$PaymentRequest {
     String supplyAmount = '0',
     required String originalApprovalNo,
     required String originalApprovalDate,
-    bool isTest = false,
+    String terminalId = 'AT0444223A',
   }) {
     return PaymentRequest(
       stx: String.fromCharCode(2),
@@ -103,7 +103,7 @@ class PaymentRequest with _$PaymentRequest {
       businessType: '01',
       messageType: '0420',
       transactionForm: 'N',
-      terminalId: isTest ? 'DPT0TEST03' : 'AT0444223A',
+      terminalId: terminalId,
       companyInfo: '    ',
       seqNo: '000000000000',
       posEntryMode: ' ',

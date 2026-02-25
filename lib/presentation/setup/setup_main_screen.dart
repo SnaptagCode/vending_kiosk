@@ -195,10 +195,10 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                 if (result) {
                   await ref.read(kioskRepositoryProvider).endKioskApplication(
                         kioskEventId: ref.read(kioskInfoServiceProvider)?.kioskEventId ?? 0,
-                        machineId: ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 0,
+                        machineId: machineId,
                       );
 
-                  await CardDispenserManager.disconnectAll();
+                  // await CardDispenserManager.disconnectAll();
 
                   exit(0);
                 }

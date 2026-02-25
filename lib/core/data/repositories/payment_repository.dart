@@ -35,10 +35,12 @@ class PaymentRepository {
     required int totalAmount,
   }) async {
     final Invoice invoice = Invoice.calculate(totalAmount);
+    final terminalId = ref.read(kioskInfoServiceProvider)?.cardTerminalId ?? 'AT0444223A';
     final request = PaymentRequest.approval(
       totalAmount: invoice.total.toString(),
       tax: invoice.taxAmount.toString(),
       supplyAmount: invoice.supplyAmount.toString(),
+      terminalId: terminalId,
     );
 
     return _request(request);
@@ -58,12 +60,14 @@ class PaymentRepository {
     required String originalApprovalDate,
   }) async {
     final Invoice invoice = Invoice.calculate(totalAmount);
+    final terminalId = ref.read(kioskInfoServiceProvider)?.cardTerminalId ?? 'AT0444223A';
     final request = PaymentRequest.cancel(
       totalAmount: invoice.total.toString(),
       tax: invoice.taxAmount.toString(),
       supplyAmount: invoice.supplyAmount.toString(),
       originalApprovalNo: originalApprovalNo,
       originalApprovalDate: originalApprovalDate,
+      terminalId: terminalId,
     );
 
     return _request(request);
