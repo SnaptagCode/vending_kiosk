@@ -60,6 +60,7 @@ class PhotoCardPreviewScreenProvider extends _$PhotoCardPreviewScreenProvider {
         state = AsyncValue.error(e, stack);
         return;
       }
+      state = AsyncValue.error(e, stack);
     }
   }
 }

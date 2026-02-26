@@ -79,12 +79,12 @@ class SetupRefundProcess extends _$SetupRefundProcess {
         case '0000':
           await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(
                 order.kioskOrderId,
-                request,
+                request.copyWith(status: OrderStatus.refunded),
               );
         case '1000':
           await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(
                 order.kioskOrderId,
-                request.copyWith(description: "고객취소"),
+                request.copyWith(status: OrderStatus.refunded_failed, description: "고객취소"),
               );
           SlackLogService().sendPaymentBroadcastLogToSlak(InfoKey.paymentRefundFail.key,
               paymentDescription:
@@ -93,7 +93,7 @@ class SetupRefundProcess extends _$SetupRefundProcess {
         case '1004':
           await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(
                 order.kioskOrderId,
-                request.copyWith(description: "시간초과"),
+                request.copyWith(status: OrderStatus.refunded_failed, description: "시간초과"),
               );
           SlackLogService().sendPaymentBroadcastLogToSlak(InfoKey.paymentRefundFail.key,
               paymentDescription:
@@ -102,7 +102,7 @@ class SetupRefundProcess extends _$SetupRefundProcess {
         default:
           await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(
                 order.kioskOrderId,
-                request.copyWith(description: "확인필요"),
+                request.copyWith(status: OrderStatus.refunded_failed, description: "확인필요"),
               );
           SlackLogService().sendPaymentBroadcastLogToSlak(InfoKey.paymentRefundFail.key,
               paymentDescription:

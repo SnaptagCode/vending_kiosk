@@ -95,7 +95,6 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
 
     final kioskInfo = ref.watch(kioskInfoServiceProvider);
     final versionState = ref.watch(versionStateProvider);
-    final cardCountState = ref.watch(cardCountProvider);
     final getInfoByKey = ref.watch(getInfoByKeyProvider);
 
     return SetupMainState(
@@ -103,7 +102,7 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
       currentVersion: versionState.currentVersion,
       latestVersion: versionState.latestVersion,
       isUpdateAvailable: versionState.currentVersion != versionState.latestVersion,
-      cardCurrentCount: cardCountState.currentCount,
+      cardCurrentCount: kioskInfo?.cardCurrentCount ?? 0,
       cardCapacity: kioskInfo?.cardCapacity ?? 0,
       getInfoByKey: getInfoByKey,
     );
