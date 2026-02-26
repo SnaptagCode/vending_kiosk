@@ -287,8 +287,10 @@ class CardDispenserSerial {
     for (int attempt = 0; attempt <= retryCount; attempt++) {
       try {
         // 입력 버퍼 비우기 (이전 데이터 제거)
+        // timeout을 1ms로 최소화: readBytes는 내부적으로 Timer.periodic을 사용하므로
+        // 긴 timeout은 불필요한 타이머 콜백을 대량 생성해 UI 스레드를 포화시킴.
         try {
-          _port!.readBytes(1000, timeout: const Duration(milliseconds: 10));
+          _port!.readBytes(1000, timeout: const Duration(milliseconds: 1));
         } catch (e) {
           // 버퍼가 비어있으면 무시 (error 6: 핸들 무효화 포함)
           if (_isInvalidHandleError(e)) {
@@ -303,7 +305,7 @@ class CardDispenserSerial {
         if (!writeSuccess) {
           throw Exception('Failed to write packet');
         }
-        logger.d('Sent packet: ${packet.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+        // 패킷 로그: 디버그 콘솔 과부하 방지를 위해 제거 (autoDetect 중 대량 출력됨)
 
         // 응답 수신 대기
         final timeout = Duration(milliseconds: timeoutMs);
@@ -346,8 +348,6 @@ class CardDispenserSerial {
             return null;
           }
         }
-
-        logger.d('Received packet: ${response.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
 
         // STX 확인
         if (response[0] != stxByte) {
@@ -432,7 +432,8 @@ class CardDispenserSerial {
   static Future<({String port, CardDispenserProtocol protocol})?> autoDetect({
     List<CardDispenserProtocol>? protocols,
     int connectTimeoutMs = 1000,
-    int healthCheckTimeoutMs = 500,
+    // 200ms: 500ms 대비 readBytes Timer.periodic 콜백 수를 60% 줄여 UI 스레드 부하 완화
+    int healthCheckTimeoutMs = 200,
   }) async {
     final ports = getAvailablePorts();
     if (ports.isEmpty) {
