@@ -97,15 +97,11 @@ class _KioskShellState extends ConsumerState<KioskShell> {
                               KioskBackButton(),
                               const Spacer(),
                               KioskNavigatorButton(),
-                              SizedBox(width: 30.w),
+                              SizedBox(width: 80.w),
                             ],
                           ),
                         ),
                         Expanded(
-                          // IMPORTANT:
-                          // `Column` gives non-flex children an unbounded height (maxHeight = infinity).
-                          // When `widget.child` is a `Navigator`/`Scaffold`, that can crash with:
-                          // "RenderCustomMultiChildLayoutBox was given an infinite size during layout."
                           child: SizedBox.expand(child: widget.child),
                         ),
                       ],

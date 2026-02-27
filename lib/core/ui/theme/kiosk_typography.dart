@@ -5,6 +5,12 @@ import 'package:vending_kiosk/core/ui/theme/kiosk_colors.dart';
 class KioskTypography extends ThemeExtension<KioskTypography> {
   const KioskTypography({
     required this.kioskBtn1B,
+    required this.vendingBtn1B,
+    required this.vendingBtn2B,
+    required this.vendingTitle1B,
+    required this.vendingTitle2B,
+    required this.vendingBody1B,
+    required this.vendingBody2B,
     required this.kioskBody1B,
     required this.kioskBody2B,
     required this.kioksNum1SB,
@@ -18,6 +24,12 @@ class KioskTypography extends ThemeExtension<KioskTypography> {
   });
 
   final TextStyle kioskBtn1B;
+  final TextStyle vendingBtn1B;
+  final TextStyle vendingBtn2B;
+  final TextStyle vendingTitle1B;
+  final TextStyle vendingTitle2B;
+  final TextStyle vendingBody1B;
+  final TextStyle vendingBody2B;
   final TextStyle kioskBody1B;
   final TextStyle kioskBody2B;
   final TextStyle kioksNum1SB;
@@ -30,6 +42,49 @@ class KioskTypography extends ThemeExtension<KioskTypography> {
   final TextStyle kioskInput3B;
 
   factory KioskTypography.color({KioskColors colors = KioskColors.basic}) => KioskTypography(
+        vendingBtn1B: TextStyle(
+          fontSize: 56.sp,
+          fontWeight: FontWeight.w700,
+          fontFamily: 'Cafe24Ssurround2',
+          color: Colors.black,
+        ),
+        vendingBtn2B: TextStyle(
+          fontSize: 40.sp,
+          fontWeight: FontWeight.w700,
+          fontFamily: 'Cafe24Ssurround2',
+          color: Colors.black,
+        ),
+        vendingTitle1B: TextStyle(
+          fontSize: 52.sp,
+          fontWeight: FontWeight.w700,
+          fontFamily: 'Cafe24Ssurround2',
+          color: Colors.black,
+          letterSpacing: 0.7,
+        ),
+        vendingTitle2B: TextStyle(
+          fontSize: 40.sp,
+          fontWeight: FontWeight.w700,
+          fontFamily: 'Cafe24Ssurround2',
+          color: Colors.black,
+          letterSpacing: -1.0,
+          height: 1.0,
+        ),
+        vendingBody1B: TextStyle(
+          fontSize: 44.sp,
+          fontWeight: FontWeight.w700,
+          fontFamily: 'Cafe24Ssurround2',
+          color: Colors.black,
+          letterSpacing: -1.0,
+          height: 1.0,
+        ),
+        vendingBody2B: TextStyle(
+          fontSize: 32.sp,
+          fontWeight: FontWeight.w600,
+          fontFamily: 'Cafe24Ssurround2',
+          color: Colors.black,
+          letterSpacing: -0.64,
+          height: 1.0,
+        ),
         kioskBtn1B: TextStyle(
           fontSize: 34.sp,
           fontWeight: FontWeight.w700,
@@ -123,6 +178,12 @@ class KioskTypography extends ThemeExtension<KioskTypography> {
   @override
   KioskTypography copyWith({
     TextStyle? kioskBtn1B,
+    TextStyle? vendingBtn2B,
+    TextStyle? vendingTitle1B,
+    TextStyle? vendingBtn1B,
+    TextStyle? vendingTitle2B,
+    TextStyle? vendingBody1B,
+    TextStyle? vendingBody2B,
     TextStyle? kioskBody1B,
     TextStyle? kioskBody2B,
     TextStyle? kioksNum1SB,
@@ -136,6 +197,12 @@ class KioskTypography extends ThemeExtension<KioskTypography> {
   }) {
     return KioskTypography(
       kioskBtn1B: kioskBtn1B ?? this.kioskBtn1B,
+      vendingBtn1B: vendingBtn1B ?? this.vendingBtn1B,
+      vendingBtn2B: vendingBtn2B ?? this.vendingBtn2B,
+      vendingTitle1B: vendingTitle1B ?? this.vendingTitle1B,
+      vendingTitle2B: vendingTitle2B ?? this.vendingTitle2B,
+      vendingBody1B: vendingBody1B ?? this.vendingBody1B,
+      vendingBody2B: vendingBody2B ?? this.vendingBody2B,
       kioskBody1B: kioskBody1B ?? this.kioskBody1B,
       kioskBody2B: kioskBody2B ?? this.kioskBody2B,
       kioksNum1SB: kioksNum1SB ?? this.kioksNum1SB,
@@ -160,6 +227,12 @@ class KioskTypography extends ThemeExtension<KioskTypography> {
 
     return KioskTypography(
       kioskBtn1B: TextStyle.lerp(kioskBtn1B, other.kioskBtn1B, t)!,
+      vendingBtn2B: TextStyle.lerp(vendingBtn2B, other.vendingBtn2B, t)!,
+      vendingTitle1B: TextStyle.lerp(vendingTitle1B, other.vendingTitle1B, t)!,
+      vendingBtn1B: TextStyle.lerp(vendingBtn1B, other.vendingBtn1B, t)!,
+      vendingTitle2B: TextStyle.lerp(vendingTitle2B, other.vendingTitle2B, t)!,
+      vendingBody1B: TextStyle.lerp(vendingBody1B, other.vendingBody1B, t)!,
+      vendingBody2B: TextStyle.lerp(vendingBody2B, other.vendingBody2B, t)!,
       kioskBody1B: TextStyle.lerp(kioskBody1B, other.kioskBody1B, t)!,
       kioskBody2B: TextStyle.lerp(kioskBody2B, other.kioskBody2B, t)!,
       kioksNum1SB: TextStyle.lerp(kioksNum1SB, other.kioksNum1SB, t)!,

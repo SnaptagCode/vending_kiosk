@@ -8,6 +8,7 @@ import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/providers/network_status_provider.dart';
 import 'package:vending_kiosk/core/providers/version_notifier.dart';
+import 'package:vending_kiosk/core/ui/theme/kiosk_colors.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
@@ -115,38 +116,61 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
       }
     });
     // NOTE: kioskInfoServiceProvider는 하위 로직/화면에서 사용될 수 있어 watch 유지
-    ref.watch(kioskInfoServiceProvider);
+    final kioskInfo = ref.read(kioskInfoServiceProvider);
+    final progressColor = kioskInfo?.progressBarStartColor != null
+        ? Color(int.parse(kioskInfo!.progressBarStartColor.replaceFirst('#', '0xff')))
+        : const Color(0xFF4CAF50);
+
     return DefaultTextStyle(
       style: TextStyle(
         fontFamily: context.locale.languageCode == 'ja' ? 'MPLUSRounded' : 'Cafe24Ssurround2',
       ),
       child: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              LocaleKeys.sub03_txt_01.tr(),
+            Text.rich(
               textAlign: TextAlign.center,
-              style: context.typography.kioskBody1B.copyWith(fontSize: 40.sp),
-            ),
-            SizedBox(height: 23.h),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.5), // 원하는 배경색
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '포토카드를 출력 중입니다.\n',
+                    style: context.typography.vendingTitle1B.copyWith(
+                      fontSize: 52.sp,
+                      color: progressColor,
+                    ),
+                  ),
+                  TextSpan(
+                    text: '잠시만 기다려 주세요.',
+                    style: context.typography.vendingTitle1B.copyWith(
+                      fontSize: 52.sp,
+                      color: const Color(0xFFFFFFFF),
+                    ),
+                  ),
+                ],
               ),
-              child: Text(
-                LocaleKeys.sub03_txt_02.tr(),
-                textAlign: TextAlign.center,
-                style: context.typography.kioskBody1B.copyWith(fontSize: 30.sp),
+            ),
+            SizedBox(height: 20.h),
+            Text(
+              '출력이 완료될 때까지 카드를 뽑지 말아 주세요!',
+              textAlign: TextAlign.center,
+              style: context.typography.kioskBody1B.copyWith(
+                fontSize: 28.sp,
+                letterSpacing: 0.7,
+                color: Colors.white,
+                fontWeight: FontWeight.w300,
               ),
             ),
-            SizedBox(height: 30.h),
+            SizedBox(height: 88.h),
+            _PrintProgressBar(),
+            SizedBox(height: 28.h),
+            _PrintCountText(progressCompleted: _progressCompleted, progressFrozen: _progressFrozen),
+            SizedBox(height: 52.h),
             randomAdImage == null
                 ? Container(
-                    width: 1080.w,
-                    height: 400.h,
+                    width: 780.w,
+                    height: 328.h,
                     decoration: BoxDecoration(border: Border.all(color: Colors.transparent, width: 0.w)),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10.r),
@@ -160,15 +184,7 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
                 : Image.file(
                     File(randomAdImage),
                     fit: BoxFit.fill,
-                  ),
-            SizedBox(height: 60.h),
-            _PrintCountText(progressCompleted: _progressCompleted, progressFrozen: _progressFrozen),
-            SizedBox(height: 16.h),
-            Text(
-              LocaleKeys.sub03_txt_03.tr(),
-              textAlign: TextAlign.center,
-              style: context.typography.kioskBody2B.copyWith(fontSize: 26.sp),
-            ),
+                  )
           ],
         ),
       ),
@@ -275,6 +291,74 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
   }
 }
 
+class _PrintProgressBar extends ConsumerWidget {
+  const _PrintProgressBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kioskColors = context.theme.extension<KioskColors>()!;
+    final quantity = ref.watch(printQuantityNotifierProvider);
+    // final current = 6; // quantity.current;
+    // final total = 10; // quantity.total;
+    final current = quantity.current;
+    final total = quantity.total;
+    final progressValue = total > 0 ? current / total : 0.0;
+
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 4,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: SizedBox(
+        width: 680.w,
+        height: 28.h,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20.r),
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              color: Colors.white, // #FFFFFF4D
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(3.r),
+              child: Stack(
+                children: [
+                  FractionallySizedBox(
+                    widthFactor: progressValue,
+                    heightFactor: 1,
+                    alignment: Alignment.centerLeft,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20.r),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              // kioskColors.progressBarStartColor,
+                              // kioskColors.progressBarEndColor,
+                              Color(0xFFC3F88A),
+                              Color(0xFF00D0A9),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 출력 개수를 텍스트로 표시 (예: 2 / 5)
 class _PrintCountText extends ConsumerWidget {
   const _PrintCountText({
@@ -288,27 +372,86 @@ class _PrintCountText extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final quantity = ref.watch(printQuantityNotifierProvider);
+    // final current = 6; // quantity.current;
+    // final total = 10; // quantity.total;
     final current = quantity.current;
     final total = quantity.total;
 
-    String label;
-    if (total == 0) {
-      label = '0 / 0';
-    } else if (progressCompleted) {
-      label = '$total / $total';
-    } else if (progressFrozen) {
-      label = '$current / $total';
-    } else {
-      label = '$current / $total';
-    }
+    // 표시할 현재/전체 값 계산
+    final displayCurrent = total == 0 ? 0 : (progressCompleted ? total : current);
+    final displayTotal = total;
 
-    return Text(
-      label,
-      style: context.typography.kioskBody1B.copyWith(
-        fontSize: 48.sp,
-        color: Colors.white,
+    final kioskColors = context.kioskColors;
+    final textShadow = [
+      Shadow(
+        color: Colors.black.withValues(alpha: 0.2),
+        offset: const Offset(0, 6),
+        blurRadius: 4,
       ),
+    ];
+
+    final baseStyle = context.typography.kioskBody1B.copyWith(fontSize: 40.sp);
+    final currentStyle = baseStyle.copyWith(
+      fontWeight: FontWeight.w700,
+      color: Colors.white,
+      letterSpacing: 2,
+      height: 1.35,
+      shadows: textShadow,
+    );
+    final slashStyle = baseStyle.copyWith(
+      fontWeight: FontWeight.w300,
+      color: Colors.white,
+      letterSpacing: 2,
+      height: 1.35,
+      shadows: textShadow,
+    );
+    final totalStyle = baseStyle.copyWith(
+      fontWeight: FontWeight.w700,
+      color: Colors.white,
+      letterSpacing: 2,
+      height: 1.35,
+      shadows: textShadow,
+    );
+
+    return RichText(
       textAlign: TextAlign.center,
+      text: TextSpan(
+        children: [
+          // current: progressBar gradient + weight 700
+          WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.alphabetic,
+            child: ShaderMask(
+              shaderCallback: (bounds) => LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  // kioskColors.progressBarStartColor,
+                  // kioskColors.progressBarEndColor,
+                  Color(0xFFC3F88A),
+                  Color(0xFF00D0A9),
+                ],
+              ).createShader(
+                Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+              ),
+              child: Text(
+                '$displayCurrent',
+                style: currentStyle,
+              ),
+            ),
+          ),
+          // slash: weight 300
+          TextSpan(
+            text: '/',
+            style: slashStyle,
+          ),
+          // total: white, weight 700
+          TextSpan(
+            text: '$displayTotal',
+            style: totalStyle,
+          ),
+        ],
+      ),
     );
   }
 }

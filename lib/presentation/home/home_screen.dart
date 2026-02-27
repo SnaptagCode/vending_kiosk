@@ -174,188 +174,210 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // 타이틀
-            Text(
-              '구매 수량을 선택해 주세요.',
-              style: context.typography.kioskBtn1B.copyWith(
-                fontSize: 53.sp,
-                color: mainTextColor,
-              ),
-            ),
-            SizedBox(height: 42.h),
-
-            // 수량 선택 컨테이너
-            Column(
-              children: [
-                // 수량 버튼 1~10 (2행)
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        for (int i = 1; i <= 5; i++) ...[
-                          if (i > 1) SizedBox(width: 16.w),
-                          _buildQuantityButton(context, i, buttonColor, buttonTextColor),
-                        ],
-                      ],
-                    ),
-                    SizedBox(height: 16.h),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        for (int i = 6; i <= 10; i++) ...[
-                          if (i > 6) SizedBox(width: 16.w),
-                          _buildQuantityButton(context, i, buttonColor, buttonTextColor),
-                        ],
-                      ],
-                    ),
-                  ],
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 80.w),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // 카드 1: 타이틀 + 수량 선택 키패드
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.fromLTRB(58.w, 52.h, 58.w, 34.h),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(12.r),
+                      topRight: Radius.circular(12.r),
+                      bottomLeft: Radius.circular(0.r),
+                      bottomRight: Radius.circular(0.r)),
                 ),
-                SizedBox(height: 42.h),
-
-                // 가격 표시
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 30.w, vertical: 32.h),
-                  width: 789.w,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(15.r),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Column(
+                  children: [
+                    // 타이틀
+                    Text.rich(
+                      TextSpan(
                         children: [
-                          Text(
-                            '구매 수량',
-                            style: TextStyle(
-                              fontSize: 18.sp,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          Text(
-                            '${quantity.total}',
-                            style: TextStyle(
-                              fontSize: 18.sp,
-                              color: mainTextColor,
-                            ),
-                          )
-                        ],
-                      ),
-                      SizedBox(height: 15.h),
-                      Divider(
-                        color: Colors.grey,
-                        height: 1.h,
-                      ),
-                      SizedBox(height: 15.h),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '총 금액',
-                            style: TextStyle(
-                              fontSize: 20.sp,
+                          TextSpan(
+                            text: '구매 수량',
+                            style: context.typography.vendingTitle2B.copyWith(
                               color: buttonColor,
                             ),
                           ),
-                          Text(
-                            '$formattedPrice${LocaleKeys.currency_won.tr()}',
-                            style: TextStyle(
-                              fontSize: 18.sp,
+                          TextSpan(
+                            text: '을 선택해 주세요.',
+                            style: context.typography.vendingTitle2B.copyWith(
                               color: mainTextColor,
                             ),
-                          )
+                          ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 40.h),
-            // 결제 버튼
-            GestureDetector(
-              onTap: paymentState.isLoading
-                  ? null
-                  : () async {
-                      final isUnderMaintenance = await _checkMaintenance();
-                      if (isUnderMaintenance) return;
-                      await ref.read(photoCardPreviewScreenProviderProvider.notifier).payment();
-                    },
-              child: Container(
-                width: 789.w,
-                height: 92.h,
-                decoration: BoxDecoration(
-                  color: buttonColor,
-                  borderRadius: BorderRadius.circular(20.r),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
+                    ),
+                    SizedBox(height: 42.h),
+
+                    // 수량 버튼 1~10 (2행)
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            for (int i = 1; i <= 5; i++) ...[
+                              if (i > 1) SizedBox(width: 16.w),
+                              _buildQuantityButton(context, i, buttonColor, mainTextColor),
+                            ],
+                          ],
+                        ),
+                        SizedBox(height: 16.h),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            for (int i = 6; i <= 10; i++) ...[
+                              if (i > 6) SizedBox(width: 16.w),
+                              _buildQuantityButton(context, i, buttonColor, mainTextColor),
+                            ],
+                          ],
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                child: Center(
-                  child: paymentState.isLoading
-                      ? SizedBox(
-                          width: 40.r,
-                          height: 40.r,
-                          child: CircularProgressIndicator(
-                            color: buttonTextColor,
-                            strokeWidth: 3.w,
+              ),
+
+              // 카드 사이 간격 (배경이 보이는 구분선 역할)
+              SizedBox(height: 12.h),
+
+              // 카드 2: 가격 표시 + 결제 버튼
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.fromLTRB(58.w, 40.h, 58.w, 34.h),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(0.r),
+                      topRight: Radius.circular(0.r),
+                      bottomLeft: Radius.circular(12.r),
+                      bottomRight: Radius.circular(12.r)),
+                ),
+                child: Column(
+                  children: [
+                    // 가격 표시
+                    Container(
+                      padding: EdgeInsets.only(top: 4.h),
+                      width: 789.w,
+                      child: Column(
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.symmetric(vertical: 7.h),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '구매 수량',
+                                  style: context.typography.vendingBody2B.copyWith(color: const Color(0xFF888888)),
+                                ),
+                                Text(
+                                  '${quantity.total}',
+                                  style: context.typography.vendingBody1B.copyWith(color: buttonColor),
+                                )
+                              ],
+                            ),
                           ),
-                        )
-                      : Text(
-                          '결제하기',
-                          style: context.typography.kioskBtn1B.copyWith(
-                            fontSize: 34.sp,
-                            color: buttonTextColor,
+                          SizedBox(height: 4.h),
+                          Padding(
+                            padding: EdgeInsets.symmetric(vertical: 7.h),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '총 결제금액',
+                                  style: context.typography.vendingBody2B.copyWith(color: const Color(0xFF888888)),
+                                ),
+                                Text(
+                                  '$formattedPrice ${LocaleKeys.currency_won.tr()}',
+                                  style: context.typography.vendingBody1B.copyWith(color: buttonColor),
+                                )
+                              ],
+                            ),
                           ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 36.h),
+                    // 결제 버튼
+                    GestureDetector(
+                      onTap: paymentState.isLoading
+                          ? null
+                          : () async {
+                              final isUnderMaintenance = await _checkMaintenance();
+                              if (isUnderMaintenance) return;
+                              _maintenanceTimer?.cancel();
+                              await ref.read(photoCardPreviewScreenProviderProvider.notifier).payment();
+                              // PrintProcessRouteData().go(context);
+                            },
+                      child: Container(
+                        width: 804.w,
+                        height: 112.h,
+                        decoration: BoxDecoration(
+                          color: buttonColor,
+                          borderRadius: BorderRadius.circular(12.r),
                         ),
+                        child: Center(
+                          child: paymentState.isLoading
+                              ? SizedBox(
+                                  width: 40.r,
+                                  height: 40.r,
+                                  child: CircularProgressIndicator(
+                                    color: buttonTextColor,
+                                    strokeWidth: 3.w,
+                                  ),
+                                )
+                              : Text(
+                                  '결제하기',
+                                  style: context.typography.vendingBtn2B.copyWith(color: buttonTextColor),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // 수량 버튼 1~10 (선택: 흰색, 미선택: mainButtonColor)
+  // 수량 버튼 1~10 (키패드 스타일)
   Widget _buildQuantityButton(
     BuildContext context,
     int value,
     Color buttonColor,
-    Color buttonTextColor,
+    Color mainTextColor,
   ) {
     final isSelected = ref.watch(printQuantityNotifierProvider).total == value;
 
     return GestureDetector(
       onTap: () => ref.read(printQuantityNotifierProvider.notifier).setQuantity(value),
       child: Container(
-        width: 145.w,
-        height: 77.h,
+        width: 144.w,
+        height: 92.h,
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : buttonColor,
-          borderRadius: BorderRadius.circular(15.r),
-          border: Border.all(
-            color: isSelected ? Colors.white : buttonColor,
-            width: 2.w,
-          ),
-        ),
+            color: isSelected ? buttonColor.withValues(alpha: 0.12) : Colors.white,
+            borderRadius: BorderRadius.circular(10.r),
+            border: Border.all(
+              color: isSelected ? buttonColor : const Color(0xFFE0E0E0),
+              width: 2.w,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(color: buttonColor, blurRadius: 8, blurStyle: BlurStyle.outer),
+                  ]
+                : null),
         child: Center(
           child: Text(
             '$value',
-            style: TextStyle(
-              fontSize: 36.sp,
-              fontWeight: FontWeight.bold,
-              color: isSelected ? buttonColor : buttonTextColor,
-            ),
+            style: context.typography.vendingBtn1B.copyWith(color: isSelected ? buttonColor : mainTextColor),
           ),
         ),
       ),

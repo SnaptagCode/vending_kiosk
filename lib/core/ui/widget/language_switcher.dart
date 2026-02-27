@@ -116,8 +116,9 @@ class MenuWidget extends StatelessWidget {
               option.name,
               style: TextStyle(
                 fontSize: 18.sp,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w700,
                 color: Colors.black,
+                letterSpacing: -0.3,
                 fontFamily: option.fontFamily,
               ),
             ),
