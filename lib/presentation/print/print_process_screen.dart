@@ -95,6 +95,7 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
 
             // Reset payment and quantity state
             ref.read(paymentResponseStateProvider.notifier).reset();
+            ref.read(printQuantityNotifierProvider.notifier).reset();
 
             final isReprint = ref.read(reprintIdsProvider.notifier).state != null;
             if (isReprint) {
