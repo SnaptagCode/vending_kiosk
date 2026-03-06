@@ -12,6 +12,7 @@ import 'package:vending_kiosk/core/ui/theme/kiosk_colors.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
+import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
 import 'package:vending_kiosk/presentation/home/payment_response_state.dart';
 import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
@@ -77,6 +78,14 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
               return;
             }
 
+            if (error is InsufficientCardStockException) {
+              await DialogHelper.showInsufficientCardStockDialog(
+                context,
+                requestedQuantity: error.requestedQuantity,
+                availableStock: error.availableStock,
+              );
+            }
+
             final result = await DialogHelper.showKioskDialog(
               context,
               title: LocaleKeys.alert_title_print_failure.tr(),
@@ -93,18 +102,18 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
               _progressCompleted = true;
             }
 
-            // Reset payment and quantity state
-            ref.read(paymentResponseStateProvider.notifier).reset();
-            ref.read(printQuantityNotifierProvider.notifier).reset();
-
             final isReprint = ref.read(reprintIdsProvider.notifier).state != null;
             if (isReprint) {
               ref.read(reprintModeProvider.notifier).state = false;
             }
 
+            // Reset payment and quantity state
+            ref.read(paymentResponseStateProvider.notifier).reset();
+
             await DialogHelper.showPrintCompleteDialog(
               context,
               onButtonPressed: () {
+                ref.read(printQuantityNotifierProvider.notifier).reset();
                 if (isReprint) {
                   PaymentHistoryRouteData().go(context);
                 } else {

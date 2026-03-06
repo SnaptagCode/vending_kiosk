@@ -5,7 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:package_info_plus/package_info_plus.dart';
 
 class VersionRepository {
-  final String githubRepo = "SnaptagCode/flutter_snaptag_kiosk";
+  final String githubRepo = "SnaptagCode/vending_kiosk";
 
   late final String home;
   late final Directory snaptagDir;

@@ -5,8 +5,10 @@ import 'package:vending_kiosk/core/data/models/enums/printed_status.dart';
 import 'package:vending_kiosk/core/data/models/request/card_stock_consume_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_vending_print_status_request.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
+import 'package:vending_kiosk/core/services/card_dispenser_manager.dart';
 import 'package:vending_kiosk/core/services/card_dispenser_service.dart';
 import 'package:vending_kiosk/presentation/home/payment/create_order_info_state.dart';
+import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
 import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/setup/uuid_provider.dart';
@@ -39,8 +41,8 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
     final reprintIds = ref.read(reprintIdsProvider);
     final printedPhotoCardIds = reprintIds ?? ref.read(createOrderInfoProvider)?.printedPhotoCardIds ?? [];
 
-    SlackLogService().sendLogToSlack('Printed photo card ids length: ${printedPhotoCardIds.length}');
-    SlackLogService().sendLogToSlack('Quantity total: ${quantity.total}');
+    // SlackLogService().sendLogToSlack('Printed photo card ids length: ${printedPhotoCardIds.length}');
+    // SlackLogService().sendLogToSlack('Quantity total: ${quantity.total}');
     if (printedPhotoCardIds.length != quantity.total) {
       throw Exception('Printed photo card ids length is not equal to quantity total');
     }
@@ -90,6 +92,15 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
 
   Future<void> _executePrint(int printedPhotoCardId) async {
     try {
+      final dispenserReady = await CardDispenserManager.checkAndRecover();
+      if (dispenserReady == false) {
+        throw InsufficientCardStockException(
+          requestedQuantity: 1,
+          availableStock: 0,
+          description: '배출기에 카드가 없습니다.',
+        );
+      }
+
       await ref.read(cardDispenserServiceProvider.notifier).dispenseAndWait(count: 1);
     } catch (e) {
       rethrow;

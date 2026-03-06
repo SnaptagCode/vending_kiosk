@@ -16,7 +16,7 @@ class WithTechCardDispenserSerial {
   // 통신 설정
   final int baudRate;
   static const int dataBits = 8;
-  static const int stopBits = 1;
+  static const int stopBits = 1; // 스펙상 1 stop bit (Win32 API StopBits 파라미터는 0=ONESTOPBIT 사용)
   static const String parity = 'none';
 
   // 프레임 구성
@@ -74,7 +74,7 @@ class WithTechCardDispenserSerial {
 
   WithTechCardDispenserSerial({
     String? portName,
-    this.baudRate = 19200,
+    this.baudRate = 9600,
   }) : _portName = portName;
 
   String? get portName => _portName;
@@ -152,7 +152,7 @@ class WithTechCardDispenserSerial {
             _port!.close();
           }
         } catch (e) {
-          logger.w('WithTech: Failed to close previous port instance', error: e);
+          logger.w('CardDispenserSerial WithTech: Failed to close previous port instance', error: e);
         }
         _port = null;
         await Future<void>.delayed(const Duration(milliseconds: 200));
@@ -164,18 +164,26 @@ class WithTechCardDispenserSerial {
         openNow: false,
         ByteSize: dataBits,
         BaudRate: baudRate,
-        StopBits: 0,
+        StopBits: 0, // Win32: 0=ONESTOPBIT(1 stop bit), 1=ONE5STOPBITS(1.5), 2=TWOSTOPBITS
         Parity: 0,
       );
 
       await _port!.open();
 
       if (_port!.isOpened) {
+        // serial_port_win32은 portName 기준 싱글톤 캐시를 사용하므로,
+        // 이전에 다른 BaudRate로 열렸던 인스턴스가 반환될 수 있음.
+        // open() 후 setter로 BaudRate를 강제 덮어써서 실제 적용.
+        try {
+          _port!.BaudRate = baudRate;
+        } catch (e) {
+          logger.w('CardDispenserSerial  WithTech: BaudRate override failed (baud: $baudRate)', error: e);
+        }
         _isConnected = true;
-        logger.i('WithTech: connected to $portName (baud: $baudRate)');
+        logger.i('CardDispenserSerial  WithTech: connected to $portName (baud: $baudRate)');
         return true;
       } else {
-        logger.e('WithTech: Failed to open serial port $portName');
+        logger.e('CardDispenserSerial  WithTech: Failed to open serial port $portName');
         _port = null;
         _isConnected = false;
         return false;
@@ -184,8 +192,8 @@ class WithTechCardDispenserSerial {
       final available = getAvailablePorts();
       final hint = _win32ErrorHint(e);
       logger.e(
-        'WithTech: Failed to connect to dispenser at $portName. '
-        'Available ports: $available. $hint',
+        'CardDispenserSerial WithTech: Failed to connect to dispenser at $portName. '
+        'CardDispenserSerial Available ports: $available. $hint',
         error: e,
       );
       _isConnected = false;
@@ -206,9 +214,11 @@ class WithTechCardDispenserSerial {
     return connectOnce(portName);
   }
 
-  /// Checksum 계산 (CMD + DATA/STATUS + ETX)
+  /// Checksum 계산 (STX + CMD + DATA/STATUS + ETX)
+  ///
+  /// 스펙 예제 검증: 02 15 00 03 → 0x02+0x15+0x00+0x03 = 0x1A ✅
   int _calculateChecksum(int cmd, int dataOrStatus) {
-    return (cmd + dataOrStatus + etx) & 0xFF;
+    return (stx + cmd + dataOrStatus + etx) & 0xFF;
   }
 
   /// 패킷 생성
@@ -251,7 +261,11 @@ class WithTechCardDispenserSerial {
           }
         }
 
+        logger.d('WithTech: TX [${packet.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
         final writeOk = await _port!.writeBytesFromUint8List(packet, timeout: timeoutMs);
+        if (_port == null) {
+          throw Exception('WithTech: Serial port disconnected during write');
+        }
         if (!writeOk) {
           throw Exception('WithTech: Failed to write packet');
         }
@@ -261,6 +275,8 @@ class WithTechCardDispenserSerial {
 
         try {
           response = await _port!.readBytes(frameSize, timeout: timeout);
+          logger.d(
+              'WithTech: RX [${response.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}] (${response.length}/${frameSize}B)');
           if (response.length < frameSize) {
             throw TimeoutException('WithTech: Read timeout after ${timeoutMs}ms');
           }
@@ -306,22 +322,17 @@ class WithTechCardDispenserSerial {
         }
 
         final receivedChecksum = response[4];
-        final calcChecksum = _calculateChecksum(response[1], response[2]);
-        if (receivedChecksum != calcChecksum) {
-          if (attempt < retryCount) {
-            logger.w(
-              'WithTech: checksum mismatch: recv=0x${receivedChecksum.toRadixString(16)}, '
-              'calc=0x${calcChecksum.toRadixString(16)}. Retrying...',
-            );
-            await Future.delayed(const Duration(milliseconds: 100));
-            continue;
-          } else {
-            logger.e(
-              'WithTech: checksum mismatch: recv=0x${receivedChecksum.toRadixString(16)}, '
-              'calc=0x${calcChecksum.toRadixString(16)}',
-            );
-            return null;
-          }
+        // 스펙 공식: CS = (STX + CMD + DATA + ETX) & 0xFF
+        // 일부 장치 펌웨어 버그: STATUS 바이트가 0x00이 아닐 때도 STATUS=0x00 기준
+        // 체크섬을 재사용하는 경우가 있음 → 불일치 시 경고만 남기고 계속 처리.
+        final calcWithStx = _calculateChecksum(response[1], response[2]);
+        final calcWithoutStx = (response[1] + response[2] + etx) & 0xFF;
+        if (receivedChecksum != calcWithStx && receivedChecksum != calcWithoutStx) {
+          logger.w(
+            'WithTech: checksum mismatch (firmware quirk, continuing): '
+            'recv=0x${receivedChecksum.toRadixString(16)}, '
+            'expected=0x${calcWithStx.toRadixString(16)}',
+          );
         }
 
         return response;
@@ -350,7 +361,12 @@ class WithTechCardDispenserSerial {
       final resp = await _sendCommand(cmdRequestStatus, 0x00, timeoutMs: timeoutMs, retryCount: retryCount);
       if (resp == null) return false;
       final cmd = resp[1];
-      return cmd == rspAckOrStatus || cmd == rspSystemReady || cmd == rspSystemWarning;
+      // 프로토콜 오류 응답이 아닌 한, 장치가 응답했다는 것 자체가 통신 OK
+      return cmd != rspNak &&
+          cmd != rspFrameTimeout &&
+          cmd != rspMissingEtx &&
+          cmd != rspChecksumError &&
+          cmd != rspCommandError;
     } catch (e) {
       logger.e('WithTech: healthCheck failed', error: e);
       return false;
@@ -360,9 +376,12 @@ class WithTechCardDispenserSerial {
   /// 사용 가능한 포트 중 WITH-TECH 배출기를 자동 감지.
   ///
   /// - 모든 COM 포트를 순회하며 healthCheck에 응답하는 포트를 찾는다.
-  static Future<String?> autoDetect({
+  /// - [tryBaudRates]: 시도할 보레이트 목록 (기본: 19200, 9600 순서).
+  ///   디바이스 DIP 스위치 설정에 따라 달라질 수 있음.
+  static Future<({String port, int baudRate})?> autoDetect({
     int connectTimeoutMs = 1000,
-    int healthCheckTimeoutMs = 300,
+    int healthCheckTimeoutMs = 1000,
+    List<int>? tryBaudRates,
   }) async {
     final ports = getAvailablePorts();
     if (ports.isEmpty) {
@@ -370,40 +389,60 @@ class WithTechCardDispenserSerial {
       return null;
     }
 
-    logger.i('WithTech.autoDetect: scanning ports: $ports');
+    final baudRates = tryBaudRates ?? [19200, 9600];
+    logger.i('WithTech.autoDetect: scanning ports=$ports baudRates=$baudRates');
 
     for (final port in ports) {
-      final disp = WithTechCardDispenserSerial();
-      try {
-        bool connected = false;
+      bool portEverOpened = false;
+      for (final baud in baudRates) {
+        final disp = WithTechCardDispenserSerial(baudRate: baud);
         try {
-          connected = await disp
-              .connectOnce(port)
-              .timeout(Duration(milliseconds: connectTimeoutMs), onTimeout: () => false);
-        } catch (_) {
-          connected = false;
-        }
+          bool connected = false;
+          try {
+            connected =
+                await disp.connectOnce(port).timeout(Duration(milliseconds: connectTimeoutMs), onTimeout: () => false);
+          } catch (_) {
+            connected = false;
+          }
 
-        if (!connected) continue;
+          if (!connected) {
+            if (!portEverOpened) break; // 포트 자체를 열 수 없음 → 이 포트 건너뜀
+            // 이전에 열렸으나 직후 재오픈 실패(Windows가 아직 포트 해제 중) → 다음 보레이트에서 재시도
+            logger.d('WithTech.autoDetect: $port @${baud}bps connect failed (port releasing), skip baud');
+            continue;
+          }
+          portEverOpened = true;
 
-        final ok = await disp.healthCheck(
-          timeoutMs: healthCheckTimeoutMs,
-          retryCount: 0,
-        );
-        if (ok) {
-          logger.i('WithTech.autoDetect: dispenser detected on $port');
-          return port;
+          // 포트 오픈 직후 기기 초기화 대기
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+
+          final ok = await disp.healthCheck(
+            timeoutMs: healthCheckTimeoutMs,
+            retryCount: 1,
+          );
+          if (ok) {
+            logger.i('WithTech.autoDetect: dispenser detected on $port (baud: $baud)');
+            return (port: port, baudRate: baud);
+          }
+          logger.d('WithTech.autoDetect: $port @${baud}bps no response');
+        } catch (e) {
+          logger.d('WithTech.autoDetect: $port @${baud}bps error - $e');
+        } finally {
+          await disp.disconnect();
+          // 포트가 한 번이라도 열렸으면, 다음 보레이트에서 재오픈 전 Windows 릴리즈 대기
+          if (portEverOpened) {
+            await Future<void>.delayed(const Duration(milliseconds: 200));
+          }
         }
-      } catch (e) {
-        logger.d('WithTech.autoDetect: $port no response - $e');
-      } finally {
-        await disp.disconnect();
       }
     }
 
     logger.w('WithTech.autoDetect: scan finished, no dispenser detected. ports=$ports');
     return null;
   }
+
+  /// autoDetect 반환형 편의 typedef
+  // ({String port, int baudRate})?
 
   /// System initialize & Reset
   Future<bool> reset() async {
@@ -483,7 +522,8 @@ class WithTechCardDispenserSerial {
       final isPayout = (statusByte & 0x04) != 0;
 
       WithTechDispenserStatusKind kind;
-      if (rspCmd == rspSystemReady && !isJam && !isEmpty && !isHold) {
+      // rspAckOrStatus(0x20): "ACK or Status" — 정상 대기 응답으로 처리 (에러 비트 없을 때)
+      if ((rspCmd == rspSystemReady || rspCmd == rspAckOrStatus) && !isJam && !isEmpty && !isHold) {
         kind = WithTechDispenserStatusKind.ready;
       } else if (rspCmd == rspSystemWarning || isJam || isEmpty) {
         kind = WithTechDispenserStatusKind.warning;
@@ -493,9 +533,7 @@ class WithTechCardDispenserSerial {
         kind = WithTechDispenserStatusKind.payoutSuccess;
       } else if (rspCmd == rspPayoutFails) {
         kind = WithTechDispenserStatusKind.payoutFail;
-      } else if (rspCmd == rspCountSuccessful ||
-          rspCmd == rspCountToPayout ||
-          rspCmd == rspCountToReject) {
+      } else if (rspCmd == rspCountSuccessful || rspCmd == rspCountToPayout || rspCmd == rspCountToReject) {
         kind = WithTechDispenserStatusKind.counting;
       } else if (rspCmd == rspCountPayoutHalt || isHold) {
         kind = WithTechDispenserStatusKind.halted;
