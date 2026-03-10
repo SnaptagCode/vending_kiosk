@@ -82,7 +82,7 @@ class CardDispenserManager {
       if (status == 'warning') {
         final err = await _instance!.getError();
         if (err.errorCode?.contains('EMPTY') == true) {
-          logger.w('CardDispenserManager.checkAndRecover: EMPTY 감지');
+          logger.w('CardDispenserManager.checkAndRecover: EMPTY 감지 $err.errorCode');
           return false;
         }
       }
@@ -238,11 +238,14 @@ class CardDispenserManager {
   }
 
   /// Dispense cards
-  Future<bool> dispense(int count) async {
+  Future<bool> dispense(int count, {Duration? timeout}) async {
     if (_serial == null || !_serial!.isConnected) {
       throw Exception('Not connected');
     }
-    return _serial!.payoutOnce(count);
+    return _serial!.payout(
+      count,
+      totalTimeout: timeout ?? const Duration(seconds: 15),
+    );
   }
 
   /// Get status as string (mapped from WithTechDispenserStatusKind)
@@ -325,83 +328,36 @@ class CardDispenserManager {
     logger.w('CardDispenserManager: reset 후에도 standby 미도달 (계속 진행)');
   }
 
-  /// Dispense and wait until completion
+  /// Dispense and wait until completion.
+  ///
+  /// WITH-TECH 프로토콜은 TX 1회 후 장치가 RX를 순차 전송하므로,
+  /// [dispense]가 최종 응답(0x2E/0x2F)까지 블로킹 수신한다.
+  /// 완료 후 별도 상태 폴링은 불필요하다.
+  ///
+  /// [pollInterval]: 하위 호환용, 사용되지 않음.
+  /// [overallTimeout]: 배출 전체 타임아웃 (dispense 내부로 전달).
   Future<void> dispenseAndWait({
     required int count,
+    required int index,
     required Duration pollInterval,
     required Duration overallTimeout,
   }) async {
     try {
-      logger.i('CardDispenserManager: Starting dispense and wait for $count card(s)...');
-
+      logger.i('1. CardDispenserManager: _ensureReadyBeforeDispense index=$index count=$count');
       await _ensureReadyBeforeDispense();
 
-      final ok = await dispense(count);
-
-      SlackLogService().sendLogToSlack('CardDispenserManager: Dispense: $ok');
+      logger.i('2. CardDispenserManager: dispense index=$index count=$count');
+      final ok = await dispense(count, timeout: overallTimeout);
+      logger.i('3. CardDispenserManager: dispense result=$ok index=$index');
 
       if (!ok) {
         await _stopMotorOnError();
         final err = await getError();
         final msg = err.description ?? '장치가 배출을 거부했습니다. 카드 수량 및 장치 상태를 확인해 주세요.';
-        throw Exception('Dispense failed: $msg');
+        throw Exception('Dispense failed: $msg index: $index');
       }
 
-      // 'dispensing' 상태가 연속으로 지속된 시작 시각 — 카드 없이 헛도는 상태 감지용
-      DateTime? dispensingSince;
-
-      final deadline = DateTime.now().add(overallTimeout);
-      while (DateTime.now().isBefore(deadline)) {
-        final status = await getStatus();
-
-        SlackLogService().sendLogToSlack('CardDispenserManager: Status: $status');
-
-        logger.d('CardDispenserManager: Status: $status');
-
-        switch (status) {
-          case 'completed':
-            logger.i('CardDispenserManager: Dispense completed successfully');
-            return;
-          case 'dispensing':
-            dispensingSince ??= DateTime.now();
-            if (DateTime.now().difference(dispensingSince) >= const Duration(seconds: 5)) {
-              logger.w('CardDispenserManager: dispensing 상태 5초 초과 → 카드 없음 판단, 에러 처리');
-              await _stopMotorOnError();
-              throw Exception('카드가 배출되지 않았습니다. 카드 수량을 확인해 주세요.');
-            }
-            break;
-          case 'standby':
-            logger.i('CardDispenserManager: Dispense completed (standby)');
-            return;
-          case 'warning':
-            dispensingSince = null;
-            // Empty/JAM 등 즉시 해결 불가한 경고는 바로 실패 처리
-            final warnErr = await getError();
-            if (warnErr.errorCode != null) {
-              await _stopMotorOnError();
-              throw Exception('Dispenser warning: ${warnErr.description}');
-            }
-            logger.w('CardDispenserManager: Warning status during dispense (non-critical, continuing poll)');
-            break;
-          case 'halted':
-            dispensingSince = null;
-            await _stopMotorOnError();
-            throw Exception('Dispenser error: Hold 상태 (에러 해제 후 재시도 필요)');
-          case 'error':
-          case 'unknown':
-            dispensingSince = null;
-            // getError()를 reset() 전에 호출해야 에러 상태 정보가 보존됨
-            final err = await getError();
-            await _stopMotorOnError();
-            final msg = err.description ?? '장치 오류(에러 코드 없음). 카드 걸림/부족 등을 확인해 주세요.';
-            throw Exception('Dispenser error: $msg');
-        }
-
-        await Future.delayed(pollInterval);
-      }
-
-      await _stopMotorOnError();
-      throw Exception('Dispense timeout after ${overallTimeout.inSeconds} seconds');
+      logger.i('CardDispenserManager: Dispense completed successfully index=$index');
     } catch (e) {
       logger.e('CardDispenserManager: Dispense and wait failed', error: e);
       rethrow;

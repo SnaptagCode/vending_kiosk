@@ -63,14 +63,14 @@ class PaymentRepository {
     required String originalApprovalDate,
   }) async {
     final Invoice invoice = Invoice.calculate(totalAmount);
-    final terminalId = 'AT0444223A';
+    final cardTerminalId = ref.read(kioskInfoServiceProvider)?.cardTerminalId;
     final request = PaymentRequest.cancel(
       totalAmount: invoice.total.toString(),
       tax: invoice.taxAmount.toString(),
       supplyAmount: invoice.supplyAmount.toString(),
       originalApprovalNo: originalApprovalNo,
       originalApprovalDate: originalApprovalDate,
-      terminalId: terminalId,
+      terminalId: cardTerminalId ?? 'AT0416146A',
     );
 
     return _request(request);

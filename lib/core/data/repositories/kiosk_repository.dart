@@ -74,9 +74,9 @@ class _KioskRepository {
   }
 
   /// POST /v1/internal/slack-alert — 서버가 타입·메시지에 따라 Slack 전송
-  Future<void> sendSlackAlert(String type, String message) async {
+  Future<void> sendSlackAlert({required int machineId, required String type, required String message}) async {
     try {
-      await _apiClient.sendSlackAlert({'type': type, 'text': message});
+      await _apiClient.sendSlackAlert(machineId: machineId, body: {'type': type, 'text': message});
     } catch (e) {
       rethrow;
     }
@@ -218,16 +218,6 @@ class _KioskRepository {
         orderId: orderId,
         body: request.toJson(),
       );
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  Future<CreatePrintResponse> createPrintStatus({
-    required CreatePrintRequest request,
-  }) async {
-    try {
-      return await _apiClient.createPrint(body: request.toJson());
     } catch (e) {
       rethrow;
     }

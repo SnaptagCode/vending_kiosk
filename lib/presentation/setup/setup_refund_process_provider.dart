@@ -22,9 +22,11 @@ class SetupRefundProcess extends _$SetupRefundProcess {
 
   Future<void> startRefund(VendingPrintItemEntity order) async {
     if (order.purchaseAuthNumber.isEmpty) {
+      state = AsyncValue.error(Exception('No payment auth number available'), StackTrace.current);
       throw Exception('No payment auth number available');
     }
     if (order.completedAt == null) {
+      state = AsyncValue.error(Exception('No completed date available'), StackTrace.current);
       throw Exception('No completed date available');
     }
 
@@ -66,14 +68,34 @@ class SetupRefundProcess extends _$SetupRefundProcess {
       approvalNumber: order.purchaseAuthNumber,
     );
 
-    if (payment?.respCode == '7001') {
-      await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(
-            order.kioskOrderId,
-            request.copyWith(status: OrderStatus.refunded_failed, description: "기취소된 거래"),
-          );
-      SlackLogService().sendPaymentBroadcastLogToSlak(InfoKey.paymentRefundFail.key,
-          paymentDescription:
-              "동작로직: 관리자 환불\n- 사유: 기취소된 거래\n- 인증번호: ${order.purchaseAuthNumber}\n- 승인번호: ${order.purchaseAuthNumber}");
+    final respCode = payment?.respCode;
+
+    if (respCode != '0000') {
+      if (respCode == '7001') {
+        await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(
+              order.kioskOrderId,
+              request.copyWith(status: OrderStatus.refunded_failed, description: "기취소된 거래"),
+            );
+        SlackLogService().sendPaymentBroadcastLogToSlak(InfoKey.paymentRefundFail.key,
+            paymentDescription:
+                "동작로직: 관리자 환불\n- 사유: 기취소된 거래\n- 인증번호: ${order.purchaseAuthNumber}\n- 승인번호: ${order.purchaseAuthNumber}");
+      } else if (respCode == '7003') {
+        await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(
+              order.kioskOrderId,
+              request.copyWith(status: OrderStatus.refunded_failed, description: "단말번호 상이"),
+            );
+        SlackLogService().sendPaymentBroadcastLogToSlak(InfoKey.paymentRefundFail.key,
+            paymentDescription:
+                "동작로직: 관리자 환불\n- 사유: 환불 실패\n- 인증번호: ${order.purchaseAuthNumber}\n- 승인번호: ${order.purchaseAuthNumber}");
+      } else {
+        await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(
+              order.kioskOrderId,
+              request.copyWith(status: OrderStatus.refunded_failed, description: "확인필요"),
+            );
+        SlackLogService().sendPaymentBroadcastLogToSlak(InfoKey.paymentRefundFail.key,
+            paymentDescription:
+                "동작로직: 관리자 환불\n- 사유: 확인필요\n- 인증번호: ${order.purchaseAuthNumber}\n- 승인번호: ${order.purchaseAuthNumber}");
+      }
     } else {
       switch (payment?.res) {
         case '0000':

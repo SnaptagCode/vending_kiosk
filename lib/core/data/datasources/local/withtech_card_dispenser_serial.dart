@@ -32,21 +32,21 @@ class WithTechCardDispenserSerial {
   static const int cmdAck = 0x10; // (예약) ACK
   static const int cmdNak = 0x11; // (예약) NAK
   static const int cmdSystemReset = 0x12; // System initialize & Reset
-  static const int cmdErrorClearAndProceed = 0x13; // Error(Hold) clear & Job proceed
+  // static const int cmdErrorClearAndProceed = 0x13; // Error(Hold) clear & Job proceed
   static const int cmdCounterClear = 0x14; // Counter clear (FND)
   static const int cmdRequestStatus = 0x15; // Request machine status
   static const int cmdSetMaxCount = 0x16; // Max count setting (Count1)
   static const int cmdRequestTotalOut1 = 0x17; // Request Total-Out Q'ty (1st)
-  static const int cmdRequestTotalOut2 = 0x18; // Request Total-Out Q'ty (2nd)
+  // static const int cmdRequestTotalOut2 = 0x18; // Request Total-Out Q'ty (2nd)
   static const int cmdRequestLastOutQty = 0x19; // Request Last-Out Q'ty
-  static const int cmdCountBills = 0x1A; // Count Bills
-  static const int cmdCountCancel = 0x1B; // Count Cancel (Reject)
-  static const int cmdCountPayoutHold = 0x1C; // Count / Payout hold
-  static const int cmdMoveCountToPayout = 0x1D; // Counting bills move to payout
+  // static const int cmdCountBills = 0x1A; // Count Bills
+  // static const int cmdCountCancel = 0x1B; // Count Cancel (Reject)
+  // static const int cmdCountPayoutHold = 0x1C; // Count / Payout hold
+  // static const int cmdMoveCountToPayout = 0x1D; // Counting bills move to payout
   static const int cmdPayoutFirst = 0x1E; // Payout (1st Cartridge) / 카드·지폐 방출 명령
-  static const int cmdPayoutSecond = 0x1F; // Payout (2nd Cartridge)
+  // static const int cmdPayoutSecond = 0x1F; // Payout (2nd Cartridge)
   static const int cmdRequestLastStatus = 0x50; // Request Last status
-  static const int cmdCr1fLedOrSecondMotor = 0x31; // CR1F1: LED / CR1F2: 2nd Motor time
+  // static const int cmdCr1fLedOrSecondMotor = 0x31; // CR1F1: LED / CR1F2: 2nd Motor time
 
   // DISPENSER → HOST 응답 CMD
   static const int rspAckOrStatus = 0x20; // ACK or Status
@@ -239,7 +239,7 @@ class WithTechCardDispenserSerial {
   Future<Uint8List?> _sendCommand(
     int cmd,
     int dataOrStatus, {
-    int timeoutMs = 500,
+    int timeoutMs = 2000,
     int retryCount = 3,
   }) async {
     if (!isConnected) {
@@ -468,99 +468,228 @@ class WithTechCardDispenserSerial {
 
   /// [count] 장 배출 명령 (1st Cartridge 기준).
   ///
-  /// - HOST: CMD=0x1E, DATA=Count2
-  /// - 응답 흐름: ACK(0x20) → 작업 중(0x29) → Payout successful(0x2E) 또는 Payout Fails(0x2F)
-  Future<bool> payoutOnce(int count) async {
+  /// TX 1회 전송 후 장치가 보내는 모든 RX 프레임을 읽어 최종 결과를 반환한다.
+  ///
+  /// 프로토콜 응답 흐름 (예: 5장 배출):
+  ///   TX: 02 1E 05 03 28 0D 0A
+  ///   RX: 02 20 00 03 25 0D 0A  ← ACK
+  ///   RX: 02 29 01 ...          ← 1장 배출 중
+  ///   RX: 02 29 02 ...          ← 2장 배출 중
+  ///   ...
+  ///   RX: 02 2E 05 ...          ← 5장 배출 성공 (종료)
+  ///
+  /// - [onProgress]: 배출 진행 수량 콜백 (dispensed, total)
+  /// - [totalTimeout]: 전체 완료 대기 타임아웃 (기본 15초)
+  Future<bool> payout(
+    int count, {
+    Duration totalTimeout = const Duration(seconds: 15),
+    void Function(int dispensed, int total)? onProgress,
+  }) async {
+    if (!isConnected) {
+      throw Exception('WithTech: Serial port is not connected');
+    }
     if (count < 1 || count > 255) {
       logger.e('WithTech: invalid payout count: $count');
       return false;
     }
+
     try {
-      final resp = await _sendCommand(cmdPayoutFirst, count);
-      if (resp == null) return false;
-      final cmd = resp[1];
-      // 첫 응답이 ACK/Status(0x20)이면 일단 명령 수락으로 본다.
-      if (cmd == rspAckOrStatus || cmd == rspPayoutWorking) {
-        return true;
+      // 입력 버퍼 비우기 (이전 잔류 데이터 제거)
+      try {
+        _port!.readBytes(1024, timeout: const Duration(milliseconds: 1));
+      } catch (e) {
+        if (_isInvalidHandleError(e)) {
+          _isConnected = false;
+          _port = null;
+          throw Exception('WithTech: Serial port handle invalidated. Reconnect required.');
+        }
       }
-      if (cmd == rspPayoutFails ||
-          cmd == rspSystemWarning ||
-          cmd == rspMaxBillsError ||
-          cmd == rspChecksumError ||
-          cmd == rspCommandError) {
-        return false;
+
+      final packet = _createPacket(cmdPayoutFirst, count);
+      logger.d('WithTech: TX [${packet.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
+
+      final writeOk = await _port!.writeBytesFromUint8List(packet, timeout: 2000);
+      if (_port == null) throw Exception('WithTech: Serial port disconnected during write');
+      if (!writeOk) throw Exception('WithTech: Failed to write payout packet');
+
+      final deadline = DateTime.now().add(totalTimeout);
+
+      while (DateTime.now().isBefore(deadline)) {
+        final remaining = deadline.difference(DateTime.now());
+        final frameTimeout = remaining < const Duration(seconds: 2) ? remaining : const Duration(seconds: 2);
+
+        Uint8List frame;
+        try {
+          frame = await _port!.readBytes(frameSize, timeout: frameTimeout);
+        } catch (e) {
+          if (_isInvalidHandleError(e)) {
+            _isConnected = false;
+            _port = null;
+            throw Exception('WithTech: Serial port handle invalidated. Reconnect required.');
+          }
+          // 프레임 읽기 타임아웃 → 전체 타임아웃까지 재시도
+          continue;
+        }
+
+        if (frame.length < frameSize) continue;
+
+        logger.d('WithTech: RX [${frame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
+
+        if (frame[0] != stx) continue;
+
+        final cmd = frame[1];
+        final data = frame[2];
+
+        switch (cmd) {
+          case rspAckOrStatus: // 0x20 - ACK, 배출 시작 대기
+            logger.d('WithTech: payout ACK');
+          case rspPayoutWorking: // 0x29 - 배출 진행 중
+            logger.d('WithTech: payout working $data/$count');
+            onProgress?.call(data, count);
+          case rspPayoutSuccessful: // 0x2E - 최종 성공
+            logger.i('WithTech: payout successful ($data cards)');
+            return true;
+          case rspPayoutFails: // 0x2F - 최종 실패
+            logger.e('WithTech: payout failed ($data cards dispensed)');
+            return false;
+          case rspSystemWarning: // 0x23 - 카드 없음 등
+            logger.e('WithTech: payout system warning (status=0x${data.toRadixString(16)})');
+            return false;
+          case rspNak: // 0x21 - NAK
+            logger.e('WithTech: payout NAK');
+            return false;
+          case rspMaxBillsError: // 0x28 - 최대 수량 초과
+            logger.e('WithTech: payout max bills error');
+            return false;
+          default:
+            logger.w('WithTech: payout unexpected cmd=0x${cmd.toRadixString(16)} data=0x${data.toRadixString(16)}');
+        }
       }
-      return true;
-    } catch (e) {
-      logger.e('WithTech: payoutOnce failed', error: e);
+
+      logger.e('WithTech: payout timeout after ${totalTimeout.inSeconds}s');
       return false;
+    } catch (e) {
+      logger.e('WithTech: payout failed', error: e);
+      rethrow;
     }
   }
 
-  /// 장비 상태 요청 (Request machine status or last status)
+  /// 장비 상태 요청 (Request machine status or last status).
+  ///
+  /// 프로토콜 응답 흐름 (1.7.1 참조):
+  ///   TX: 02 15 00 03 1A 0D 0A
+  ///   RX: 02 20 00 03 25 0D 0A  ← ACK (스킵)
+  ///   RX: 02 22 00 03 27 0D 0A  ← 실제 상태 (READY 등)
+  ///
+  /// ACK(0x20, data=0x00)는 중간 응답으로 스킵하고 실제 상태 프레임을 기다린다.
   Future<WithTechDispenserStatus> getStatus({bool lastStatus = false}) async {
+    const unknown = WithTechDispenserStatus(
+      kind: WithTechDispenserStatusKind.unknown,
+      rawCmd: 0,
+      data: 0,
+      statusByte: 0,
+    );
+
+    if (!isConnected) return unknown;
+
     try {
-      final cmd = lastStatus ? cmdRequestLastStatus : cmdRequestStatus;
-      final resp = await _sendCommand(cmd, 0x00);
-      if (resp == null) {
-        return const WithTechDispenserStatus(
-          kind: WithTechDispenserStatusKind.unknown,
-          rawCmd: 0,
-          data: 0,
-          statusByte: 0,
+      // 버퍼 비우기
+      try {
+        _port!.readBytes(1024, timeout: const Duration(milliseconds: 1));
+      } catch (e) {
+        if (_isInvalidHandleError(e)) {
+          _isConnected = false;
+          _port = null;
+          throw Exception('WithTech: Serial port handle invalidated. Reconnect required.');
+        }
+      }
+
+      final cmdToSend = lastStatus ? cmdRequestLastStatus : cmdRequestStatus;
+      final packet = _createPacket(cmdToSend, 0x00);
+      logger.d('WithTech: TX [${packet.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
+
+      final writeOk = await _port!.writeBytesFromUint8List(packet, timeout: 2000);
+      if (!writeOk) throw Exception('WithTech: Failed to write status request packet');
+
+      // 최대 2초 내에 실제 상태 프레임을 기다림
+      final deadline = DateTime.now().add(const Duration(seconds: 2));
+      while (DateTime.now().isBefore(deadline)) {
+        final remaining = deadline.difference(DateTime.now());
+        Uint8List frame;
+        try {
+          frame = await _port!.readBytes(frameSize, timeout: remaining);
+        } catch (e) {
+          if (_isInvalidHandleError(e)) {
+            _isConnected = false;
+            _port = null;
+            throw Exception('WithTech: Serial port handle invalidated. Reconnect required.');
+          }
+          break; // 타임아웃
+        }
+
+        if (frame.length < frameSize) break;
+        if (frame[0] != stx) continue;
+
+        logger.d('WithTech: RX [${frame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
+
+        final rspCmd = frame[1];
+        final data = frame[2];
+
+        // ACK(0x20)이고 status byte가 0x00이면 중간 응답 → 실제 상태 프레임 대기
+        if (rspCmd == rspAckOrStatus && data == 0x00) {
+          logger.d('WithTech: getStatus ACK received, waiting for actual status...');
+          continue;
+        }
+
+        // 실제 상태 프레임 파싱
+        final statusByte = data;
+        final isJam = (statusByte & 0x80) != 0;
+        final isEmpty = (statusByte & 0x10) != 0;
+        final isHold = (statusByte & 0x08) != 0;
+        final isPayout = (statusByte & 0x04) != 0;
+
+        WithTechDispenserStatusKind kind;
+        if (rspCmd == rspSystemReady && !isJam && !isEmpty && !isHold) {
+          kind = WithTechDispenserStatusKind.ready;
+        } else if (rspCmd == rspAckOrStatus && !isJam && !isEmpty && !isHold) {
+          // status byte에 에러 비트 없는 0x20 → ready로 간주
+          kind = WithTechDispenserStatusKind.ready;
+        } else if (rspCmd == rspSystemWarning || isJam || isEmpty) {
+          kind = WithTechDispenserStatusKind.warning;
+        } else if (rspCmd == rspPayoutWorking || isPayout) {
+          kind = WithTechDispenserStatusKind.payoutWorking;
+        } else if (rspCmd == rspPayoutSuccessful) {
+          kind = WithTechDispenserStatusKind.payoutSuccess;
+        } else if (rspCmd == rspPayoutFails) {
+          kind = WithTechDispenserStatusKind.payoutFail;
+        } else if (rspCmd == rspCountSuccessful || rspCmd == rspCountToPayout || rspCmd == rspCountToReject) {
+          kind = WithTechDispenserStatusKind.counting;
+        } else if (rspCmd == rspCountPayoutHalt || isHold) {
+          kind = WithTechDispenserStatusKind.halted;
+        } else if (rspCmd == rspNak ||
+            rspCmd == rspFrameTimeout ||
+            rspCmd == rspMissingEtx ||
+            rspCmd == rspChecksumError ||
+            rspCmd == rspCommandError ||
+            rspCmd == rspMaxBillsError) {
+          kind = WithTechDispenserStatusKind.error;
+        } else {
+          kind = WithTechDispenserStatusKind.unknown;
+        }
+
+        return WithTechDispenserStatus(
+          kind: kind,
+          rawCmd: rspCmd,
+          data: data,
+          statusByte: statusByte,
         );
       }
-      final rspCmd = resp[1];
-      final data = resp[2];
-      final statusByte = resp[2]; // 명세상 Status는 DATA 위치에 온다.
 
-      // Status Byte 비트:
-      // D7: Jam, D4: Empty, D3: Hold, D2: Payout
-      final isJam = (statusByte & 0x80) != 0;
-      final isEmpty = (statusByte & 0x10) != 0;
-      final isHold = (statusByte & 0x08) != 0;
-      final isPayout = (statusByte & 0x04) != 0;
-
-      WithTechDispenserStatusKind kind;
-      // rspAckOrStatus(0x20): "ACK or Status" — 정상 대기 응답으로 처리 (에러 비트 없을 때)
-      if ((rspCmd == rspSystemReady || rspCmd == rspAckOrStatus) && !isJam && !isEmpty && !isHold) {
-        kind = WithTechDispenserStatusKind.ready;
-      } else if (rspCmd == rspSystemWarning || isJam || isEmpty) {
-        kind = WithTechDispenserStatusKind.warning;
-      } else if (rspCmd == rspPayoutWorking || isPayout) {
-        kind = WithTechDispenserStatusKind.payoutWorking;
-      } else if (rspCmd == rspPayoutSuccessful) {
-        kind = WithTechDispenserStatusKind.payoutSuccess;
-      } else if (rspCmd == rspPayoutFails) {
-        kind = WithTechDispenserStatusKind.payoutFail;
-      } else if (rspCmd == rspCountSuccessful || rspCmd == rspCountToPayout || rspCmd == rspCountToReject) {
-        kind = WithTechDispenserStatusKind.counting;
-      } else if (rspCmd == rspCountPayoutHalt || isHold) {
-        kind = WithTechDispenserStatusKind.halted;
-      } else if (rspCmd == rspFrameTimeout ||
-          rspCmd == rspMissingEtx ||
-          rspCmd == rspChecksumError ||
-          rspCmd == rspCommandError ||
-          rspCmd == rspMaxBillsError) {
-        kind = WithTechDispenserStatusKind.error;
-      } else {
-        kind = WithTechDispenserStatusKind.unknown;
-      }
-
-      return WithTechDispenserStatus(
-        kind: kind,
-        rawCmd: rspCmd,
-        data: data,
-        statusByte: statusByte,
-      );
+      logger.w('WithTech: getStatus timeout, no definitive status frame received');
+      return unknown;
     } catch (e) {
       logger.e('WithTech: getStatus failed', error: e);
-      return const WithTechDispenserStatus(
-        kind: WithTechDispenserStatusKind.unknown,
-        rawCmd: 0,
-        data: 0,
-        statusByte: 0,
-      );
+      return unknown;
     }
   }
 

@@ -198,21 +198,22 @@ class CardDispenserService extends _$CardDispenserService {
   /// Throws [CardDispenserServiceException] on timeout or hardware error.
   Future<void> dispenseAndWait({
     required int count,
+    required int index,
     Duration pollInterval = _defaultPollInterval,
     Duration overallTimeout = _defaultOverallTimeout,
   }) async {
     // Only meaningful on Windows (serial_port_win32).
     if (!defaultTargetPlatform.toString().toLowerCase().contains('windows')) {
-      logger.w('CardDispenser: skip dispense (not Windows)');
+      logger.w('CardDispenser: skip dispense (not Windows) index: $index');
       return;
     }
 
     // 연결 안 됐으면 자동 감지 시도
     if (!CardDispenserManager.isInstanceConnected) {
-      logger.i('CardDispenserService dispenseAndWait: 연결 안 됨 → 자동 감지 시도');
+      logger.i('CardDispenserService dispenseAndWait: 연결 안 됨 → 자동 감지 시도 index: $index');
       final detected = await autoDetectPort();
       if (detected == null) {
-        logger.w('CardDispenser: skip dispense (자동 감지 실패)');
+        logger.w('CardDispenser: skip dispense (자동 감지 실패) index: $index');
         return;
       }
     }
@@ -222,13 +223,14 @@ class CardDispenserService extends _$CardDispenserService {
     try {
       await _manager!.dispenseAndWait(
         count: count,
+        index: index,
         pollInterval: pollInterval,
         overallTimeout: overallTimeout,
       );
       state = const CardDispenserServiceState.ready();
     } catch (e) {
       state = CardDispenserServiceState.error(e.toString());
-      throw CardDispenserServiceException('카드 배출 실패: $e');
+      throw CardDispenserServiceException('카드 배출 실패: $e index: $index');
     }
   }
 }

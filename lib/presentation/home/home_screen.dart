@@ -33,7 +33,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
 
-    _startMaintenancePolling();
+    // _startMaintenancePolling();
   }
 
   @override

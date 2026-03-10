@@ -620,7 +620,7 @@ class _CardDispenserTestScreenState extends ConsumerState<CardDispenserTestScree
 
     try {
       final service = ref.read(cardDispenserServiceProvider.notifier);
-      await service.dispenseAndWait(count: count);
+      await service.dispenseAndWait(count: count, index: 0);
 
       setState(() {
         _statusMessage = '$count장 배출 완료!';
@@ -784,6 +784,7 @@ class _CardDispenserTestScreenState extends ConsumerState<CardDispenserTestScree
       // 카드 1장 배출 with 커스텀 타임아웃
       await service.dispenseAndWait(
         count: 1,
+        index: 0,
         overallTimeout: Duration(seconds: selectedTimeout),
       );
 

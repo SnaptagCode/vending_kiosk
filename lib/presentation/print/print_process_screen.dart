@@ -93,7 +93,15 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
               confirmButtonText: LocaleKeys.alert_btn_print_failure.tr(),
             );
             if (result) {
-              HomeRouteData().go(context);
+              ref.read(printQuantityNotifierProvider.notifier).reset();
+
+              final isReprint = ref.read(reprintIdsProvider.notifier).state != null;
+              if (isReprint) {
+                ref.read(reprintIdsProvider.notifier).state = null;
+                PaymentHistoryRouteData().go(context);
+              } else {
+                HomeRouteData().go(context);
+              }
             }
           },
           loading: () => null,
@@ -104,7 +112,7 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
 
             final isReprint = ref.read(reprintIdsProvider.notifier).state != null;
             if (isReprint) {
-              ref.read(reprintModeProvider.notifier).state = false;
+              ref.read(reprintIdsProvider.notifier).state = null;
             }
 
             // Reset payment and quantity state

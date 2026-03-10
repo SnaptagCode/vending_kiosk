@@ -13,19 +13,19 @@ final dioProvider = Provider.family<Dio, String>((ref, baseUrl) {
     ..options.baseUrl = baseUrl
     ..options.connectTimeout = const Duration(seconds: 30)
     ..options.receiveTimeout = const Duration(seconds: 30);
-  dio.interceptors.add(DioLogger(
-    sendHook: (log) {
-      SlackLogService().sendLogToSlack(log);
-    },
-    request: false,
-  ));
-  dio.interceptors.add(
-    PrettyDioLogger(
-      requestHeader: true,
-      requestBody: true,
-      responseHeader: true,
-    ),
-  );
+  // dio.interceptors.add(DioLogger(
+  //   sendHook: (log) {
+  //     SlackLogService().sendLogToSlack(log);
+  //   },
+  //   request: false,
+  // ));
+  // dio.interceptors.add(
+  //   PrettyDioLogger(
+  //     requestHeader: true,
+  //     requestBody: true,
+  //     responseHeader: true,
+  //   ),
+  // );
   dio.interceptors.add(QueuedInterceptorsWrapper(
     // Request가 보내기 전에 실행됩니다.
     // 예를 들어, 헤더를 설정하거나 요청을 변환할 수 있습니다.
