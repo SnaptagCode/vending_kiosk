@@ -24,10 +24,10 @@ class PrintQuantity {
 }
 
 class PrintQuantityNotifier extends StateNotifier<PrintQuantity> {
-  PrintQuantityNotifier() : super(const PrintQuantity(current: 1, total: 1));
+  PrintQuantityNotifier() : super(const PrintQuantity(current: 0, total: 1));
 
   void setQuantity(int value) {
-    state = state.copyWith(current: 1, total: value > 0 ? value : 1);
+    state = state.copyWith(current: 0, total: value > 0 ? value : 1);
   }
 
   void increment() {
@@ -39,7 +39,7 @@ class PrintQuantityNotifier extends StateNotifier<PrintQuantity> {
   }
 
   void reset() {
-    state = state.copyWith(current: 1, total: 1);
+    state = state.copyWith(current: 0, total: 1);
   }
 }
 

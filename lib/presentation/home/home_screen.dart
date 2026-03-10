@@ -32,7 +32,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _startMaintenancePolling();
+
+    // _startMaintenancePolling();
   }
 
   @override
@@ -276,7 +277,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   style: context.typography.vendingBody2B.copyWith(color: const Color(0xFF888888)),
                                 ),
                                 Text(
-                                  '${quantity.total}',
+                                  '${quantity.total} 장',
                                   style: context.typography.vendingBody1B.copyWith(color: buttonColor),
                                 )
                               ],

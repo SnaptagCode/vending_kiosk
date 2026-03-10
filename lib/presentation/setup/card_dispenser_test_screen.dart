@@ -519,7 +519,7 @@ class _CardDispenserTestScreenState extends ConsumerState<CardDispenserTestScree
       }
 
       setState(() {
-        _statusMessage = '연결 성공 (${detected.port})';
+        _statusMessage = '연결 성공 ($detected)';
         _isProcessing = false;
         _lastCommunicationTime = DateTime.now();
       });
@@ -531,7 +531,7 @@ class _CardDispenserTestScreenState extends ConsumerState<CardDispenserTestScree
       await DialogHelper.showSetupDialog(
         context,
         title: '연결 성공',
-        content: '카드 배출기가 정상적으로 연결되었습니다.\n포트: ${detected.port}',
+        content: '카드 배출기가 정상적으로 연결되었습니다.\n포트: $detected',
       );
     } catch (e) {
       logger.e('Connection test failed', error: e);
@@ -620,7 +620,7 @@ class _CardDispenserTestScreenState extends ConsumerState<CardDispenserTestScree
 
     try {
       final service = ref.read(cardDispenserServiceProvider.notifier);
-      await service.dispenseAndWait(count: count);
+      await service.dispenseAndWait(count: count, index: 0);
 
       setState(() {
         _statusMessage = '$count장 배출 완료!';
@@ -784,6 +784,7 @@ class _CardDispenserTestScreenState extends ConsumerState<CardDispenserTestScree
       // 카드 1장 배출 with 커스텀 타임아웃
       await service.dispenseAndWait(
         count: 1,
+        index: 0,
         overallTimeout: Duration(seconds: selectedTimeout),
       );
 
@@ -937,7 +938,7 @@ class _CardDispenserTestScreenState extends ConsumerState<CardDispenserTestScree
     } else if (errorMessage.contains('통신') || errorMessage.contains('health check')) {
       guide = '1. 시리얼 통신이 불안정합니다.\n'
           '2. 케이블 연결 상태를 확인하세요.\n'
-          '3. 프로토콜 설정(txUpperRxLower/txLowerRxLower)을 확인하세요.\n'
+          '3. 배출기 모델이 WITH-TECH (WT-CR1/CF1 등)인지 확인하세요.\n'
           '4. 연결을 해제하고 다시 연결하세요.';
     } else if (errorMessage.contains('배출') || errorMessage.contains('dispense')) {
       guide = '1. 카드 배출에 실패했습니다.\n'

@@ -136,9 +136,7 @@ class CardDispenserSerial {
 
     // Error 0 또는 5일 때 재시도 (포트가 해제 중이거나 다른 프로세스가 막 종료한 경우)
     if (isError0 || isError5) {
-      final retryMsg = isError0
-          ? '포트 해제 대기 중'
-          : '포트 액세스 재시도 중 (앱 재시작 직후 또는 이전 연결이 완전히 닫히지 않았을 수 있음)';
+      final retryMsg = isError0 ? '포트 해제 대기 중' : '포트 액세스 재시도 중 (앱 재시작 직후 또는 이전 연결이 완전히 닫히지 않았을 수 있음)';
       logger.w('Card dispenser: $retryMsg - 2초 후 재시도...');
       await Future<void>.delayed(const Duration(seconds: 2));
 
@@ -202,10 +200,10 @@ class CardDispenserSerial {
 
       if (_port!.isOpened) {
         _isConnected = true;
-        logger.i('Card dispenser connected to $portName (protocol: $protocol)');
+        logger.i('CardDispenserSerial Card dispenser connected to $portName (protocol: $protocol)');
         return true;
       } else {
-        logger.e('Failed to open serial port $portName');
+        logger.e('CardDispenserSerialFailed to open serial port $portName');
         _port = null;
         return false;
       }

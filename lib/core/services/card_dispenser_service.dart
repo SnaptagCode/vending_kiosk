@@ -4,12 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
-import 'package:vending_kiosk/core/data/datasources/local/card_dispenser_protocol.dart';
 import 'package:vending_kiosk/core/services/card_dispenser_manager.dart';
 
 part 'card_dispenser_service.g.dart';
 
-/// High-level workflow for ONEPLUS card dispenser.
+/// High-level workflow for WITH-TECH card dispenser.
 ///
 /// Responsibilities:
 /// - Connect / health check
@@ -20,15 +19,17 @@ part 'card_dispenser_service.g.dart';
 class CardDispenserService extends _$CardDispenserService {
   CardDispenserManager? _manager;
   String? _connectedPort;
-  String? _connectedProtocol;
+  int? _connectedBaudRate;
+
+  /// 진행 중인 autoDetect Future — 중복 실행 방지용
+  Future<String?>? _autoDetectFuture;
 
   static const Duration _defaultPollInterval = Duration(milliseconds: 150);
-  static const Duration _defaultOverallTimeout = Duration(seconds: 2);
+  static const Duration _defaultOverallTimeout = Duration(seconds: 10);
 
   @override
   CardDispenserServiceState build() {
     ref.onDispose(() async {
-      // 앱 종료 시 포트를 명시적으로 정리하여 재시작 시 정상 연결 보장
       try {
         await disconnect();
       } catch (e) {
@@ -39,67 +40,66 @@ class CardDispenserService extends _$CardDispenserService {
     return const CardDispenserServiceState.idle();
   }
 
-  /// Reads port/protocol from dotenv:
-  /// - `CARD_DISPENSER_PORT` e.g. "COM3"
-  /// - `CARD_DISPENSER_PROTOCOL` either "txUpperRxLower" or "txLowerRxLower"
+  /// Reads port from dotenv: `CARD_DISPENSER_PORT` e.g. "COM3"
   ///
   /// If missing, returns null.
-  ({String port, String protocol})? readConfigFromEnv() {
+  String? readConfigFromEnv() {
     final port = dotenv.env['CARD_DISPENSER_PORT']?.trim();
     if (port == null || port.isEmpty) return null;
-
-    final protoRaw = (dotenv.env['CARD_DISPENSER_PROTOCOL'] ?? '').trim();
-    final protocol = switch (protoRaw) {
-      'txLowerRxLower' => 'txLowerRxLower',
-      'txUpperRxLower' || '' => 'txUpperRxLower',
-      _ => 'txUpperRxLower',
-    };
-
-    return (port: port, protocol: protocol);
+    return port;
   }
 
-  /// Connects if not connected (or if port/protocol changed).
-  /// 매니저가 이미 끊긴 상태(disconnectAll 등)면 재연결합니다.
-  Future<void> ensureConnected({
-    required String port,
-    String protocol = 'txUpperRxLower',
-  }) async {
-    // 핸들 무효화(win32 error 6) 등으로 isConnected가 false가 된 경우 강제 재연결
-    final alreadyConnected =
-        _manager != null && _connectedPort == port && _connectedProtocol == protocol && _manager!.isConnected;
-    if (alreadyConnected) {
+  /// Connects if not connected (or if port/baudRate changed).
+  Future<void> ensureConnected({required String port, int baudRate = 9600}) async {
+    // isConnected는 serial_port_win32 내부에서 Win32 핸들 접근 시 예외가 발생할 수 있으므로 try-catch로 감쌈
+    bool currentlyConnected = false;
+    try {
+      currentlyConnected =
+          _manager != null && _connectedPort == port && _connectedBaudRate == baudRate && _manager!.isConnected;
+    } catch (_) {
+      currentlyConnected = false;
+    }
+    if (currentlyConnected) {
       return;
     }
 
-    // 이전 연결이 핸들 무효화로 끊긴 경우 인스턴스 초기화
-    if (_manager != null && !_manager!.isConnected) {
-      logger.w('CardDispenserService: 이전 연결이 끊긴 상태 감지, 재연결 시도...');
+    bool managerDisconnected = false;
+    try {
+      managerDisconnected = _manager != null && !_manager!.isConnected;
+    } catch (_) {
+      managerDisconnected = _manager != null; // 예외 시 연결 끊김으로 간주
+    }
+    if (managerDisconnected) {
+      logger.w('AUTODETECTPORT: 이전 연결이 끊긴 상태 감지, 재연결 시도...');
       await CardDispenserManager.disconnectAll();
       _manager = null;
       _connectedPort = null;
-      _connectedProtocol = null;
+      _connectedBaudRate = null;
     }
 
     state = const CardDispenserServiceState.connecting();
 
     _manager = await CardDispenserManager.getInstance();
-    final ok = await _manager!.connect(port, protocol);
+    final ok = await _manager!.connect(port, baudRate: baudRate);
 
-    logger.d('CardDispenserService ensureConnected ok: $ok');
+    logger.d('AUTODETECTPORT ensureConnected ok: $ok');
     if (!ok) {
-      logger.d('CardDispenserService ensureConnected failed: $port');
+      logger.d('AUTODETECTPORT ensureConnected failed: $port');
       state = CardDispenserServiceState.error('Failed to connect: $port');
       throw CardDispenserServiceException('카드 배출기 연결 실패 ($port)');
     }
 
     _connectedPort = port;
-    _connectedProtocol = protocol;
+    _connectedBaudRate = baudRate;
 
-    logger.d('CardDispenserService ensureConnected healthCheck');
+    // 포트 오픈 직후 장치 초기화 대기 (응답 준비 시간)
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+
+    logger.d('AUTODETECTPORT ensureConnected healthCheck');
     final healthy = await _manager!.healthCheck();
-    logger.d('CardDispenserService ensureConnected healthCheck result: $healthy');
+    logger.d('AUTODETECTPORT ensureConnected healthCheck result: $healthy');
     if (!healthy) {
-      logger.d('CardDispenserService ensureConnected healthCheck failed: $port');
+      logger.d('AUTODETECTPORT ensureConnected healthCheck failed: $port');
       state = CardDispenserServiceState.error('Health check failed: $port');
       throw CardDispenserServiceException('카드 배출기 통신 확인 실패 ($port)');
     }
@@ -109,23 +109,43 @@ class CardDispenserService extends _$CardDispenserService {
 
   /// 연결된 시리얼 포트 중 카드 배출기를 자동으로 감지하고 연결합니다.
   ///
-  /// 감지 성공 시 해당 포트로 연결까지 수행하고 포트/프로토콜 정보를 반환합니다.
-  /// 감지 실패 시 null 반환.
-  Future<({String port, String protocol})?> autoDetectPort() async {
+  /// 동시에 여러 곳에서 호출되더라도 하나의 Future만 실행되며, 나머지는 그 결과를 공유합니다.
+  /// (두 호출이 같은 CardDispenserManager 싱글톤을 동시에 조작하는 레이스 컨디션 방지)
+  Future<String?> autoDetectPort() {
+    _autoDetectFuture ??= _runAutoDetect().whenComplete(() {
+      _autoDetectFuture = null;
+    });
+    return _autoDetectFuture!;
+  }
+
+  Future<String?> _runAutoDetect() async {
     state = const CardDispenserServiceState.connecting();
     try {
-      final result = await CardDispenserManager.autoDetect();
-      if (result == null) {
-        state = const CardDispenserServiceState.error('배출기를 감지하지 못했습니다');
+      final ports = CardDispenserManager.getAvailablePorts();
+      if (ports.isEmpty) {
+        state = const CardDispenserServiceState.error('사용 가능한 COM 포트 없음');
         return null;
       }
 
-      final protocolStr = result.protocol == CardDispenserProtocol.txLowerRxLower
-          ? 'txLowerRxLower'
-          : 'txUpperRxLower';
+      logger.i('AUTODETECTPORT CardDispenserService.autoDetectPort: scanning ports=$ports');
 
-      await ensureConnected(port: result.port, protocol: protocolStr);
-      return (port: result.port, protocol: protocolStr);
+      for (final port in ports) {
+        try {
+          await ensureConnected(port: port, baudRate: 9600);
+          logger.i('AUTODETECTPORT CardDispenserService.autoDetectPort: found $port @ 9600bps');
+          return port;
+        } catch (e) {
+          logger.d('AUTODETECTPORT CardDispenserService.autoDetectPort: $port @ 9600bps failed – $e');
+          await CardDispenserManager.disconnectAll();
+          _manager = null;
+          _connectedPort = null;
+          _connectedBaudRate = null;
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+        }
+      }
+
+      state = const CardDispenserServiceState.error('배출기를 감지하지 못했습니다');
+      return null;
     } catch (e) {
       state = CardDispenserServiceState.error('자동 감지 실패: $e');
       return null;
@@ -136,7 +156,7 @@ class CardDispenserService extends _$CardDispenserService {
     await CardDispenserManager.disconnectAll();
   }
 
-  /// 동작 금지(Disable) — 배출 중인 모터를 멈춤. 카드 부족 등 에러 시 먼저 호출.
+  /// 동작 금지(Disable) — WITH-TECH에서는 reset으로 처리.
   Future<bool> disableDispenser() async {
     if (_manager == null || !_manager!.isConnected) return false;
     try {
@@ -147,8 +167,7 @@ class CardDispenserService extends _$CardDispenserService {
     }
   }
 
-  /// 카드 배출기 초기화(Reset). 프린터 에러 등 발생 시 호출하여 배출기를 초기 상태로 복귀시킴.
-  /// 연결되어 있지 않으면 아무 동작 없이 false 반환.
+  /// 카드 배출기 초기화(Reset).
   Future<bool> resetDispenser() async {
     if (_manager == null || !_manager!.isConnected) return false;
     try {
@@ -160,7 +179,6 @@ class CardDispenserService extends _$CardDispenserService {
   }
 
   /// 다음 배출이 가능할 때까지 대기 (상태가 standby가 될 때까지 폴링).
-  /// 고정 대기 대신 기기가 준비되는 즉시 다음 배출을 시도해 최소 대기시간으로 연속 배출할 수 있음.
   Future<void> waitUntilStandby({
     Duration pollInterval = const Duration(milliseconds: 100),
     Duration timeout = const Duration(seconds: 5),
@@ -180,21 +198,22 @@ class CardDispenserService extends _$CardDispenserService {
   /// Throws [CardDispenserServiceException] on timeout or hardware error.
   Future<void> dispenseAndWait({
     required int count,
+    required int index,
     Duration pollInterval = _defaultPollInterval,
     Duration overallTimeout = _defaultOverallTimeout,
   }) async {
     // Only meaningful on Windows (serial_port_win32).
     if (!defaultTargetPlatform.toString().toLowerCase().contains('windows')) {
-      logger.w('CardDispenser: skip dispense (not Windows)');
+      logger.w('CardDispenser: skip dispense (not Windows) index: $index');
       return;
     }
 
     // 연결 안 됐으면 자동 감지 시도
     if (!CardDispenserManager.isInstanceConnected) {
-      logger.i('CardDispenserService dispenseAndWait: 연결 안 됨 → 자동 감지 시도');
+      logger.i('CardDispenserService dispenseAndWait: 연결 안 됨 → 자동 감지 시도 index: $index');
       final detected = await autoDetectPort();
       if (detected == null) {
-        logger.w('CardDispenser: skip dispense (자동 감지 실패)');
+        logger.w('CardDispenser: skip dispense (자동 감지 실패) index: $index');
         return;
       }
     }
@@ -204,13 +223,14 @@ class CardDispenserService extends _$CardDispenserService {
     try {
       await _manager!.dispenseAndWait(
         count: count,
+        index: index,
         pollInterval: pollInterval,
         overallTimeout: overallTimeout,
       );
       state = const CardDispenserServiceState.ready();
     } catch (e) {
       state = CardDispenserServiceState.error(e.toString());
-      throw CardDispenserServiceException('카드 배출 실패: $e');
+      throw CardDispenserServiceException('카드 배출 실패: $e index: $index');
     }
   }
 }
