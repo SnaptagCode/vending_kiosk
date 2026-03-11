@@ -72,18 +72,30 @@ class CardDispenserManager {
     if (_instance == null || !_instance!.isConnected) return null;
     try {
       String status = await _instance!.getStatus();
-      logger.d('CardDispenserManager.checkAndRecover: initial status=$status');
-      SlackLogService().sendLogToSlack('CardDispenserManager.checkAndRecover: initial status=$status');
+      final lastQty = await _instance!.getLastPaidOutQuantity();
+      logger.d('CardDispenserManager.checkAndRecover: initial status=$status, lastPaidOutQty=$lastQty');
+      SlackLogService().sendLogToSlack('CardDispenserManager.checkAndRecover: initial status=$status, lastPaidOutQty=$lastQty');
 
       // 정상 대기 상태
       if (status == 'standby') return true;
 
       // 카드 없음 → 즉시 반환
+      // warning → 최대 3번 재시도 후 EMPTY 여부 판단
       if (status == 'warning') {
-        final err = await _instance!.getError();
-        if (err.errorCode?.contains('EMPTY') == true) {
-          logger.w('CardDispenserManager.checkAndRecover: EMPTY 감지 $err.errorCode');
-          return false;
+        for (int i = 0; i < 3; i++) {
+          _instance!.reset();
+          await Future.delayed(const Duration(milliseconds: 300));
+          status = await _instance!.getStatus();
+          logger.d('CardDispenserManager.checkAndRecover: warning 재시도 ${i + 1}/3 → status=$status');
+          if (status == 'standby') return true;
+          if (status != 'warning') break;
+        }
+        if (status == 'warning') {
+          final err = await _instance!.getError();
+          if (err.errorCode?.contains('EMPTY') == true) {
+            logger.w('CardDispenserManager.checkAndRecover: EMPTY 감지 ${err.errorCode}');
+            return false;
+          }
         }
       }
 
@@ -265,6 +277,12 @@ class CardDispenserManager {
 
     final status = await _serial!.getStatus();
     return _mapStatusKind(status.kind);
+  }
+
+  /// 마지막 배출 수량 조회
+  Future<int?> getLastPaidOutQuantity() async {
+    if (_serial == null || !_serial!.isConnected) return null;
+    return _serial!.getLastPaidOutQuantity();
   }
 
   String _mapStatusKind(WithTechDispenserStatusKind kind) {
