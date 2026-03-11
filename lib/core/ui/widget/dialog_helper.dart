@@ -182,12 +182,8 @@ class DialogHelper {
     );
   }
 
-  static Future<void> showInsufficientCardStockDialog(
-    BuildContext context, {
-    required int requestedQuantity,
-    required int availableStock,
-  }) async {
-    await showKioskDialog(
+  static Future<bool> showInsufficientCardStockDialog(BuildContext context) async {
+    return await showKioskDialog(
       context,
       title: '재고 부족',
       contentText: '카드 재고가 부족합니다.',

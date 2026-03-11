@@ -81,17 +81,17 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
             if (error is InsufficientCardStockException) {
               await DialogHelper.showInsufficientCardStockDialog(
                 context,
-                requestedQuantity: error.requestedQuantity,
-                availableStock: error.availableStock,
               );
             }
 
-            final result = await DialogHelper.showKioskDialog(
-              context,
-              title: LocaleKeys.alert_title_print_failure.tr(),
-              contentText: LocaleKeys.alert_txt_print_failure.tr(),
-              confirmButtonText: LocaleKeys.alert_btn_print_failure.tr(),
-            );
+            // final result = await DialogHelper.showKioskDialog(
+            //   context,
+            //   title: LocaleKeys.alert_title_print_failure.tr(),
+            //   contentText: LocaleKeys.alert_txt_print_failure.tr(),
+            //   confirmButtonText: LocaleKeys.alert_btn_print_failure.tr(),
+            // );
+
+            final result = await DialogHelper.showInsufficientCardStockDialog(context);
             if (result) {
               ref.read(printQuantityNotifierProvider.notifier).reset();
 

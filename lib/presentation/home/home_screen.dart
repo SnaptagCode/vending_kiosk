@@ -110,8 +110,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               if (error is InsufficientCardStockException) {
                 await DialogHelper.showInsufficientCardStockDialog(
                   context,
-                  requestedQuantity: error.requestedQuantity,
-                  availableStock: error.availableStock,
                 );
                 return;
               }
