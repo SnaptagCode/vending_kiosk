@@ -636,7 +636,7 @@ class WithTechCardDispenserSerial {
         final data = frame[2];
 
         // ACK(0x20)이고 status byte가 0x00이면 중간 응답 → 실제 상태 프레임 대기
-        if (rspCmd == rspAckOrStatus && data == 0x00) {
+        if (rspCmd == rspAckOrStatus) {
           logger.d('WithTech: getStatus ACK received, waiting for actual status...');
           continue;
         }

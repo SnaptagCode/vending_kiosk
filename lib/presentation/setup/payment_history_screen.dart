@@ -6,10 +6,8 @@ import 'package:vending_kiosk/core/common/constants/image_paths.dart';
 import 'package:vending_kiosk/core/common/sound/sound_manager.dart';
 import 'package:vending_kiosk/core/data/models/entities/vending_print_item_entity.dart';
 import 'package:vending_kiosk/core/data/models/enums/order_status.dart';
-import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/setup/payment_history_provider.dart';
-import 'package:vending_kiosk/presentation/setup/setup_refund_process_provider.dart';
+import 'package:vending_kiosk/presentation/setup/payment_history_screen_provider.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/core/ui/widget/general_error_widget.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
@@ -25,23 +23,35 @@ class PaymentHistoryScreen extends ConsumerStatefulWidget {
 
 class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   @override
-  Widget build(BuildContext context) {
-    ref.listen(setupRefundProcessProvider, (prev, next) {
-      next.whenOrNull(
-        error: (error, stack) async {
-          context.loaderOverlay.hide();
-          await DialogHelper.showSetupDialog(context, title: '환불이 실패했습니다.');
-        },
-        data: (response) async {
-          context.loaderOverlay.hide();
-          if (response != null && response.respCode == '0000') {
-            await DialogHelper.showSetupDialog(context, title: '환불이 완료되었습니다.');
-          } else if (response != null) {
-            await DialogHelper.showSetupDialog(context, title: '환불이 실패했습니다.');
-          }
-        },
-      );
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(paymentHistoryNotifierProvider.notifier).restoreSavedPage();
     });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(
+      paymentHistoryNotifierProvider.select((s) => s.refundState),
+      (prev, next) {
+        next.whenOrNull(
+          error: (error, stack) async {
+            context.loaderOverlay.hide();
+            await DialogHelper.showSetupDialog(context, title: '환불이 실패했습니다.');
+          },
+          data: (response) async {
+            context.loaderOverlay.hide();
+            if (response != null && response.respCode == '0000') {
+              await DialogHelper.showSetupDialog(context, title: '환불이 완료되었습니다.');
+            } else if (response != null) {
+              await DialogHelper.showSetupDialog(context, title: '환불이 실패했습니다.');
+            }
+          },
+        );
+      },
+    );
+
     final ordersPage = ref.watch(ordersPageProvider());
 
     return Theme(
@@ -72,6 +82,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                 final result = await DialogHelper.showSetupDialog(
                   context,
                   title: '메인페이지로 이동합니다.',
+                  showCancelButton: true,
                 );
                 if (result) {
                   Navigator.pop(context);
@@ -94,16 +105,12 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
               return Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    height: 130.w,
-                  ),
+                  SizedBox(height: 130.w),
                   SizedBox(
                     width: 438.w,
                     child: DateWidget(),
                   ),
-                  SizedBox(
-                    height: 60.w,
-                  ),
+                  SizedBox(height: 60.w),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 30.w),
                     child: SizedBox(
@@ -182,7 +189,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                     currentPage: response.paging.currentPage,
                     totalPages: (response.paging.totalCount / response.paging.pageSize).ceil(),
                     onPageChanged: (newPage) {
-                      ref.read(ordersPageProvider().notifier).goToPage(newPage);
+                      ref.read(paymentHistoryNotifierProvider.notifier).goToPage(newPage);
                     },
                   ),
                 ],
@@ -273,19 +280,21 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
 
   Future<void> _handleReprint(BuildContext context, VendingPrintItemEntity order) async {
     context.loaderOverlay.show();
+    final viewModel = ref.read(paymentHistoryNotifierProvider.notifier);
     try {
-      final response = await ref.read(kioskRepositoryProvider).reprintVendingOrder(order.kioskOrderId);
-
-      if (response.reprintableIds.isEmpty) {
+      final stockOk = await viewModel.checkStock(order);
+      if (!stockOk) {
         context.loaderOverlay.hide();
-        return;
+        final shouldCancel = await DialogHelper.showInsufficientCardStockDialog(context);
+        if (shouldCancel) return;
+        context.loaderOverlay.show();
       }
 
-      ref.read(reprintIdsProvider.notifier).state = response.reprintableIds;
-      ref.read(printQuantityNotifierProvider.notifier).setQuantity(response.reprintableIds.length);
-
+      final readyToNavigate = await viewModel.proceedReprint(order);
       context.loaderOverlay.hide();
-      PrintProcessRouteData().go(context);
+      if (readyToNavigate) {
+        PrintProcessRouteData().go(context);
+      }
     } catch (e) {
       context.loaderOverlay.hide();
     }
@@ -309,26 +318,19 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
       case OrderStatus.refunded:
         return TextButton(
           onPressed: null,
-          child: Text(
-            '환불 완료',
-          ),
+          child: Text('환불 완료'),
         );
       case OrderStatus.refunded_failed:
         return TextButton(
           child: Container(
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(
-                  color: Color(0xFFFF333F),
-                ),
+                bottom: BorderSide(color: Color(0xFFFF333F)),
               ),
             ),
             child: Text(
               '환불 실패',
-              style: TextStyle(
-                color: Color(0xFFFF333F),
-                fontSize: 16.sp,
-              ),
+              style: TextStyle(color: Color(0xFFFF333F), fontSize: 16.sp),
             ),
           ),
           onPressed: () async {
@@ -350,38 +352,30 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
               showCancelButton: true,
             );
             if (result2) {
-              await ref.read(setupRefundProcessProvider.notifier).startRefund(order);
+              await ref.read(paymentHistoryNotifierProvider.notifier).startRefund(order);
               context.loaderOverlay.hide();
             } else {
               context.loaderOverlay.hide();
             }
           },
         );
-
       case OrderStatus.pending:
       case OrderStatus.failed:
         return TextButton(
           onPressed: null,
-          child: Text(
-            '-',
-          ),
+          child: Text('-'),
         );
       default:
         return TextButton(
           child: Container(
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(
-                  color: Color(0xFF9D9D9D),
-                ),
+                bottom: BorderSide(color: Color(0xFF9D9D9D)),
               ),
             ),
             child: Text(
               '환불',
-              style: TextStyle(
-                color: Color(0xFF9D9D9D),
-                fontSize: 16.sp,
-              ),
+              style: TextStyle(color: Color(0xFF9D9D9D), fontSize: 16.sp),
             ),
           ),
           onPressed: () async {
@@ -404,7 +398,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
               showCancelButton: true,
             );
             if (result2) {
-              await ref.read(setupRefundProcessProvider.notifier).startRefund(order);
+              await ref.read(paymentHistoryNotifierProvider.notifier).startRefund(order);
               context.loaderOverlay.hide();
             } else {
               context.loaderOverlay.hide();
@@ -416,9 +410,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
 }
 
 class DateWidget extends StatelessWidget {
-  const DateWidget({
-    super.key,
-  });
+  const DateWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -459,7 +451,6 @@ class DateWidget extends StatelessWidget {
   }
 }
 
-// PaginationControls 위젯은 이전과 동일
 class PaginationControls extends StatelessWidget {
   final int currentPage;
   final int totalPages;

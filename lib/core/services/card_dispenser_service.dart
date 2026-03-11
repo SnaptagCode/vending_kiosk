@@ -193,6 +193,11 @@ class CardDispenserService extends _$CardDispenserService {
     logger.w('CardDispenserService: waitUntilStandby timed out after ${timeout.inSeconds}s');
   }
 
+  Future<int?> getLastPaidOutQuantity() async {
+    if (_manager == null || !_manager!.isConnected) return null;
+    return await _manager!.getLastPaidOutQuantity();
+  }
+
   /// Dispense [count] cards and wait until completion.
   ///
   /// Throws [CardDispenserServiceException] on timeout or hardware error.
