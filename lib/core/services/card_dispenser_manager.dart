@@ -1,7 +1,7 @@
 import 'dart:async';
 
+import 'package:vending_kiosk/core/common/errors/dispenser_exception.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
-import 'package:vending_kiosk/core/data/data.dart';
 import 'package:vending_kiosk/core/data/datasources/local/withtech_card_dispenser_serial.dart';
 
 /// Manager for WITH-TECH card dispenser operations (runs on main isolate for reliable COM port open on Windows).
@@ -74,7 +74,6 @@ class CardDispenserManager {
       String status = await _instance!.getStatus();
       final lastQty = await _instance!.getLastPaidOutQuantity();
       logger.d('CardDispenserManager.checkAndRecover: initial status=$status, lastPaidOutQty=$lastQty');
-      SlackLogService().sendLogToSlack('CardDispenserManager.checkAndRecover: initial status=$status, lastPaidOutQty=$lastQty');
 
       // 정상 대기 상태
       if (status == 'standby') return true;
@@ -122,7 +121,7 @@ class CardDispenserManager {
         }
       }
 
-      throw Exception('카드 배출기 상태 복구 실패 (status: $status)');
+      throw DispenserException('카드 배출기 상태 복구 실패 (status: $status)');
     } catch (e) {
       logger.e('CardDispenserManager.checkAndRecover failed', error: e);
       rethrow;
@@ -167,7 +166,7 @@ class CardDispenserManager {
           final available = WithTechCardDispenserSerial.getAvailablePorts();
           logger.e('AUTODETECTPORT CardDispenser Manager: 연결 실패 - 요청된 포트: $port, 사용 가능한 포트: $available');
           _serial = null;
-          throw Exception(
+          throw DispenserException(
             '카드 배출기 연결 실패 ($port)\n\n'
             '해결 방법:\n'
             '1. COM 포트 번호 확인 (장치 관리자에서 확인)\n'
@@ -194,7 +193,7 @@ class CardDispenserManager {
   /// Health check
   Future<bool> healthCheck() async {
     if (_serial == null || !_serial!.isConnected) {
-      throw Exception('Not connected');
+      throw DispenserException('Not connected');
     }
     return _serial!.healthCheck();
   }
@@ -252,7 +251,7 @@ class CardDispenserManager {
   /// Dispense cards
   Future<bool> dispense(int count, {Duration? timeout}) async {
     if (_serial == null || !_serial!.isConnected) {
-      throw Exception('Not connected');
+      throw DispenserException('Not connected');
     }
     return _serial!.payout(
       count,
@@ -272,7 +271,7 @@ class CardDispenserManager {
   /// - 'unknown': 알 수 없음
   Future<String> getStatus() async {
     if (_serial == null || !_serial!.isConnected) {
-      throw Exception('Not connected');
+      throw DispenserException('Not connected');
     }
 
     final status = await _serial!.getStatus();
@@ -302,7 +301,7 @@ class CardDispenserManager {
   /// Get error details — WITH-TECH은 별도 에러 코드 대신 상태 바이트로 에러를 표현
   Future<({String? description, String? errorCode})> getError() async {
     if (_serial == null || !_serial!.isConnected) {
-      throw Exception('Not connected');
+      throw DispenserException('Not connected');
     }
     final status = await _serial!.getStatus();
     final sb = status.statusByte;
@@ -372,7 +371,7 @@ class CardDispenserManager {
         await _stopMotorOnError();
         final err = await getError();
         final msg = err.description ?? '장치가 배출을 거부했습니다. 카드 수량 및 장치 상태를 확인해 주세요.';
-        throw Exception('Dispense failed: $msg index: $index');
+        throw DispenserException(msg);
       }
 
       logger.i('CardDispenserManager: Dispense completed successfully index=$index');

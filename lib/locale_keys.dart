@@ -71,5 +71,9 @@ abstract class LocaleKeys {
   static const choice_enter_verification_code = 'choice_enter_verification_code';
   static const print_takes_one_minute = 'print_takes_one_minute';
   static const currency_won = 'currency_won';
+  static const please_wait = 'please_wait';
+  static const purchase_quantity = 'purchase_quantity';
+  static const total_payment_amount = 'total_payment_amount';
+  static const unit_pcs = 'unit_pcs';
   static const common_btn_back = 'common_btn_back';
 }

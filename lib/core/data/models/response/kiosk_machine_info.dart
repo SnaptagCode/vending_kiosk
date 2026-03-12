@@ -38,6 +38,7 @@ abstract class KioskMachineInfo with _$KioskMachineInfo {
     @Default('#000000') String couponTextColor,
     @Default('#000000') String mainTextColor,
     @Default('#000000') String popupButtonColor,
+    @Default('#000000') String progressBarBgColor,
     @Default('') String topBannerUrl,
     @Default('') String mainImageUrl,
     @Default('#000000') String progressBarStartColor,

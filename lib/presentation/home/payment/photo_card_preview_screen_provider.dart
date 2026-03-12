@@ -36,7 +36,7 @@ class PhotoCardPreviewScreenProvider extends _$PhotoCardPreviewScreenProvider {
       final stockResponse = await kioskRepo.getMachineCardStock(kioskInfo.kioskMachineId);
 
       // 재고 확인
-      if (stockResponse.cardCurrentCount < quantity.total) {
+      if (stockResponse.cardCurrentCount < quantity.total - 1) {
         throw InsufficientCardStockException(
           requestedQuantity: quantity.total,
           availableStock: stockResponse.cardCurrentCount,

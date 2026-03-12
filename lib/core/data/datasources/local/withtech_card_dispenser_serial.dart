@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:serial_port_win32/serial_port_win32.dart';
+import 'package:vending_kiosk/core/common/errors/dispenser_exception.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 
 /// WITH-TECH WT-CB3/CF1/CB7/CR1/CR1F1/F2 Dispenser RS-232 프로토콜 구현.
@@ -243,7 +244,7 @@ class WithTechCardDispenserSerial {
     int retryCount = 3,
   }) async {
     if (!isConnected) {
-      throw Exception('WithTech: Serial port is not connected');
+      throw DispenserException('WithTech: Serial port is not connected');
     }
 
     final packet = _createPacket(cmd, dataOrStatus);
@@ -257,17 +258,17 @@ class WithTechCardDispenserSerial {
           if (_isInvalidHandleError(e)) {
             _isConnected = false;
             _port = null;
-            throw Exception('WithTech: Serial port handle invalidated (win32 error 6). Reconnect required.');
+            throw DispenserException('WithTech: Serial port handle invalidated (win32 error 6). Reconnect required.');
           }
         }
 
         logger.d('WithTech: TX [${packet.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
         final writeOk = await _port!.writeBytesFromUint8List(packet, timeout: timeoutMs);
         if (_port == null) {
-          throw Exception('WithTech: Serial port disconnected during write');
+          throw DispenserException('WithTech: Serial port disconnected during write');
         }
         if (!writeOk) {
-          throw Exception('WithTech: Failed to write packet');
+          throw DispenserException('WithTech: Failed to write packet');
         }
 
         final timeout = Duration(milliseconds: timeoutMs);
@@ -284,7 +285,7 @@ class WithTechCardDispenserSerial {
           if (_isInvalidHandleError(e)) {
             _isConnected = false;
             _port = null;
-            throw Exception('WithTech: Serial port handle invalidated (win32 error 6). Reconnect required.');
+            throw DispenserException('WithTech: Serial port handle invalidated (win32 error 6). Reconnect required.');
           }
           if (attempt < retryCount) {
             logger.w('WithTech: response timeout on attempt ${attempt + 1}, retrying...', error: e);
@@ -486,7 +487,7 @@ class WithTechCardDispenserSerial {
     void Function(int dispensed, int total)? onProgress,
   }) async {
     if (!isConnected) {
-      throw Exception('WithTech: Serial port is not connected');
+      throw DispenserException('WithTech: Serial port is not connected');
     }
     if (count < 1 || count > 255) {
       logger.e('WithTech: invalid payout count: $count');
@@ -501,7 +502,7 @@ class WithTechCardDispenserSerial {
         if (_isInvalidHandleError(e)) {
           _isConnected = false;
           _port = null;
-          throw Exception('WithTech: Serial port handle invalidated. Reconnect required.');
+          throw DispenserException('WithTech: Serial port handle invalidated. Reconnect required.');
         }
       }
 
@@ -509,8 +510,8 @@ class WithTechCardDispenserSerial {
       logger.d('WithTech: TX [${packet.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
 
       final writeOk = await _port!.writeBytesFromUint8List(packet, timeout: 2000);
-      if (_port == null) throw Exception('WithTech: Serial port disconnected during write');
-      if (!writeOk) throw Exception('WithTech: Failed to write payout packet');
+      if (_port == null) throw DispenserException('WithTech: Serial port disconnected during write');
+      if (!writeOk) throw DispenserException('WithTech: Failed to write payout packet');
 
       final deadline = DateTime.now().add(totalTimeout);
 
@@ -525,7 +526,7 @@ class WithTechCardDispenserSerial {
           if (_isInvalidHandleError(e)) {
             _isConnected = false;
             _port = null;
-            throw Exception('WithTech: Serial port handle invalidated. Reconnect required.');
+            throw DispenserException('WithTech: Serial port handle invalidated. Reconnect required.');
           }
           // 프레임 읽기 타임아웃 → 전체 타임아웃까지 재시도
           continue;
@@ -600,7 +601,7 @@ class WithTechCardDispenserSerial {
         if (_isInvalidHandleError(e)) {
           _isConnected = false;
           _port = null;
-          throw Exception('WithTech: Serial port handle invalidated. Reconnect required.');
+          throw DispenserException('WithTech: Serial port handle invalidated. Reconnect required.');
         }
       }
 
@@ -609,7 +610,7 @@ class WithTechCardDispenserSerial {
       logger.d('WithTech: TX [${packet.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
 
       final writeOk = await _port!.writeBytesFromUint8List(packet, timeout: 2000);
-      if (!writeOk) throw Exception('WithTech: Failed to write status request packet');
+      if (!writeOk) throw DispenserException('WithTech: Failed to write status request packet');
 
       // 최대 2초 내에 실제 상태 프레임을 기다림
       final deadline = DateTime.now().add(const Duration(seconds: 2));
@@ -622,7 +623,7 @@ class WithTechCardDispenserSerial {
           if (_isInvalidHandleError(e)) {
             _isConnected = false;
             _port = null;
-            throw Exception('WithTech: Serial port handle invalidated. Reconnect required.');
+            throw DispenserException('WithTech: Serial port handle invalidated. Reconnect required.');
           }
           break; // 타임아웃
         }

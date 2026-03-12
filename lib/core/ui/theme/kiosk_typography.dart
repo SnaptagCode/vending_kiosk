@@ -11,6 +11,7 @@ class KioskTypography extends ThemeExtension<KioskTypography> {
     required this.vendingTitle2B,
     required this.vendingBody1B,
     required this.vendingBody2B,
+    required this.vendingBody3B,
     required this.kioskBody1B,
     required this.kioskBody2B,
     required this.kioksNum1SB,
@@ -30,6 +31,7 @@ class KioskTypography extends ThemeExtension<KioskTypography> {
   final TextStyle vendingTitle2B;
   final TextStyle vendingBody1B;
   final TextStyle vendingBody2B;
+  final TextStyle vendingBody3B;
   final TextStyle kioskBody1B;
   final TextStyle kioskBody2B;
   final TextStyle kioksNum1SB;
@@ -43,47 +45,51 @@ class KioskTypography extends ThemeExtension<KioskTypography> {
 
   factory KioskTypography.color({KioskColors colors = KioskColors.basic}) => KioskTypography(
         vendingBtn1B: TextStyle(
-          fontSize: 56.sp,
-          fontWeight: FontWeight.w700,
-          fontFamily: 'Cafe24Ssurround2',
+          fontSize: 62.sp,
+          fontWeight: FontWeight.w400,
+          fontFamily: 'Hanwha',
           color: Colors.black,
         ),
         vendingBtn2B: TextStyle(
-          fontSize: 40.sp,
-          fontWeight: FontWeight.w700,
-          fontFamily: 'Cafe24Ssurround2',
+          fontSize: 48.sp,
+          fontWeight: FontWeight.w400,
+          fontFamily: 'Hanwha',
           color: Colors.black,
         ),
         vendingTitle1B: TextStyle(
-          fontSize: 52.sp,
-          fontWeight: FontWeight.w700,
-          fontFamily: 'Cafe24Ssurround2',
+          fontSize: 60.sp,
+          fontWeight: FontWeight.w400,
+          fontFamily: 'Hanwha',
           color: Colors.black,
           letterSpacing: 0.7,
         ),
         vendingTitle2B: TextStyle(
-          fontSize: 40.sp,
+          fontSize: 52.sp,
           fontWeight: FontWeight.w700,
-          fontFamily: 'Cafe24Ssurround2',
+          fontFamily: 'Hanwha',
           color: Colors.black,
-          letterSpacing: -1.0,
+          letterSpacing: 2.08,
           height: 1.0,
         ),
         vendingBody1B: TextStyle(
-          fontSize: 44.sp,
-          fontWeight: FontWeight.w700,
-          fontFamily: 'Cafe24Ssurround2',
+          fontSize: 48.sp,
+          fontWeight: FontWeight.w400,
+          fontFamily: 'Hanwha',
           color: Colors.black,
-          letterSpacing: -1.0,
-          height: 1.0,
+          letterSpacing: 3.84,
         ),
         vendingBody2B: TextStyle(
-          fontSize: 32.sp,
-          fontWeight: FontWeight.w600,
-          fontFamily: 'Cafe24Ssurround2',
+          fontSize: 36.sp,
+          fontWeight: FontWeight.w400,
+          fontFamily: 'Hanwha',
           color: Colors.black,
-          letterSpacing: -0.64,
-          height: 1.0,
+        ),
+        vendingBody3B: TextStyle(
+          fontSize: 28.sp,
+          fontWeight: FontWeight.w400,
+          fontFamily: 'HanwhaGothic',
+          color: Colors.black,
+          letterSpacing: 0.56,
         ),
         kioskBtn1B: TextStyle(
           fontSize: 34.sp,
@@ -203,6 +209,7 @@ class KioskTypography extends ThemeExtension<KioskTypography> {
       vendingTitle2B: vendingTitle2B ?? this.vendingTitle2B,
       vendingBody1B: vendingBody1B ?? this.vendingBody1B,
       vendingBody2B: vendingBody2B ?? this.vendingBody2B,
+      vendingBody3B: vendingBody3B ?? this.vendingBody3B,
       kioskBody1B: kioskBody1B ?? this.kioskBody1B,
       kioskBody2B: kioskBody2B ?? this.kioskBody2B,
       kioksNum1SB: kioksNum1SB ?? this.kioksNum1SB,
@@ -233,6 +240,7 @@ class KioskTypography extends ThemeExtension<KioskTypography> {
       vendingTitle2B: TextStyle.lerp(vendingTitle2B, other.vendingTitle2B, t)!,
       vendingBody1B: TextStyle.lerp(vendingBody1B, other.vendingBody1B, t)!,
       vendingBody2B: TextStyle.lerp(vendingBody2B, other.vendingBody2B, t)!,
+      vendingBody3B: TextStyle.lerp(vendingBody3B, other.vendingBody3B, t)!,
       kioskBody1B: TextStyle.lerp(kioskBody1B, other.kioskBody1B, t)!,
       kioskBody2B: TextStyle.lerp(kioskBody2B, other.kioskBody2B, t)!,
       kioksNum1SB: TextStyle.lerp(kioksNum1SB, other.kioksNum1SB, t)!,

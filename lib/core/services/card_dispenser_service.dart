@@ -219,7 +219,7 @@ class CardDispenserService extends _$CardDispenserService {
       final detected = await autoDetectPort();
       if (detected == null) {
         logger.w('CardDispenser: skip dispense (자동 감지 실패) index: $index');
-        return;
+        throw CardDispenserServiceException('카드 배출 실패: 연결 실패');
       }
     }
 
@@ -234,8 +234,9 @@ class CardDispenserService extends _$CardDispenserService {
       );
       state = const CardDispenserServiceState.ready();
     } catch (e) {
-      state = CardDispenserServiceState.error(e.toString());
-      throw CardDispenserServiceException('카드 배출 실패: $e index: $index');
+      final msg = e.toString();
+      state = CardDispenserServiceState.error(msg);
+      throw CardDispenserServiceException(msg);
     }
   }
 }
