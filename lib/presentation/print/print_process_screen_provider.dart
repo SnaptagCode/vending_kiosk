@@ -5,8 +5,10 @@ import 'package:vending_kiosk/core/data/models/enums/printed_status.dart';
 import 'package:vending_kiosk/core/data/models/request/card_stock_consume_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_vending_print_status_request.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
+import 'package:vending_kiosk/core/services/card_dispenser_manager.dart';
 import 'package:vending_kiosk/core/services/card_dispenser_service.dart';
 import 'package:vending_kiosk/presentation/home/payment/create_order_info_state.dart';
+import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
 import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/setup/uuid_provider.dart';
@@ -39,15 +41,8 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
     final reprintIds = ref.read(reprintIdsProvider);
     final printedPhotoCardIds = reprintIds ?? ref.read(createOrderInfoProvider)?.printedPhotoCardIds ?? [];
 
-    SlackLogService().sendLogToSlack('Printed photo card ids length: ${printedPhotoCardIds.length}');
-    SlackLogService().sendLogToSlack('Quantity total: ${quantity.total}');
     if (printedPhotoCardIds.length != quantity.total) {
       throw Exception('Printed photo card ids length is not equal to quantity total');
-    }
-
-    // 재출력 IDs는 사용 후 초기화
-    if (reprintIds != null) {
-      ref.read(reprintIdsProvider.notifier).state = null;
     }
 
     int printedPhotoCardId = 0;
@@ -63,7 +58,7 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
         await _updatePrintStatus(printedPhotoCardId, PrintedStatus.started);
 
         // 실제 프린트 실행
-        await _executePrint(printedPhotoCardId);
+        await _executePrint(printedPhotoCardId, i);
 
         // 프린트 상태 완료
         await _updatePrintStatus(printedPhotoCardId, PrintedStatus.completed);
@@ -88,14 +83,34 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
     }
   }
 
-  Future<void> _executePrint(int printedPhotoCardId) async {
+  Future<void> _executePrint(int printedPhotoCardId, int index) async {
     try {
-      await ref.read(cardDispenserServiceProvider.notifier).dispenseAndWait(count: 1);
+      logger.i('=====================================================');
+      logger.i('1. Print process checkAndRecover');
+      logger.i('=====================================================');
+      // final dispenserReady = await CardDispenserManager.checkAndRecover();
+      // if (dispenserReady == false) {
+      //   throw InsufficientCardStockException(
+      //     requestedQuantity: 1,
+      //     availableStock: 0,
+      //     description: '배출기에 카드가 없습니다.',
+      //   );
+      // }
+
+      logger.i('=====================================================');
+      logger.i('2. Print process dispenseAndWait');
+      logger.i('=====================================================');
+      await ref.read(cardDispenserServiceProvider.notifier).dispenseAndWait(count: 1, index: index);
     } catch (e) {
+      SlackLogService().sendCardDispenserErrorLogToSlack(e.toString());
       rethrow;
     }
 
     try {
+      logger.i('=====================================================');
+      logger.i('3. Print process consumeCardStock');
+      logger.i('=====================================================');
+
       await ref.read(kioskRepositoryProvider).consumeCardStock(
             CardStockConsumeRequest(
               machineId: ref.read(kioskInfoServiceProvider)!.kioskMachineId,
@@ -107,10 +122,17 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
       rethrow;
     }
 
+    logger.i('=====================================================');
+    logger.i('4. Print process increment');
+    logger.i('=====================================================');
+
     ref.read(printQuantityNotifierProvider.notifier).increment();
 
+    logger.i('=====================================================');
+    logger.i('5. Print process waitUntilStandby');
+    logger.i('=====================================================');
     // 다음 배출 전에 장치가 standby로 바뀔 때까지 폴링 (가능한 한 짧은 대기)
-    await Future.delayed(const Duration(seconds: 1));
+    // await Future.delayed(const Duration(seconds: 1));
     logger.i('Print process: Card $printedPhotoCardId dispensed successfully');
   }
 }

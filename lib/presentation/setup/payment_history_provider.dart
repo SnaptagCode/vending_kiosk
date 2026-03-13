@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_print_list_response.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
@@ -5,6 +6,9 @@ import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'payment_history_provider.g.dart';
+
+/// 재출력 후 돌아올 때 이전 페이지를 복원하기 위한 저장소
+final savedHistoryPageProvider = StateProvider<int>((ref) => 1);
 
 @riverpod
 class OrdersPage extends _$OrdersPage {

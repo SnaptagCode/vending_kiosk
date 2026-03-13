@@ -1,10 +1,4 @@
-import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
-import 'package:vending_kiosk/presentation/setup/page_print_provider.dart';
-import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
-import 'package:vending_kiosk/presentation/home/payment_response_state.dart';
-import 'package:vending_kiosk/core/common/logger/logger_service.dart';
-import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
-import 'package:vending_kiosk/core/data/models/request/create_vending_order_request.dart';
+import 'package:vending_kiosk/core/services/card_dispenser_manager.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
@@ -42,11 +36,22 @@ class PhotoCardPreviewScreenProvider extends _$PhotoCardPreviewScreenProvider {
       final stockResponse = await kioskRepo.getMachineCardStock(kioskInfo.kioskMachineId);
 
       // 재고 확인
-      if (stockResponse.cardCurrentCount < quantity.total) {
+      if (stockResponse.cardCurrentCount < quantity.total - 1) {
         throw InsufficientCardStockException(
           requestedQuantity: quantity.total,
           availableStock: stockResponse.cardCurrentCount,
           description: '카드 재고가 부족하여 결제를 진행할 수 없습니다.',
+        );
+      }
+
+      // Step 1.5: 물리적 배출기 상태 사전 확인 (연결된 경우에만)
+      // 오류 상태면 reset 후 재확인, 복구 불가 시 예외 throw
+      final dispenserReady = await CardDispenserManager.checkAndRecover();
+      if (dispenserReady == false) {
+        throw InsufficientCardStockException(
+          requestedQuantity: quantity.total,
+          availableStock: 0,
+          description: '배출기에 카드가 없습니다.',
         );
       }
 

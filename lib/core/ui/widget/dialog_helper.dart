@@ -9,7 +9,6 @@ import 'package:vending_kiosk/core/common/sound/sound_manager.dart';
 import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
 import 'package:vending_kiosk/core/ui/widget/code_keypad.dart';
 import 'package:vending_kiosk/locale_keys.dart';
-import 'package:vending_kiosk/presentation/routers/router.dart';
 
 class DialogHelper {
   /// 공통 확인/취소 다이얼로그. [showSetupDialog], [showKioskDialog]에서 사용.
@@ -113,9 +112,9 @@ class DialogHelper {
   }) async {
     Future.delayed(const Duration(seconds: 5), () {
       if (Navigator.of(context, rootNavigator: true).canPop()) {
-        HomeRouteData().go(context);
         Navigator.of(context, rootNavigator: true).pop();
       }
+      onButtonPressed?.call();
     });
     final result = await showKioskDialog(
       context,
@@ -125,7 +124,7 @@ class DialogHelper {
     );
 
     if (result) {
-      HomeRouteData().go(context);
+      onButtonPressed?.call();
     }
   }
 
@@ -183,12 +182,8 @@ class DialogHelper {
     );
   }
 
-  static Future<void> showInsufficientCardStockDialog(
-    BuildContext context, {
-    required int requestedQuantity,
-    required int availableStock,
-  }) async {
-    await showKioskDialog(
+  static Future<bool> showInsufficientCardStockDialog(BuildContext context) async {
+    return await showKioskDialog(
       context,
       title: '재고 부족',
       contentText: '카드 재고가 부족합니다.',

@@ -1,16 +1,15 @@
 import 'dart:async';
 
+import 'package:vending_kiosk/core/common/errors/dispenser_exception.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
-import 'package:vending_kiosk/core/data/datasources/local/card_dispenser_protocol.dart';
-import 'package:vending_kiosk/core/data/datasources/local/card_dispenser_serial.dart';
+import 'package:vending_kiosk/core/data/datasources/local/withtech_card_dispenser_serial.dart';
 
-/// Manager for card dispenser operations (runs on main isolate for reliable COM port open on Windows).
+/// Manager for WITH-TECH card dispenser operations (runs on main isolate for reliable COM port open on Windows).
 class CardDispenserManager {
   static CardDispenserManager? _instance;
 
-  CardDispenserSerial? _serial;
+  WithTechCardDispenserSerial? _serial;
   String? _connectedPort;
-  CardDispenserProtocol? _connectedProtocol;
 
   CardDispenserManager._();
 
@@ -32,7 +31,6 @@ class CardDispenserManager {
   }
 
   /// 앱 종료 전 호출: COM 포트를 닫고 인스턴스를 정리합니다.
-  /// 재실행 시 포트가 정상적으로 열리도록 합니다.
   static Future<void> disconnectAll() async {
     if (_instance == null) return;
     try {
@@ -41,25 +39,96 @@ class CardDispenserManager {
         _instance!._serial = null;
       }
       _instance!._connectedPort = null;
-      _instance!._connectedProtocol = null;
-      logger.i('CardDispenserManager: Disconnected and cleared');
+      logger.i('AUTODETECTPORT CardDispenserManager: Disconnected and cleared');
     } catch (e) {
-      logger.w('CardDispenserManager: disconnectAll error', error: e);
+      logger.w('AUTODETECTPORT CardDispenserManager: disconnectAll error', error: e);
     } finally {
       _instance = null;
     }
   }
 
-  /// 실제 시리얼 연결 여부 (재연결 필요 여부 판단용)
+  /// 실제 시리얼 연결 여부
   bool get isConnected => _serial != null && _serial!.isConnected;
 
   /// 인스턴스 생성 없이 현재 연결 여부만 확인
   static bool get isInstanceConnected => _instance?.isConnected ?? false;
 
-  /// 현재 연결된 포트 이름 (연결 안 됐으면 null)
+  /// 현재 연결된 포트 이름
   static String? get connectedPortName => _instance?._connectedPort;
 
-  /// 기존 인스턴스로 health check — 인스턴스가 없거나 연결 안 됐으면 false
+  /// 결제 전 상태 확인 및 자동 복구.
+  ///
+  /// 1. 상태 확인 → standby면 즉시 정상 반환
+  /// 2. warning + EMPTY → 카드 없음 반환
+  /// 3. 그 외 비정상 → reset(0x12) 후 최대 3초 대기하며 재확인
+  ///
+  /// 반환값:
+  /// - null: 미연결 (체크 불가, 호출부에서 스킵)
+  /// - true: 정상 (standby)
+  /// - false: 카드 없음 (EMPTY)
+  ///
+  /// Throws [Exception]: reset 후에도 비정상 상태 (결제 차단 권장)
+  static Future<bool?> checkAndRecover() async {
+    if (_instance == null || !_instance!.isConnected) return null;
+    try {
+      String status = await _instance!.getStatus();
+      final lastQty = await _instance!.getLastPaidOutQuantity();
+      logger.d('CardDispenserManager.checkAndRecover: initial status=$status, lastPaidOutQty=$lastQty');
+
+      // 정상 대기 상태
+      if (status == 'standby') return true;
+
+      // 카드 없음 → 즉시 반환
+      // warning → 최대 3번 재시도 후 EMPTY 여부 판단
+      if (status == 'warning') {
+        for (int i = 0; i < 3; i++) {
+          _instance!.reset();
+          await Future.delayed(const Duration(milliseconds: 300));
+          status = await _instance!.getStatus();
+          logger.d('CardDispenserManager.checkAndRecover: warning 재시도 ${i + 1}/3 → status=$status');
+          if (status == 'standby') return true;
+          if (status != 'warning') break;
+        }
+        if (status == 'warning') {
+          final err = await _instance!.getError();
+          if (err.errorCode?.contains('EMPTY') == true) {
+            logger.w('CardDispenserManager.checkAndRecover: EMPTY 감지 ${err.errorCode}');
+            return false;
+          }
+        }
+      }
+
+      // 비정상 상태 → reset 후 재확인
+      logger.w('CardDispenserManager.checkAndRecover: status=$status → reset 시도');
+      await _instance!.reset();
+
+      final deadline = DateTime.now().add(const Duration(seconds: 3));
+      while (DateTime.now().isBefore(deadline)) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        status = await _instance!.getStatus();
+        logger.d('CardDispenserManager.checkAndRecover: post-reset status=$status');
+
+        if (status == 'standby') {
+          logger.i('CardDispenserManager.checkAndRecover: reset 후 정상 복귀');
+          return true;
+        }
+        if (status == 'warning') {
+          final err = await _instance!.getError();
+          if (err.errorCode?.contains('EMPTY') == true) {
+            logger.w('CardDispenserManager.checkAndRecover: reset 후 EMPTY 감지');
+            return false;
+          }
+        }
+      }
+
+      throw DispenserException('카드 배출기 상태 복구 실패 (status: $status)');
+    } catch (e) {
+      logger.e('CardDispenserManager.checkAndRecover failed', error: e);
+      rethrow;
+    }
+  }
+
+  /// 기존 인스턴스로 health check
   static Future<bool> checkInstanceHealth() async {
     if (_instance == null || !_instance!.isConnected) return false;
     try {
@@ -70,41 +139,34 @@ class CardDispenserManager {
     }
   }
 
-  /// Connect to card dispenser (must run on main isolate for Windows COM port).
-  Future<bool> connect(String port, String protocol) async {
+  /// Connect to WITH-TECH card dispenser (must run on main isolate for Windows COM port).
+  Future<bool> connect(String port, {int baudRate = 9600}) async {
     try {
-      final proto =
-          protocol == 'txLowerRxLower' ? CardDispenserProtocol.txLowerRxLower : CardDispenserProtocol.txUpperRxLower;
-
-      // 포트/프로토콜 변경 시 또는 이미 끊긴 상태면 기존 시리얼을 먼저 닫음.
-      // (닫지 않으면 COM 포트가 같은 프로세스에 잡힌 채로 재연결 시 Error 5 발생)
       if (_serial != null) {
-        if (_connectedPort != port || _connectedProtocol != proto || !_serial!.isConnected) {
-          logger.d('CardDispenserManager: Disconnecting previous serial connection...');
+        if (_connectedPort != port || !_serial!.isConnected) {
+          logger.d('AUTODETECTPORT CardDispenserManager: Disconnecting previous serial connection...');
           await _serial!.disconnect();
           _serial = null;
           _connectedPort = null;
-          _connectedProtocol = null;
-          // 포트 리소스 완전 해제를 위한 추가 대기
           await Future<void>.delayed(const Duration(milliseconds: 200));
         }
       }
 
       if (_serial == null || !_serial!.isConnected) {
-        logger.d('CardDispenserManager: Creating new CardDispenserSerial instance...');
-        _serial = CardDispenserSerial(protocol: proto);
+        logger.d(
+            'AUTODETECTPORT CardDispenserManager: Creating new WithTechCardDispenserSerial instance (baud: $baudRate)...');
+        _serial = WithTechCardDispenserSerial(baudRate: baudRate);
         final connected = await _serial!.connect(port);
 
         if (connected) {
           _connectedPort = port;
-          _connectedProtocol = proto;
-          logger.i('CardDispenserManager: Connected to $port');
+          logger.i('AUTODETECTPORT CardDispenserManager: Connected to $port');
           return true;
         } else {
-          final available = CardDispenserSerial.getAvailablePorts();
-          logger.e('CardDispenserManager: 연결 실패 - 요청된 포트: $port, 사용 가능한 포트: $available');
-          _serial = null; // 연결 실패 시 인스턴스 제거
-          throw Exception(
+          final available = WithTechCardDispenserSerial.getAvailablePorts();
+          logger.e('AUTODETECTPORT CardDispenser Manager: 연결 실패 - 요청된 포트: $port, 사용 가능한 포트: $available');
+          _serial = null;
+          throw DispenserException(
             '카드 배출기 연결 실패 ($port)\n\n'
             '해결 방법:\n'
             '1. COM 포트 번호 확인 (장치 관리자에서 확인)\n'
@@ -118,31 +180,25 @@ class CardDispenserManager {
 
       return true;
     } catch (e) {
-      logger.e('CardDispenserManager: Connect failed', error: e);
-      // 연결 실패 시 상태 완전 초기화
+      logger.e('AUTODETECTPORT CardDispenserManager: Connect failed', error: e);
       _serial = null;
       _connectedPort = null;
-      _connectedProtocol = null;
       rethrow;
     }
   }
 
-  /// 사용 가능한 포트 중 카드 배출기를 자동 감지합니다.
-  static Future<({String port, CardDispenserProtocol protocol})?> autoDetect({
-    List<CardDispenserProtocol>? protocols,
-  }) async {
-    return CardDispenserSerial.autoDetect(protocols: protocols);
-  }
+  /// 사용 가능한 COM 포트 목록 반환
+  static List<String> getAvailablePorts() => WithTechCardDispenserSerial.getAvailablePorts();
 
   /// Health check
   Future<bool> healthCheck() async {
     if (_serial == null || !_serial!.isConnected) {
-      throw Exception('Not connected');
+      throw DispenserException('Not connected');
     }
     return _serial!.healthCheck();
   }
 
-  /// 초기화(Reset) — 배출기를 초기 상태로 복귀. 프린터 에러 등 발생 시 호출 권장.
+  /// 초기화(Reset) — 배출기를 초기 상태로 복귀. 에러 발생 시 호출 권장.
   Future<bool> reset() async {
     if (_serial == null || !_serial!.isConnected) {
       logger.d('CardDispenserManager: reset skipped (not connected)');
@@ -150,10 +206,10 @@ class CardDispenserManager {
     }
     try {
       final ok = await _serial!.reset();
-      if (ok)
+      if (ok) {
         logger.i('CardDispenserManager: Dispenser reset OK');
-      else {
-        logger.w('CardDispenserManager: Dispenser reset returned false (device busy or error)');
+      } else {
+        logger.w('CardDispenserManager: Dispenser reset returned false');
       }
       return ok;
     } catch (e) {
@@ -162,134 +218,175 @@ class CardDispenserManager {
     }
   }
 
-  /// 동작 금지(Disable) — 배출 중인 모터를 멈춤. 카드 부족 등 에러 시 먼저 호출 권장.
+  /// 동작 금지(Disable) — WITH-TECH에는 별도 disable 명령이 없으므로 reset으로 대체.
   Future<bool> disable() async {
     if (_serial == null || !_serial!.isConnected) {
       logger.d('CardDispenserManager: disable skipped (not connected)');
       return false;
     }
     try {
-      final ok = await _serial!.disable();
-      if (ok) {
-        logger.i('CardDispenserManager: Dispenser disabled (motor stop)');
-      } else {
-        logger.w('CardDispenserManager: Disable returned false');
-      }
-      return ok;
+      logger.i('CardDispenserManager: disable → reset (WITH-TECH does not have separate disable command)');
+      return await _serial!.reset();
     } catch (e) {
-      logger.w('CardDispenserManager: disable failed', error: e);
+      logger.w('CardDispenserManager: disable(reset) failed', error: e);
       return false;
     }
   }
 
-  /// 동작 금지 해제(Enable) — 다음 배출 전에 금지 상태를 풀 때 사용.
+  /// 동작 금지 해제(Enable) — WITH-TECH에는 별도 enable 명령이 없으므로 reset으로 대체.
   Future<bool> enable() async {
     if (_serial == null || !_serial!.isConnected) {
       logger.d('CardDispenserManager: enable skipped (not connected)');
       return false;
     }
     try {
-      final ok = await _serial!.enable();
-      if (ok)
-        logger.i('CardDispenserManager: Dispenser enabled');
-      else
-        logger.w('CardDispenserManager: Enable returned false');
-      return ok;
+      logger.i('CardDispenserManager: enable → reset (WITH-TECH does not have separate enable command)');
+      return await _serial!.reset();
     } catch (e) {
-      logger.w('CardDispenserManager: enable failed', error: e);
+      logger.w('CardDispenserManager: enable(reset) failed', error: e);
       return false;
     }
   }
 
   /// Dispense cards
-  Future<bool> dispense(int count) async {
+  Future<bool> dispense(int count, {Duration? timeout}) async {
     if (_serial == null || !_serial!.isConnected) {
-      throw Exception('Not connected');
+      throw DispenserException('Not connected');
     }
-    return _serial!.dispenseCard(count);
+    return _serial!.payout(
+      count,
+      totalTimeout: timeout ?? const Duration(seconds: 15),
+    );
   }
 
-  /// Get status (standby, dispensing, completed, error, unknown, disabled)
+  /// Get status as string (mapped from WithTechDispenserStatusKind)
+  ///
+  /// 반환값:
+  /// - 'standby': 준비 완료
+  /// - 'dispensing': 배출 중
+  /// - 'completed': 배출 성공
+  /// - 'error': 배출 실패 / 에러
+  /// - 'warning': 경고 (Empty 등), 배출 중 계속 폴링
+  /// - 'halted': Hold 상태
+  /// - 'unknown': 알 수 없음
   Future<String> getStatus() async {
     if (_serial == null || !_serial!.isConnected) {
-      throw Exception('Not connected');
+      throw DispenserException('Not connected');
     }
 
     final status = await _serial!.getStatus();
-    return status.kind.name;
+    return _mapStatusKind(status.kind);
   }
 
-  /// Get error details
+  /// 마지막 배출 수량 조회
+  Future<int?> getLastPaidOutQuantity() async {
+    if (_serial == null || !_serial!.isConnected) return null;
+    return _serial!.getLastPaidOutQuantity();
+  }
+
+  String _mapStatusKind(WithTechDispenserStatusKind kind) {
+    return switch (kind) {
+      WithTechDispenserStatusKind.ready => 'standby',
+      WithTechDispenserStatusKind.payoutWorking => 'dispensing',
+      WithTechDispenserStatusKind.counting => 'dispensing',
+      WithTechDispenserStatusKind.payoutSuccess => 'completed',
+      WithTechDispenserStatusKind.payoutFail => 'error',
+      WithTechDispenserStatusKind.warning => 'warning',
+      WithTechDispenserStatusKind.halted => 'halted',
+      WithTechDispenserStatusKind.error => 'error',
+      WithTechDispenserStatusKind.unknown => 'unknown',
+    };
+  }
+
+  /// Get error details — WITH-TECH은 별도 에러 코드 대신 상태 바이트로 에러를 표현
   Future<({String? description, String? errorCode})> getError() async {
     if (_serial == null || !_serial!.isConnected) {
-      throw Exception('Not connected');
+      throw DispenserException('Not connected');
     }
-    final error = await _serial!.getError();
-    return (description: error?.description, errorCode: error?.errorCode);
+    final status = await _serial!.getStatus();
+    final sb = status.statusByte;
+
+    final isJam = (sb & 0x80) != 0;
+    final isEmpty = (sb & 0x10) != 0;
+
+    if (isJam && isEmpty) {
+      return (description: '카드 걸림 + 카드 부족', errorCode: 'JAM+EMPTY');
+    } else if (isJam) {
+      return (description: '카드 걸림 (JAM)', errorCode: 'JAM');
+    } else if (isEmpty) {
+      return (description: '카드 부족 (EMPTY)', errorCode: 'EMPTY');
+    }
+
+    if (status.kind == WithTechDispenserStatusKind.payoutFail) {
+      return (description: '카드 배출 실패', errorCode: 'PAYOUT_FAIL');
+    }
+    if (status.kind == WithTechDispenserStatusKind.error) {
+      return (description: '장치 오류', errorCode: 'ERROR');
+    }
+
+    return (description: null, errorCode: null);
   }
 
-  /// Dispense and wait until completion
+  /// 배출 전 장치 상태를 확인하고, 에러/Hold/Warning 상태면 reset 후 ready 대기.
+  Future<void> _ensureReadyBeforeDispense() async {
+    final preStatus = await getStatus();
+    if (preStatus == 'standby' || preStatus == 'dispensing') return;
+
+    logger.w('CardDispenserManager: pre-dispense status=$preStatus → reset 시도');
+    await reset();
+
+    final resetDeadline = DateTime.now().add(const Duration(seconds: 3));
+    while (DateTime.now().isBefore(resetDeadline)) {
+      final s = await getStatus();
+      logger.d('CardDispenserManager: post-reset status=$s');
+      if (s == 'standby') return;
+      await Future.delayed(const Duration(milliseconds: 200));
+    }
+    logger.w('CardDispenserManager: reset 후에도 standby 미도달 (계속 진행)');
+  }
+
+  /// Dispense and wait until completion.
+  ///
+  /// WITH-TECH 프로토콜은 TX 1회 후 장치가 RX를 순차 전송하므로,
+  /// [dispense]가 최종 응답(0x2E/0x2F)까지 블로킹 수신한다.
+  /// 완료 후 별도 상태 폴링은 불필요하다.
+  ///
+  /// [pollInterval]: 하위 호환용, 사용되지 않음.
+  /// [overallTimeout]: 배출 전체 타임아웃 (dispense 내부로 전달).
   Future<void> dispenseAndWait({
     required int count,
+    required int index,
     required Duration pollInterval,
     required Duration overallTimeout,
   }) async {
     try {
-      logger.i('CardDispenserManager: Starting dispense and wait for $count card(s)...');
+      logger.i('1. CardDispenserManager: _ensureReadyBeforeDispense index=$index count=$count');
+      await _ensureReadyBeforeDispense();
 
-      // 이전 에러로 동작 금지 상태일 수 있으므로 해제 시도
-      await enable();
+      logger.i('2. CardDispenserManager: dispense index=$index count=$count');
+      final ok = await dispense(count, timeout: overallTimeout);
+      logger.i('3. CardDispenserManager: dispense result=$ok index=$index');
 
-      final ok = await dispense(count);
       if (!ok) {
         await _stopMotorOnError();
         final err = await getError();
-        final msg = err.description ?? '장치가 배출을 거부했습니다(불능). 배출 간 대기 시간 후 다시 시도해 주세요.';
-        throw Exception('Dispense failed: $msg');
+        final msg = err.description ?? '장치가 배출을 거부했습니다. 카드 수량 및 장치 상태를 확인해 주세요.';
+        throw DispenserException(msg);
       }
 
-      final deadline = DateTime.now().add(overallTimeout);
-      while (DateTime.now().isBefore(deadline)) {
-        final status = await getStatus();
-
-        logger.d('CardDispenserManager: Status: $status');
-
-        switch (status) {
-          case 'completed':
-            logger.i('CardDispenserManager: Dispense completed successfully');
-            return;
-          case 'dispensing':
-            break;
-          case 'standby':
-            logger.i('CardDispenserManager: Dispense completed (standby)');
-            return;
-          case 'disabled':
-            throw Exception('Device is disabled');
-          case 'error':
-          case 'unknown':
-            await _stopMotorOnError();
-            final err = await getError();
-            final msg = err.description ?? '장치 오류(에러 코드 없음). 카드 걸림/부족 등을 확인해 주세요.';
-            throw Exception('Dispenser error: $msg');
-        }
-
-        await Future.delayed(pollInterval);
-      }
-
-      await _stopMotorOnError();
-      throw Exception('Dispense timeout after ${overallTimeout.inSeconds} seconds');
+      logger.i('CardDispenserManager: Dispense completed successfully index=$index');
     } catch (e) {
       logger.e('CardDispenserManager: Dispense and wait failed', error: e);
       rethrow;
     }
   }
 
-  /// 에러/타임아웃 시 모터 정지를 위해 동작 금지(Disable) 전송. 실패해도 로그만 남김.
+  /// 에러/타임아웃 시 reset으로 복귀 시도
   Future<void> _stopMotorOnError() async {
     try {
-      await disable();
+      await reset();
     } catch (e) {
-      logger.w('CardDispenserManager: _stopMotorOnError failed', error: e);
+      logger.w('CardDispenserManager: _stopMotorOnError(reset) failed', error: e);
     }
   }
 }

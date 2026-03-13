@@ -52,7 +52,7 @@ class PaymentRequest with _$PaymentRequest {
     required String totalAmount,
     String tax = '0',
     String supplyAmount = '0',
-    String terminalId = 'AT0444223A',
+    String terminalId = 'AT0416146A',
   }) {
     return PaymentRequest(
       stx: String.fromCharCode(2),
@@ -95,7 +95,7 @@ class PaymentRequest with _$PaymentRequest {
     String supplyAmount = '0',
     required String originalApprovalNo,
     required String originalApprovalDate,
-    String terminalId = 'AT0444223A',
+    String terminalId = 'AT0416146A',
   }) {
     return PaymentRequest(
       stx: String.fromCharCode(2),

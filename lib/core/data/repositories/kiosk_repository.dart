@@ -25,6 +25,7 @@ import 'package:vending_kiosk/core/data/models/response/update_print_response.da
 import 'package:vending_kiosk/core/data/models/response/machine_card_stock_response.dart';
 import 'package:vending_kiosk/core/data/models/response/machine_maintenance_response.dart';
 import 'package:vending_kiosk/core/data/models/request/create_vending_order_request.dart';
+import 'package:vending_kiosk/core/data/models/request/update_maintenance_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_vending_order_status_request.dart';
 import 'package:vending_kiosk/core/data/models/response/create_vending_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_order_status_response.dart';
@@ -74,9 +75,9 @@ class _KioskRepository {
   }
 
   /// POST /v1/internal/slack-alert — 서버가 타입·메시지에 따라 Slack 전송
-  Future<void> sendSlackAlert(String type, String message) async {
+  Future<void> sendSlackAlert({required int machineId, required String type, required String message}) async {
     try {
-      await _apiClient.sendSlackAlert({'type': type, 'text': message});
+      await _apiClient.sendSlackAlert(machineId: machineId, body: {'type': type, 'text': message});
     } catch (e) {
       rethrow;
     }
@@ -223,16 +224,6 @@ class _KioskRepository {
     }
   }
 
-  Future<CreatePrintResponse> createPrintStatus({
-    required CreatePrintRequest request,
-  }) async {
-    try {
-      return await _apiClient.createPrint(body: request.toJson());
-    } catch (e) {
-      rethrow;
-    }
-  }
-
   Future<UpdatePrintResponse> updatePrintStatus({
     required int printedPhotoCardId,
     required UpdatePrintRequest request,
@@ -360,6 +351,17 @@ class _KioskRepository {
   Future<VendingReprintResponse> reprintVendingOrder(int orderId) async {
     try {
       return await _apiClient.reprintVendingOrder(orderId: orderId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> updateMaintenance(int kioskMachineId, UpdateMaintenanceRequest request) async {
+    try {
+      return await _apiClient.updateMaintenance(
+        kioskMachineId: kioskMachineId,
+        body: request.toJson(),
+      );
     } catch (e) {
       rethrow;
     }

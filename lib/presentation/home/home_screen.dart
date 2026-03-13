@@ -9,6 +9,7 @@ import 'package:vending_kiosk/core/common/extensions/build_context.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
+import 'package:vending_kiosk/presentation/home/maintenance_provider.dart';
 import 'package:vending_kiosk/presentation/home/payment_provider.dart';
 import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/home_timeout_provider.dart';
@@ -32,6 +33,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
+
     _startMaintenancePolling();
   }
 
@@ -58,12 +60,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             uniqueKey: uniqueKey,
           );
 
-      if (response.isUnderMaintenance && mounted) {
-        _maintenanceTimer?.cancel();
-        CardChargingRouteData().go(context);
-        return true;
+      if (mounted) {
+        ref.read(maintenanceStateProvider.notifier).state = response.isUnderMaintenance;
       }
-      return false;
+      return response.isUnderMaintenance;
     } catch (_) {
       return false;
     }
@@ -109,8 +109,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               if (error is InsufficientCardStockException) {
                 await DialogHelper.showInsufficientCardStockDialog(
                   context,
-                  requestedQuantity: error.requestedQuantity,
-                  availableStock: error.availableStock,
                 );
                 return;
               }
@@ -159,6 +157,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         );
       },
     );
+
+    // mainButtonColor - 버튼/키패드/텍스트 강조
+    // buttonTextColor - 버튼 텍스트
+    // mainTextColor - 텍스트
+    // popupButtonColor - 구분선
+    // progressBarBgColor - 진행바/텍스트트 배경
 
     final buttonColor = kiosk?.mainButtonColor != null
         ? Color(int.parse(kiosk!.mainButtonColor.replaceFirst('#', '0xff')))
@@ -272,11 +276,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  '구매 수량',
-                                  style: context.typography.vendingBody2B.copyWith(color: const Color(0xFF888888)),
+                                  LocaleKeys.purchase_quantity.tr(),
+                                  style: context.typography.vendingBody2B.copyWith(color: mainTextColor),
                                 ),
                                 Text(
-                                  '${quantity.total}',
+                                  '${quantity.total} ${LocaleKeys.unit_pcs.tr()}',
                                   style: context.typography.vendingBody1B.copyWith(color: buttonColor),
                                 )
                               ],
@@ -289,8 +293,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  '총 결제금액',
-                                  style: context.typography.vendingBody2B.copyWith(color: const Color(0xFF888888)),
+                                  LocaleKeys.total_payment_amount.tr(),
+                                  style: context.typography.vendingBody2B.copyWith(color: mainTextColor),
                                 ),
                                 Text(
                                   '$formattedPrice ${LocaleKeys.currency_won.tr()}',
@@ -332,7 +336,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ),
                                 )
                               : Text(
-                                  '결제하기',
+                                  LocaleKeys.sub02_btn_pay.tr(),
                                   style: context.typography.vendingBtn2B.copyWith(color: buttonTextColor),
                                 ),
                         ),

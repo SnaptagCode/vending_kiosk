@@ -30,7 +30,8 @@ class SlackLogService {
       return;
     }
     try {
-      await _container.read(kioskRepositoryProvider).sendSlackAlert(type, message);
+      final machineId = _container.read(kioskInfoServiceProvider)?.kioskMachineId ?? 0;
+      await _container.read(kioskRepositoryProvider).sendSlackAlert(machineId: machineId, type: type, message: message);
     } catch (e) {
       log("❌ Slack 알림 API 오류: $e");
     }
@@ -52,6 +53,10 @@ class SlackLogService {
     final type = kDebugMode ? 'test_service' : 'service';
     await _sendSlackAlert('test_service', message);
     // await _sendSlackAlert(type, message);
+  }
+
+  Future<void> _sendVendingToSlack(String message) async {
+    await _sendSlackAlert('vending', message);
   }
 
   // 1) 객체 만드는 함수 LogState
@@ -214,5 +219,22 @@ ${slackLogTemplate.description}
 ${slackLogTemplate.title == "카드 인쇄 모드 변경" ? cardInfo : ""}
 $guidePart
 ''';
+  }
+
+  Future<void> sendCardDispenserErrorLogToSlack(String msg) async {
+    final kioskInfo = _container.read(kioskInfoServiceProvider);
+    final version = _container.read(versionStateProvider).currentVersion;
+    final eventType = kioskInfo?.eventType ?? "-";
+    final cleanedMsg = msg.replaceFirst(RegExp(r'^Exception:\s*'), '');
+
+    final title = '''🔴 카드 배출기 에러
+    ───────────────────
+Kiosk: ${kioskInfo?.kioskMachineId ?? 0}  /  $version
+업체(구단): 한화이글스
+───────────────────
+$cleanedMsg
+''';
+
+    await _sendVendingToSlack(title);
   }
 }

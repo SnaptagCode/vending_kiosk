@@ -92,11 +92,6 @@ abstract class KioskApiClient {
     @Body() required Map<String, dynamic> body,
   });
 
-  @POST('/v1/print')
-  Future<CreatePrintResponse> createPrint({
-    @Body() required Map<String, dynamic> body,
-  });
-
   @PATCH('/v1/print/{printedPhotoCardId}')
   Future<UpdatePrintResponse> updatePrint({
     @Path('printedPhotoCardId') required int printedPhotoCardId,
@@ -111,8 +106,11 @@ abstract class KioskApiClient {
   @GET('/v1/error-code')
   Future<List<AlertDefinitionResponse>> getAlertDefinitions();
 
-  @POST('/v1/internal/slack/kiosk-by-type')
-  Future<void> sendSlackAlert(@Body() Map<String, dynamic> body);
+  @POST('/v1/internal/slack/kiosk-by-type/{machineId}')
+  Future<void> sendSlackAlert({
+    @Path('machineId') required int machineId,
+    @Body() required Map<String, dynamic> body,
+  });
 
   @POST('/v1/internal/event/{kioskEventId}/machine/{machineId}/end')
   Future<void> endKioskApplication({
@@ -171,5 +169,11 @@ abstract class KioskApiClient {
   @GET('/v1/vending/print/reprint/{orderId}')
   Future<VendingReprintResponse> reprintVendingOrder({
     @Path('orderId') required int orderId,
+  });
+
+  @PATCH('/v1/machine/{kioskMachineId}/maintenance')
+  Future<bool> updateMaintenance({
+    @Path('kioskMachineId') required int kioskMachineId,
+    @Body() required Map<String, dynamic> body,
   });
 }
