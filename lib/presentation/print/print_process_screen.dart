@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
+import 'package:vending_kiosk/core/common/extensions/color.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/data.dart';
@@ -134,13 +135,9 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
     // NOTE: kioskInfoServiceProvider는 하위 로직/화면에서 사용될 수 있어 watch 유지
     final kioskInfo = ref.read(kioskInfoServiceProvider);
 
-    final buttonColor = kioskInfo?.mainButtonColor != null
-        ? Color(int.parse(kioskInfo!.mainButtonColor.replaceFirst('#', '0xff')))
-        : const Color(0xFF4CAF50);
-
-    final buttonTextColor = kioskInfo?.buttonTextColor != null
-        ? Color(int.parse(kioskInfo!.buttonTextColor.replaceFirst('#', '0xff')))
-        : Colors.white;
+    final buttonColor =
+        kioskInfo?.mainButtonColor != null ? kioskInfo!.mainButtonColor.toColor() : const Color(0xFF4CAF50);
+    final buttonTextColor = kioskInfo?.buttonTextColor != null ? kioskInfo!.buttonTextColor.toColor() : Colors.white;
 
     return DefaultTextStyle(
       style: TextStyle(
@@ -148,9 +145,9 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
       ),
       child: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
+          // crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            SizedBox(height: 60.h),
             Text.rich(
               textAlign: TextAlign.center,
               TextSpan(
