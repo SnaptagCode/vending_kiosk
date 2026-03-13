@@ -170,4 +170,10 @@ abstract class KioskApiClient {
   Future<VendingReprintResponse> reprintVendingOrder({
     @Path('orderId') required int orderId,
   });
+
+  @PATCH('/v1/machine/{kioskMachineId}/maintenance')
+  Future<bool> updateMaintenance({
+    @Path('kioskMachineId') required int kioskMachineId,
+    @Body() required Map<String, dynamic> body,
+  });
 }

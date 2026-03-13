@@ -8,6 +8,7 @@ import 'package:vending_kiosk/core/ui/widget/back_button.dart';
 import 'package:vending_kiosk/core/ui/widget/kiosk_navigator_button.dart';
 import 'package:vending_kiosk/core/ui/widget/printer_status_badge.dart';
 import 'package:vending_kiosk/core/ui/widget/triple_tap_fab.dart';
+import 'package:vending_kiosk/presentation/home/maintenance_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:loader_overlay/loader_overlay.dart';
 
@@ -119,6 +120,33 @@ class _KioskShellState extends ConsumerState<KioskShell> {
           left: 20,
           child: FloatingPrinterStatusBadge(),
         ),
+        if (ref.watch(maintenanceStateProvider))
+          Positioned.fill(
+            child: Container(
+              color: const Color(0xB3000000),
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.credit_card,
+                    color: Colors.white,
+                    size: 64,
+                  ),
+                  SizedBox(height: 24),
+                  Text(
+                    '카드 충전중입니다.\n잠시만 기다려주세요.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w600,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }

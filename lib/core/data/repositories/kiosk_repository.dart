@@ -25,6 +25,7 @@ import 'package:vending_kiosk/core/data/models/response/update_print_response.da
 import 'package:vending_kiosk/core/data/models/response/machine_card_stock_response.dart';
 import 'package:vending_kiosk/core/data/models/response/machine_maintenance_response.dart';
 import 'package:vending_kiosk/core/data/models/request/create_vending_order_request.dart';
+import 'package:vending_kiosk/core/data/models/request/update_maintenance_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_vending_order_status_request.dart';
 import 'package:vending_kiosk/core/data/models/response/create_vending_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_order_status_response.dart';
@@ -350,6 +351,17 @@ class _KioskRepository {
   Future<VendingReprintResponse> reprintVendingOrder(int orderId) async {
     try {
       return await _apiClient.reprintVendingOrder(orderId: orderId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> updateMaintenance(int kioskMachineId, UpdateMaintenanceRequest request) async {
+    try {
+      return await _apiClient.updateMaintenance(
+        kioskMachineId: kioskMachineId,
+        body: request.toJson(),
+      );
     } catch (e) {
       rethrow;
     }
