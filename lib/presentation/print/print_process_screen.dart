@@ -36,7 +36,6 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
   void initState() {
     super.initState();
 
-    // 프린트/카드배출 작업을 "listen 방식"으로 처리: 화면이 그려진 직후 한 번만 시작
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _printStarted) return;
       _printStarted = true;
