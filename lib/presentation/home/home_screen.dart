@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
+import 'package:vending_kiosk/core/common/extensions/color.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
@@ -164,16 +165,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // popupButtonColor - 구분선
     // progressBarBgColor - 진행바/텍스트트 배경
 
-    final buttonColor = kiosk?.mainButtonColor != null
-        ? Color(int.parse(kiosk!.mainButtonColor.replaceFirst('#', '0xff')))
-        : const Color(0xFF4CAF50);
-
-    final buttonTextColor = kiosk?.buttonTextColor != null
-        ? Color(int.parse(kiosk!.buttonTextColor.replaceFirst('#', '0xff')))
-        : Colors.white;
-
-    final mainTextColor =
-        kiosk?.mainTextColor != null ? Color(int.parse(kiosk!.mainTextColor.replaceFirst('#', '0xff'))) : Colors.white;
+    final buttonColor = kiosk?.mainButtonColor != null ? kiosk!.mainButtonColor.toColor() : const Color(0xFF4CAF50);
+    final buttonTextColor = kiosk?.buttonTextColor != null ? kiosk!.buttonTextColor.toColor() : Colors.white;
+    final mainTextColor = kiosk?.mainTextColor != null ? kiosk!.mainTextColor.toColor() : Colors.white;
+    final popupButtonColor = kiosk?.popupButtonColor != null ? kiosk!.popupButtonColor.toColor() : Colors.white;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -181,168 +176,178 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 80.w),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // 카드 1: 타이틀 + 수량 선택 키패드
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.fromLTRB(58.w, 52.h, 58.w, 34.h),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(12.r),
-                      topRight: Radius.circular(12.r),
-                      bottomLeft: Radius.circular(0.r),
-                      bottomRight: Radius.circular(0.r)),
-                ),
-                child: Column(
-                  children: [
-                    // 타이틀
-                    Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: '구매 수량',
-                            style: context.typography.vendingTitle2B.copyWith(
-                              color: buttonColor,
-                            ),
-                          ),
-                          TextSpan(
-                            text: '을 선택해 주세요.',
-                            style: context.typography.vendingTitle2B.copyWith(
-                              color: mainTextColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 42.h),
-
-                    // 수량 버튼 1~10 (2행)
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+              // 통합 카드: 수량 선택 + 가격 표시 + 결제 버튼
+              Padding(
+                padding: EdgeInsetsGeometry.only(top: 62.h),
+                child: Container(
+                  width: double.infinity,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Column(
+                    children: [
+                      // 섹션 1: 타이틀 + 수량 선택 키패드
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(58.w, 52.h, 58.w, 34.h),
+                        child: Column(
                           children: [
-                            for (int i = 1; i <= 5; i++) ...[
-                              if (i > 1) SizedBox(width: 16.w),
-                              _buildQuantityButton(context, i, buttonColor, mainTextColor),
-                            ],
-                          ],
-                        ),
-                        SizedBox(height: 16.h),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            for (int i = 6; i <= 10; i++) ...[
-                              if (i > 6) SizedBox(width: 16.w),
-                              _buildQuantityButton(context, i, buttonColor, mainTextColor),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // 카드 사이 간격 (배경이 보이는 구분선 역할)
-              SizedBox(height: 12.h),
-
-              // 카드 2: 가격 표시 + 결제 버튼
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.fromLTRB(58.w, 40.h, 58.w, 34.h),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(0.r),
-                      topRight: Radius.circular(0.r),
-                      bottomLeft: Radius.circular(12.r),
-                      bottomRight: Radius.circular(12.r)),
-                ),
-                child: Column(
-                  children: [
-                    // 가격 표시
-                    Container(
-                      padding: EdgeInsets.only(top: 4.h),
-                      width: 789.w,
-                      child: Column(
-                        children: [
-                          Padding(
-                            padding: EdgeInsets.symmetric(vertical: 7.h),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  LocaleKeys.purchase_quantity.tr(),
-                                  style: context.typography.vendingBody2B.copyWith(color: mainTextColor),
-                                ),
-                                Text(
-                                  '${quantity.total} ${LocaleKeys.unit_pcs.tr()}',
-                                  style: context.typography.vendingBody1B.copyWith(color: buttonColor),
-                                )
-                              ],
-                            ),
-                          ),
-                          SizedBox(height: 4.h),
-                          Padding(
-                            padding: EdgeInsets.symmetric(vertical: 7.h),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  LocaleKeys.total_payment_amount.tr(),
-                                  style: context.typography.vendingBody2B.copyWith(color: mainTextColor),
-                                ),
-                                Text(
-                                  '$formattedPrice ${LocaleKeys.currency_won.tr()}',
-                                  style: context.typography.vendingBody1B.copyWith(color: buttonColor),
-                                )
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 36.h),
-                    // 결제 버튼
-                    GestureDetector(
-                      onTap: paymentState.isLoading
-                          ? null
-                          : () async {
-                              final isUnderMaintenance = await _checkMaintenance();
-                              if (isUnderMaintenance) return;
-                              _maintenanceTimer?.cancel();
-                              await ref.read(photoCardPreviewScreenProviderProvider.notifier).payment();
-                              // PrintProcessRouteData().go(context);
-                            },
-                      child: Container(
-                        width: 804.w,
-                        height: 112.h,
-                        decoration: BoxDecoration(
-                          color: buttonColor,
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                        child: Center(
-                          child: paymentState.isLoading
-                              ? SizedBox(
-                                  width: 40.r,
-                                  height: 40.r,
-                                  child: CircularProgressIndicator(
-                                    color: buttonTextColor,
-                                    strokeWidth: 3.w,
+                            // 타이틀
+                            Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: '구매 수량',
+                                    style: context.typography.vendingTitle2B.copyWith(
+                                      color: buttonColor,
+                                    ),
                                   ),
-                                )
-                              : Text(
-                                  LocaleKeys.sub02_btn_pay.tr(),
-                                  style: context.typography.vendingBtn2B.copyWith(color: buttonTextColor),
+                                  TextSpan(
+                                    text: '을 선택해 주세요.',
+                                    style: context.typography.vendingTitle2B.copyWith(
+                                      color: mainTextColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: 42.h),
+
+                            // 수량 버튼 1~10 (2행)
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    for (int i = 1; i <= 5; i++) ...[
+                                      if (i > 1) SizedBox(width: 16.w),
+                                      _buildQuantityButton(context, i, buttonColor, mainTextColor),
+                                    ],
+                                  ],
                                 ),
+                                SizedBox(height: 16.h),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    for (int i = 6; i <= 10; i++) ...[
+                                      if (i > 6) SizedBox(width: 16.w),
+                                      _buildQuantityButton(context, i, buttonColor, mainTextColor),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
+
+                      // 내부 구분선 (카드 border가 위에 오도록 clipBehavior로 처리)
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 1.w),
+                        child: Stack(
+                          children: [
+                            Container(
+                              height: 15.h,
+                              color: popupButtonColor,
+                            ),
+                            Container(
+                              height: 1,
+                              color: const Color(0xFFCACACA),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // 섹션 2: 가격 표시 + 결제 버튼
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(58.w, 40.h, 58.w, 34.h),
+                        child: Column(
+                          children: [
+                            // 가격 표시
+                            Container(
+                              padding: EdgeInsets.only(top: 4.h),
+                              width: 789.w,
+                              child: Column(
+                                children: [
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 7.h),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          LocaleKeys.purchase_quantity.tr(),
+                                          style: context.typography.vendingBody2B.copyWith(color: mainTextColor),
+                                        ),
+                                        Text(
+                                          '${quantity.total} ${LocaleKeys.unit_pcs.tr()}',
+                                          style: context.typography.vendingBody1B.copyWith(color: buttonColor),
+                                        )
+                                      ],
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 7.h),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          LocaleKeys.total_payment_amount.tr(),
+                                          style: context.typography.vendingBody2B.copyWith(color: mainTextColor),
+                                        ),
+                                        Text(
+                                          '$formattedPrice ${LocaleKeys.currency_won.tr()}',
+                                          style: context.typography.vendingBody1B.copyWith(color: buttonColor),
+                                        )
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: 36.h),
+                            // 결제 버튼
+                            GestureDetector(
+                              onTap: paymentState.isLoading
+                                  ? null
+                                  : () async {
+                                      final isUnderMaintenance = await _checkMaintenance();
+                                      if (isUnderMaintenance) return;
+                                      _maintenanceTimer?.cancel();
+                                      await ref.read(photoCardPreviewScreenProviderProvider.notifier).payment();
+                                      // PrintProcessRouteData().go(context);
+                                    },
+                              child: Container(
+                                width: 804.w,
+                                height: 112.h,
+                                decoration: BoxDecoration(
+                                  color: buttonColor,
+                                  borderRadius: BorderRadius.circular(12.r),
+                                ),
+                                child: Center(
+                                  child: paymentState.isLoading
+                                      ? SizedBox(
+                                          width: 40.r,
+                                          height: 40.r,
+                                          child: CircularProgressIndicator(
+                                            color: buttonTextColor,
+                                            strokeWidth: 3.w,
+                                          ),
+                                        )
+                                      : Text(
+                                          LocaleKeys.sub02_btn_pay.tr(),
+                                          style: context.typography.vendingBtn2B.copyWith(color: buttonTextColor),
+                                        ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
