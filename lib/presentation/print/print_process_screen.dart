@@ -73,12 +73,6 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
               return;
             }
 
-            if (error is InsufficientCardStockException) {
-              await DialogHelper.showInsufficientCardStockDialog(
-                context,
-              );
-            }
-
             // final result = await DialogHelper.showKioskDialog(
             //   context,
             //   title: LocaleKeys.alert_title_print_failure.tr(),
@@ -178,8 +172,8 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
             SizedBox(height: 44.h),
             Image.asset(
               'assets/adImages/printing_img.png',
-              width: 741.w,
-              height: 412.h,
+              width: 740.w,
+              height: 410.h,
               fit: BoxFit.fill,
             ),
             SizedBox(height: 21.h),

@@ -88,14 +88,14 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
       logger.i('=====================================================');
       logger.i('1. Print process checkAndRecover');
       logger.i('=====================================================');
-      // final dispenserReady = await CardDispenserManager.checkAndRecover();
-      // if (dispenserReady == false) {
-      //   throw InsufficientCardStockException(
-      //     requestedQuantity: 1,
-      //     availableStock: 0,
-      //     description: '배출기에 카드가 없습니다.',
-      //   );
-      // }
+      final dispenserReady = await CardDispenserManager.checkAndRecover();
+      if (dispenserReady == false) {
+        throw InsufficientCardStockException(
+          requestedQuantity: 1,
+          availableStock: 0,
+          description: '배출기에 카드가 없습니다.',
+        );
+      }
 
       logger.i('=====================================================');
       logger.i('2. Print process dispenseAndWait');
