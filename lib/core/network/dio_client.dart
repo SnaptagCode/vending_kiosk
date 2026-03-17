@@ -15,7 +15,7 @@ final dioProvider = Provider.family<Dio, String>((ref, baseUrl) {
     ..options.receiveTimeout = const Duration(seconds: 30);
   dio.interceptors.add(DioLogger(
     sendHook: (log) {
-      // SlackLogService().sendLogToSlack(log);
+      SlackLogService().sendLogToSlack(log);
     },
     request: false,
   ));
