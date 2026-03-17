@@ -113,22 +113,26 @@ extension ButtonStyles on BuildContext {
         shadowColor: Colors.black.withOpacity(0.4),
         //textStyle: typography.kioskAlertBtnB.copyWith(fontFamily: 'Cafe24Ssurround2')
         //textStyle: typography.kioskAlertBtnB
-        textStyle: locale.languageCode == 'ja'
-            ? typography.kioskAlertBtnB.copyWith(fontFamily: 'MPLUSRounded')
-            : typography.kioskAlertBtnB.copyWith(fontFamily: 'Cafe24Ssurround2'),
+        textStyle: isHwe
+            ? typography.kioskAlertBtnB.copyWith(fontFamily: 'Hanwha', fontSize: 34.sp)
+            : locale.languageCode == 'ja'
+                ? typography.kioskAlertBtnB.copyWith(fontFamily: 'MPLUSRounded', fontSize: 34.sp)
+                : typography.kioskAlertBtnB.copyWith(fontFamily: 'Cafe24Ssurround2', fontSize: 34.sp),
       );
 
   ButtonStyle get dialogKioskStyle => ElevatedButton.styleFrom(
         fixedSize: Size(double.infinity, 94.h),
         minimumSize: Size(283.w, 78.h),
-        backgroundColor: kioskColors.popupButtonColor,
+        backgroundColor: kioskColors.buttonColor,
         foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
         elevation: 10,
         shadowColor: Colors.black.withOpacity(0.4),
-        textStyle: locale.languageCode == 'ja'
-            ? typography.kioskAlertBtnB.copyWith(fontFamily: 'MPLUSRounded')
-            : typography.kioskAlertBtnB.copyWith(fontFamily: 'Cafe24Ssurround2'),
+        textStyle: isHwe
+            ? typography.kioskAlertBtnB.copyWith(fontFamily: 'Hanwha', fontSize: 34.sp)
+            : locale.languageCode == 'ja'
+                ? typography.kioskAlertBtnB.copyWith(fontFamily: 'MPLUSRounded', fontSize: 34.sp)
+                : typography.kioskAlertBtnB.copyWith(fontFamily: 'Cafe24Ssurround2', fontSize: 34.sp),
       );
 
   ///
