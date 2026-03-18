@@ -7,6 +7,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
 import 'package:vending_kiosk/core/common/extensions/color.dart';
+import 'package:vending_kiosk/core/data/models/request/update_maintenance_request.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
@@ -108,9 +109,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
             if (error is PaymentFailedException) {
               if (error is InsufficientCardStockException) {
-                await DialogHelper.showInsufficientCardStockDialog(
+                final result = await DialogHelper.showInsufficientCardStockDialog(
                   context,
                 );
+                if (result) {
+                  await ref.read(kioskRepositoryProvider).updateMaintenance(
+                        ref.read(kioskInfoServiceProvider)!.kioskMachineId,
+                        UpdateMaintenanceRequest(isUnderMaintenance: true),
+                      );
+                }
                 return;
               }
               if (error is TimeoutPaymentException) {
