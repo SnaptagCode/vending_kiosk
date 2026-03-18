@@ -279,6 +279,15 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   }
 
   Future<void> _handleReprint(BuildContext context, VendingPrintItemEntity order) async {
+    final reprintCount = order.totalCount - order.completedCount;
+    final confirmed = await DialogHelper.showSetupDialog(
+      context,
+      title: '재출력',
+      content: '$reprintCount장을 재출력하시겠습니까?',
+      showCancelButton: true,
+    );
+    if (!confirmed) return;
+
     context.loaderOverlay.show();
     final viewModel = ref.read(paymentHistoryNotifierProvider.notifier);
     try {
