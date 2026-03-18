@@ -236,7 +236,12 @@ class WithTechCardDispenserSerial {
     ]);
   }
 
-  /// 패킷 송신 + 응답 수신
+  /// 패킷 송신 + ACK 확인 + 실제 응답 수신
+  ///
+  /// 프로토콜 흐름 (spec 1.6):
+  ///   TX: CMD
+  ///   RX: ACK (0x20) — 모든 명령의 첫 번째 응답
+  ///   RX: 실제 응답 (0x22 System Ready, 0x36 LastPaidOut 등)
   Future<Uint8List?> _sendCommand(
     int cmd,
     int dataOrStatus, {
@@ -251,9 +256,9 @@ class WithTechCardDispenserSerial {
 
     for (int attempt = 0; attempt <= retryCount; attempt++) {
       try {
-        // 입력 버퍼 비우기 (타임아웃 최소화)
+        // 입력 버퍼 비우기
         try {
-          _port!.readBytes(1024, timeout: const Duration(milliseconds: 1));
+          await _port!.readBytes(1024, timeout: const Duration(milliseconds: 1));
         } catch (e) {
           if (_isInvalidHandleError(e)) {
             _isConnected = false;
@@ -264,70 +269,101 @@ class WithTechCardDispenserSerial {
 
         logger.d('WithTech: TX [${packet.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
         final writeOk = await _port!.writeBytesFromUint8List(packet, timeout: timeoutMs);
-        if (_port == null) {
-          throw DispenserException('WithTech: Serial port disconnected during write');
-        }
-        if (!writeOk) {
-          throw DispenserException('WithTech: Failed to write packet');
-        }
+        if (_port == null) throw DispenserException('WithTech: Serial port disconnected during write');
+        if (!writeOk) throw DispenserException('WithTech: Failed to write packet');
 
         final timeout = Duration(milliseconds: timeoutMs);
-        Uint8List? response;
 
+        // Step 1: ACK (0x20) 수신
+        Uint8List ackFrame;
         try {
-          response = await _port!.readBytes(frameSize, timeout: timeout);
-          logger.d(
-              'WithTech: RX [${response.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}] (${response.length}/${frameSize}B)');
-          if (response.length < frameSize) {
-            throw TimeoutException('WithTech: Read timeout after ${timeoutMs}ms');
-          }
+          ackFrame = await _port!.readBytes(frameSize, timeout: timeout);
+          logger.d('WithTech: RX ACK [${ackFrame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
+          if (ackFrame.length < frameSize) throw TimeoutException('WithTech: ACK read timeout');
         } catch (e) {
           if (_isInvalidHandleError(e)) {
             _isConnected = false;
             _port = null;
-            throw DispenserException('WithTech: Serial port handle invalidated (win32 error 6). Reconnect required.');
+            throw DispenserException('WithTech: Serial port handle invalidated. Reconnect required.');
+          }
+          if (attempt < retryCount) {
+            logger.w('WithTech: ACK timeout on attempt ${attempt + 1}, retrying...', error: e);
+            await Future.delayed(const Duration(milliseconds: 100));
+            continue;
+          }
+          rethrow;
+        }
+
+        if (ackFrame[0] != stx) {
+          if (attempt < retryCount) {
+            logger.w('WithTech: invalid ACK frame STX on attempt ${attempt + 1}, retrying...');
+            await Future.delayed(const Duration(milliseconds: 100));
+            continue;
+          }
+          return null;
+        }
+
+        final ackCmd = ackFrame[1];
+
+        // NAK → 재시도
+        if (ackCmd == rspNak) {
+          if (attempt < retryCount) {
+            logger.w('WithTech: NAK on attempt ${attempt + 1}, retrying...');
+            await Future.delayed(const Duration(milliseconds: 100));
+            continue;
+          }
+          logger.e('WithTech: NAK after $retryCount retries');
+          return null;
+        }
+
+        // 첫 프레임이 ACK(0x20)가 아니면 잔류 데이터 → 재시도
+        if (ackCmd != rspAckOrStatus) {
+          if (attempt < retryCount) {
+            logger.w(
+                'WithTech: expected ACK(0x20), got 0x${ackCmd.toRadixString(16)} on attempt ${attempt + 1}, retrying...');
+            await Future.delayed(const Duration(milliseconds: 100));
+            continue;
+          }
+          logger.e('WithTech: expected ACK(0x20), got 0x${ackCmd.toRadixString(16)}');
+          return null;
+        }
+
+        // Step 2: 실제 응답 수신
+        Uint8List respFrame;
+        try {
+          respFrame = await _port!.readBytes(frameSize, timeout: timeout);
+          logger.d(
+              'WithTech: RX [${respFrame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}] (${respFrame.length}/${frameSize}B)');
+          if (respFrame.length < frameSize)
+            throw TimeoutException('WithTech: Response read timeout after ${timeoutMs}ms');
+        } catch (e) {
+          if (_isInvalidHandleError(e)) {
+            _isConnected = false;
+            _port = null;
+            throw DispenserException('WithTech: Serial port handle invalidated. Reconnect required.');
           }
           if (attempt < retryCount) {
             logger.w('WithTech: response timeout on attempt ${attempt + 1}, retrying...', error: e);
             await Future.delayed(const Duration(milliseconds: 100));
             continue;
-          } else {
-            logger.e('WithTech: Failed to read response after $retryCount attempts', error: e);
-            rethrow;
           }
+          rethrow;
         }
 
-        if (response.length != frameSize) {
+        if (respFrame[0] != stx || respFrame[3] != etx || respFrame[5] != cr || respFrame[6] != lf) {
           if (attempt < retryCount) {
-            logger.w('WithTech: invalid response length: ${response.length}, expected $frameSize. Retrying...');
+            logger.w('WithTech: invalid response frame markers on attempt ${attempt + 1}, retrying...');
             await Future.delayed(const Duration(milliseconds: 100));
             continue;
-          } else {
-            logger.e('WithTech: invalid response length: ${response.length}, expected $frameSize');
-            return null;
           }
+          logger.e('WithTech: invalid response frame markers. frame=${respFrame.map((e) => e.toRadixString(16))}');
+          return null;
         }
 
-        if (response[0] != stx || response[3] != etx || response[5] != cr || response[6] != lf) {
-          if (attempt < retryCount) {
-            logger.w(
-              'WithTech: invalid frame markers (STX/ETX/CR/LF). '
-              'got: ${response.map((e) => e.toRadixString(16))}. Retrying...',
-            );
-            await Future.delayed(const Duration(milliseconds: 100));
-            continue;
-          } else {
-            logger.e('WithTech: invalid frame markers. response=$response');
-            return null;
-          }
-        }
-
-        final receivedChecksum = response[4];
-        // 스펙 공식: CS = (STX + CMD + DATA + ETX) & 0xFF
-        // 일부 장치 펌웨어 버그: STATUS 바이트가 0x00이 아닐 때도 STATUS=0x00 기준
-        // 체크섬을 재사용하는 경우가 있음 → 불일치 시 경고만 남기고 계속 처리.
-        final calcWithStx = _calculateChecksum(response[1], response[2]);
-        final calcWithoutStx = (response[1] + response[2] + etx) & 0xFF;
+        // 체크섬 검증 (펌웨어 quirk 허용)
+        final receivedChecksum = respFrame[4];
+        final calcWithStx = _calculateChecksum(respFrame[1], respFrame[2]);
+        final calcWithoutStx = (respFrame[1] + respFrame[2] + etx) & 0xFF;
         if (receivedChecksum != calcWithStx && receivedChecksum != calcWithoutStx) {
           logger.w(
             'WithTech: checksum mismatch (firmware quirk, continuing): '
@@ -336,7 +372,7 @@ class WithTechCardDispenserSerial {
           );
         }
 
-        return response;
+        return respFrame;
       } catch (e) {
         if (_isInvalidHandleError(e)) rethrow;
         if (attempt < retryCount) {
@@ -497,7 +533,7 @@ class WithTechCardDispenserSerial {
     try {
       // 입력 버퍼 비우기 (이전 잔류 데이터 제거)
       try {
-        _port!.readBytes(1024, timeout: const Duration(milliseconds: 1));
+        await _port!.readBytes(1024, timeout: const Duration(milliseconds: 1));
       } catch (e) {
         if (_isInvalidHandleError(e)) {
           _isConnected = false;
@@ -596,7 +632,7 @@ class WithTechCardDispenserSerial {
     try {
       // 버퍼 비우기
       try {
-        _port!.readBytes(1024, timeout: const Duration(milliseconds: 1));
+        await _port!.readBytes(1024, timeout: const Duration(milliseconds: 1));
       } catch (e) {
         if (_isInvalidHandleError(e)) {
           _isConnected = false;

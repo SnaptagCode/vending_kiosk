@@ -72,8 +72,7 @@ class CardDispenserManager {
     if (_instance == null || !_instance!.isConnected) return null;
     try {
       String status = await _instance!.getStatus();
-      final lastQty = await _instance!.getLastPaidOutQuantity();
-      logger.d('CardDispenserManager.checkAndRecover: initial status=$status, lastPaidOutQty=$lastQty');
+      logger.d('CardDispenserManager.checkAndRecover: initial status=$status');
 
       // 정상 대기 상태
       if (status == 'standby') return true;
@@ -81,43 +80,10 @@ class CardDispenserManager {
       // 카드 없음 → 즉시 반환
       // warning → 최대 3번 재시도 후 EMPTY 여부 판단
       if (status == 'warning') {
-        for (int i = 0; i < 3; i++) {
-          _instance!.reset();
-          await Future.delayed(const Duration(milliseconds: 300));
-          status = await _instance!.getStatus();
-          logger.d('CardDispenserManager.checkAndRecover: warning 재시도 ${i + 1}/3 → status=$status');
-          if (status == 'standby') return true;
-          if (status != 'warning') break;
-        }
-        if (status == 'warning') {
-          final err = await _instance!.getError();
-          if (err.errorCode?.contains('EMPTY') == true) {
-            logger.w('CardDispenserManager.checkAndRecover: EMPTY 감지 ${err.errorCode}');
-            return false;
-          }
-        }
-      }
-
-      // 비정상 상태 → reset 후 재확인
-      logger.w('CardDispenserManager.checkAndRecover: status=$status → reset 시도');
-      await _instance!.reset();
-
-      final deadline = DateTime.now().add(const Duration(seconds: 3));
-      while (DateTime.now().isBefore(deadline)) {
-        await Future.delayed(const Duration(milliseconds: 100));
-        status = await _instance!.getStatus();
-        logger.d('CardDispenserManager.checkAndRecover: post-reset status=$status');
-
-        if (status == 'standby') {
-          logger.i('CardDispenserManager.checkAndRecover: reset 후 정상 복귀');
-          return true;
-        }
-        if (status == 'warning') {
-          final err = await _instance!.getError();
-          if (err.errorCode?.contains('EMPTY') == true) {
-            logger.w('CardDispenserManager.checkAndRecover: reset 후 EMPTY 감지');
-            return false;
-          }
+        final err = await _instance!.getError();
+        if (err.errorCode?.contains('EMPTY') == true) {
+          logger.w('CardDispenserManager.checkAndRecover: EMPTY 감지 ${err.errorCode}');
+          return false;
         }
       }
 
@@ -323,6 +289,9 @@ class CardDispenserManager {
     if (status.kind == WithTechDispenserStatusKind.error) {
       return (description: '장치 오류', errorCode: 'ERROR');
     }
+    if (status.kind == WithTechDispenserStatusKind.payoutWorking) {
+      return (description: '배출 중', errorCode: 'PAYOUT_WORKING');
+    }
 
     return (description: null, errorCode: null);
   }
@@ -360,16 +329,24 @@ class CardDispenserManager {
     required Duration overallTimeout,
   }) async {
     try {
-      logger.i('1. CardDispenserManager: _ensureReadyBeforeDispense index=$index count=$count');
-      await _ensureReadyBeforeDispense();
-
       logger.i('2. CardDispenserManager: dispense index=$index count=$count');
       final ok = await dispense(count, timeout: overallTimeout);
       logger.i('3. CardDispenserManager: dispense result=$ok index=$index');
 
       if (!ok) {
-        await _stopMotorOnError();
         final err = await getError();
+
+        if (err.errorCode == 'PAYOUT_WORKING') {
+          logger.i('CardDispenserManager: dispense and wait skipped (PAYOUT_WORKING) index=$index');
+          return;
+        }
+
+        final resetOk = await reset();
+        if (!resetOk) {
+          logger.w('CardDispenserManager: reset failed (PAYOUT_WORKING) index=$index');
+          throw DispenserException('카드 배출기 초기화 실패. 장치 상태를 확인해 주세요.');
+        }
+
         final msg = err.description ?? '장치가 배출을 거부했습니다. 카드 수량 및 장치 상태를 확인해 주세요.';
         throw DispenserException(msg);
       }
@@ -384,7 +361,7 @@ class CardDispenserManager {
   /// 에러/타임아웃 시 reset으로 복귀 시도
   Future<void> _stopMotorOnError() async {
     try {
-      await reset();
+      // await reset();
     } catch (e) {
       logger.w('CardDispenserManager: _stopMotorOnError(reset) failed', error: e);
     }
