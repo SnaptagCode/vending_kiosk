@@ -196,20 +196,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           children: [
                             // 타이틀
                             Text.rich(
+                              textAlign: TextAlign.center,
                               TextSpan(
                                 children: [
+                                  if (LocaleKeys.purchase_title_before.tr().isNotEmpty)
+                                    TextSpan(
+                                      text: LocaleKeys.purchase_title_before.tr(),
+                                      style: context.typography.vendingTitle2B.copyWith(
+                                        color: mainTextColor,
+                                      ),
+                                    ),
                                   TextSpan(
-                                    text: '구매 수량',
+                                    text: LocaleKeys.purchase_title_highlight.tr(),
                                     style: context.typography.vendingTitle2B.copyWith(
                                       color: buttonColor,
                                     ),
                                   ),
-                                  TextSpan(
-                                    text: '을 선택해 주세요.',
-                                    style: context.typography.vendingTitle2B.copyWith(
-                                      color: mainTextColor,
+                                  if (LocaleKeys.purchase_title_after.tr().isNotEmpty)
+                                    TextSpan(
+                                      text: LocaleKeys.purchase_title_after.tr(),
+                                      style: context.typography.vendingTitle2B.copyWith(
+                                        color: mainTextColor,
+                                      ),
                                     ),
-                                  ),
                                 ],
                               ),
                             ),
