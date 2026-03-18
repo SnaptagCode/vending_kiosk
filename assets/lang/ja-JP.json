@@ -74,5 +74,7 @@
   "choice_enter_verification_code": "認証番号を入力",
   "print_takes_one_minute": "印刷には約1分かかります。",
   "currency_won": "ウォン",
-  "common_btn_back": "戻る"
+  "common_btn_back": "戻る",
+  "alert_title_insufficient_card_stock": "カード不足",
+  "alert_txt_insufficient_card_stock": "フォトカードを印刷できません。スタッフにお問い合わせください。"
 }

@@ -25,9 +25,6 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(paymentHistoryNotifierProvider.notifier).restoreSavedPage();
-    });
   }
 
   @override

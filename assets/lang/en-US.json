@@ -74,5 +74,7 @@
   "choice_enter_verification_code": "Enter verification code",
   "print_takes_one_minute": "Printing takes about 1 minute.",
   "currency_won": "KRW",
-  "common_btn_back": "Back"
+  "common_btn_back": "Back",
+  "alert_title_insufficient_card_stock": "Low Card Stock",
+  "alert_txt_insufficient_card_stock": "Photo cards cannot be printed. Please contact a staff member."
 }

@@ -28,34 +28,38 @@ class DialogHelper {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
+        final isHwe = context.isHwe;
+
         return DefaultTextStyle(
           style: TextStyle(
             fontFamily: context.locale.languageCode == 'ja' ? 'MPLUSRounded' : 'Cafe24Ssurround2',
           ),
-          child: AlertDialog(
+          child: Dialog(
             backgroundColor: Colors.white,
-            insetPadding: EdgeInsets.symmetric(horizontal: 100.w),
+            insetPadding: EdgeInsets.symmetric(horizontal: 211.w),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20.r),
             ),
-            titlePadding: EdgeInsets.zero,
-            contentPadding: EdgeInsets.zero,
-            actionsPadding: EdgeInsets.zero,
-            title: Center(
-              child: Padding(
-                padding: EdgeInsets.only(top: 60.h, left: 40.w, right: 40.w),
-                child: Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: context.typography.kioskAlert1B.copyWith(
-                    fontFamily: 'Pretendard',
-                    color: Colors.black,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 60.h, left: 40.w, right: 40.w),
+                    child: Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: context.typography.kioskAlert1B.copyWith(
+                        fontFamily: isHwe ? 'Hanwha' : 'Pretendard',
+                        color: Colors.black,
+                        fontSize: isHwe ? 52.sp : 42.sp,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            content: content != null
-                ? Padding(
+                if (content != null)
+                  Padding(
                     padding: EdgeInsets.only(top: 20.h, left: 40.w, right: 40.w),
                     child: Text(
                       content,
@@ -65,39 +69,38 @@ class DialogHelper {
                         fontFamily: 'Pretendard',
                       ),
                     ),
-                  )
-                : null,
-            actions: [
-              Padding(
-                padding: EdgeInsets.only(top: 36.h, bottom: 40.h, left: 40.w, right: 40.w),
-                child: Row(
-                  children: [
-                    if (showCancelButton)
+                  ),
+                Padding(
+                  padding: EdgeInsets.only(top: 36.h, bottom: 40.h, left: 40.w, right: 40.w),
+                  child: Row(
+                    children: [
+                      if (showCancelButton)
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () async {
+                              await SoundManager().playSound();
+                              Navigator.of(dialogContext).pop(false);
+                            },
+                            style: cancelButtonStyle,
+                            child: Text(cancelButtonText, style: cancelTextStyle),
+                          ),
+                        ),
+                      if (showCancelButton) SizedBox(width: 12.w),
                       Expanded(
-                        child: OutlinedButton(
+                        child: ElevatedButton(
                           onPressed: () async {
                             await SoundManager().playSound();
-                            Navigator.of(dialogContext).pop(false);
+                            Navigator.of(dialogContext).pop(true);
                           },
-                          style: cancelButtonStyle,
-                          child: Text(cancelButtonText, style: cancelTextStyle),
+                          style: confirmButtonStyle,
+                          child: Text(confirmButtonText, style: confirmTextStyle),
                         ),
                       ),
-                    if (showCancelButton) SizedBox(width: 12.w),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          await SoundManager().playSound();
-                          Navigator.of(dialogContext).pop(true);
-                        },
-                        style: confirmButtonStyle,
-                        child: Text(confirmButtonText, style: confirmTextStyle),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              )
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -185,9 +188,9 @@ class DialogHelper {
   static Future<bool> showInsufficientCardStockDialog(BuildContext context) async {
     return await showKioskDialog(
       context,
-      title: '재고 부족',
-      contentText: '카드 재고가 부족합니다.',
-      confirmButtonText: '확인',
+      title: LocaleKeys.alert_title_insufficient_card_stock.tr(),
+      contentText: LocaleKeys.alert_txt_insufficient_card_stock.tr(),
+      confirmButtonText: LocaleKeys.alert_btn_ok.tr(),
     );
   }
 

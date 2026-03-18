@@ -31,6 +31,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   Timer? _maintenanceTimer;
+  bool _isCheckingMaintenance = false;
 
   @override
   void initState() {
@@ -42,12 +43,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void dispose() {
     _maintenanceTimer?.cancel();
+    _isCheckingMaintenance = false;
     super.dispose();
   }
 
   void _startMaintenancePolling() {
     _maintenanceTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
-      await _checkMaintenance();
+      if (_isCheckingMaintenance) return;
+      _isCheckingMaintenance = true;
+      try {
+        await _checkMaintenance();
+      } finally {
+        _isCheckingMaintenance = false;
+      }
     });
   }
 
@@ -117,6 +125,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ref.read(kioskInfoServiceProvider)!.kioskMachineId,
                         UpdateMaintenanceRequest(isUnderMaintenance: true),
                       );
+                  _startMaintenancePolling();
                 }
                 return;
               }
@@ -332,6 +341,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       final isUnderMaintenance = await _checkMaintenance();
                                       if (isUnderMaintenance) return;
                                       _maintenanceTimer?.cancel();
+                                      _isCheckingMaintenance = false;
                                       await ref.read(photoCardPreviewScreenProviderProvider.notifier).payment();
                                       // PrintProcessRouteData().go(context);
                                     },

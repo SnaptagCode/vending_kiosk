@@ -26,7 +26,6 @@ import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:vending_kiosk/core/providers/version_notifier.dart';
 import 'package:vending_kiosk/core/common/launcher/launcher_service.dart';
-import 'package:vending_kiosk/core/data/datasources/local/id_writer.dart';
 
 class SetupMainScreen extends ConsumerStatefulWidget {
   const SetupMainScreen({super.key});
@@ -49,8 +48,8 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
 
     final kioskInfo = ref.read(kioskInfoServiceProvider);
 
-    // final isPaymentDeviceReady = await _checkPaymentDevice();
-    // if (!isPaymentDeviceReady) return;
+    final isPaymentDeviceReady = await _checkPaymentDevice();
+    if (!isPaymentDeviceReady) return;
 
     logger.d(
         'kioskInfo: $kioskInfo kioskEventId: ${kioskInfo?.kioskEventId} kioskMachineId: ${kioskInfo?.kioskMachineId}');
@@ -217,6 +216,12 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                         if (value == null || value.isEmpty) return; // 값이 없으면 종료
 
                         int cardNumber = int.parse(value);
+
+                        if (cardNumber > setupMainViewModel.cardCapacity) {
+                          await DialogHelper.showSetupDialog(context,
+                              title: '입력 수량 초과', content: '최대 ${setupMainViewModel.cardCapacity}장까지 입력 가능합니다.');
+                          return;
+                        }
 
                         await ref
                             .read(setupMainScreenNotifierProvider.notifier)

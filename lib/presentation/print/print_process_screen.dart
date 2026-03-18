@@ -17,6 +17,7 @@ import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart
 import 'package:vending_kiosk/presentation/home/payment_response_state.dart';
 import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
+import 'package:vending_kiosk/presentation/print/dispense_progress_provider.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
 import 'package:vending_kiosk/presentation/setup/page_print_provider.dart';
 import 'package:vending_kiosk/presentation/print/print_process_screen_provider.dart';
@@ -73,13 +74,6 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
               return;
             }
 
-            // final result = await DialogHelper.showKioskDialog(
-            //   context,
-            //   title: LocaleKeys.alert_title_print_failure.tr(),
-            //   contentText: LocaleKeys.alert_txt_print_failure.tr(),
-            //   confirmButtonText: LocaleKeys.alert_btn_print_failure.tr(),
-            // );
-
             final result = await DialogHelper.showInsufficientCardStockDialog(context);
             if (result) {
               ref.read(printQuantityNotifierProvider.notifier).reset();
@@ -110,6 +104,16 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
 
             // Reset payment and quantity state
             ref.read(paymentResponseStateProvider.notifier).reset();
+
+            // 카드 재고 조회
+            final current = ref.read(dispenseProgressNotifierProvider).current;
+
+            if (current == 0) {
+              await ref.read(kioskRepositoryProvider).updateMaintenance(
+                    ref.read(kioskInfoServiceProvider)!.kioskMachineId,
+                    UpdateMaintenanceRequest(isUnderMaintenance: true),
+                  );
+            }
 
             await DialogHelper.showPrintCompleteDialog(
               context,
