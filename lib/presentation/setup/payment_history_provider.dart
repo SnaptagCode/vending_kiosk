@@ -18,11 +18,14 @@ class OrdersPage extends _$OrdersPage {
 
   @override
   Future<VendingPrintListResponse> build({int page = 1}) async {
+    // savedHistoryPageProvider에 저장된 페이지로 fetch → 재진입 시 Race Condition 방지
+    final savedPage = ref.read(savedHistoryPageProvider);
+    final pageToFetch = savedPage > 0 ? savedPage : page;
     final VendingPrintListResponse response = await ref.read(kioskRepositoryProvider).getVendingPrintList(
           kioskEventId: kioskEventId,
           kioskMachineId: kioskMachineId,
           pageSize: _pageSize,
-          currentPage: page,
+          currentPage: pageToFetch,
         );
     logger.i('response: $response');
     return response;
