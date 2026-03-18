@@ -217,6 +217,12 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
 
                         int cardNumber = int.parse(value);
 
+                        if (cardNumber > setupMainViewModel.cardCapacity) {
+                          await DialogHelper.showSetupDialog(context,
+                              title: '입력 수량 초과', content: '최대 ${setupMainViewModel.cardCapacity}장까지 입력 가능합니다.');
+                          return;
+                        }
+
                         await ref
                             .read(setupMainScreenNotifierProvider.notifier)
                             .rechargeCardStock(cardNumber: cardNumber);

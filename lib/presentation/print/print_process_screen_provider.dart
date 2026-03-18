@@ -123,7 +123,7 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
             ),
           );
     } catch (e) {
-      rethrow;
+      SlackLogService().sendErrorLogToSlack('PrintService._executePrint consumeCardStock failure: $e');
     }
 
     logger.i('=====================================================');

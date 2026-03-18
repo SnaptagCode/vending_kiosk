@@ -79,4 +79,6 @@ abstract class LocaleKeys {
   static const total_payment_amount = 'total_payment_amount';
   static const unit_pcs = 'unit_pcs';
   static const common_btn_back = 'common_btn_back';
+  static const alert_title_insufficient_card_stock = 'alert_title_insufficient_card_stock';
+  static const alert_txt_insufficient_card_stock = 'alert_txt_insufficient_card_stock';
 }

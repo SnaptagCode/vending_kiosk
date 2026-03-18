@@ -74,5 +74,7 @@
   "choice_enter_verification_code": "인증번호 입력하기",
   "print_takes_one_minute": "카드가 출력되기까지 약 1분 정도의 시간이 소요됩니다.",
   "currency_won": "원",
-  "common_btn_back": "뒤로가기"
+  "common_btn_back": "뒤로가기",
+  "alert_title_insufficient_card_stock": "카드 재고 부족",
+  "alert_txt_insufficient_card_stock": "포토카드를 출력할 수 없습니다. 관리자에게 문의해 주세요."
 }
