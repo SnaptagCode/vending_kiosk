@@ -223,6 +223,11 @@ class CardDispenserService extends _$CardDispenserService {
       }
     }
 
+    if (state is _Dispensing) {
+      logger.w('CardDispenserService: 이미 배출 중 - 중복 요청 무시 (index: $index)');
+      throw CardDispenserServiceException('이미 배출 중입니다.');
+    }
+
     state = CardDispenserServiceState.dispensing(count);
 
     try {

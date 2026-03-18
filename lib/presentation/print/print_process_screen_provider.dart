@@ -22,6 +22,10 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
 
   /// 프린트(카드 배출) 작업 시작 — ViewModel 진입점
   Future<void> startPrint() async {
+    // if (state is AsyncLoading) {
+    //   logger.w('PrintProcessScreenProvider: startPrint 이미 실행 중 - 중복 요청 무시');
+    //   return;
+    // }
     state = const AsyncLoading();
     try {
       await _executePrintJob();

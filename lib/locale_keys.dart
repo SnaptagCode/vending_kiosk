@@ -72,6 +72,9 @@ abstract class LocaleKeys {
   static const print_takes_one_minute = 'print_takes_one_minute';
   static const currency_won = 'currency_won';
   static const please_wait = 'please_wait';
+  static const purchase_title_before = 'purchase_title_before';
+  static const purchase_title_highlight = 'purchase_title_highlight';
+  static const purchase_title_after = 'purchase_title_after';
   static const purchase_quantity = 'purchase_quantity';
   static const total_payment_amount = 'total_payment_amount';
   static const unit_pcs = 'unit_pcs';

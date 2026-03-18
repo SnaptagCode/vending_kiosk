@@ -100,6 +100,8 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
     // pending 또는 disconnected 상태일 때 자동 감지 실행
     // (keepAlive provider가 disconnected를 기억하므로, setup 재진입 시에도 재체크 필요)
     Future.microtask(() => _checkCardDispenserConnection());
+    // 화면 진입 시마다 서버에서 최신 카드 재고 조회
+    Future.microtask(() => _fetchCardStock());
 
     return SetupMainState(
       // 인스턴스 변수에서 가져와서 build() 재실행 시에도 checking 상태 유지
@@ -117,6 +119,23 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
 
   /// 외부에서 재시도 호출용 (UI 버튼)
   Future<void> retryCardDispenserConnection() => _checkCardDispenserConnection();
+
+  /// 서버에서 최신 카드 재고 조회
+  Future<void> _fetchCardStock() async {
+    if (_isDisposed) return;
+    final kioskInfo = ref.read(kioskInfoServiceProvider);
+    if (kioskInfo == null) return;
+    try {
+      final stockResponse = await ref.read(kioskRepositoryProvider).getMachineCardStock(kioskInfo.kioskMachineId);
+      if (_isDisposed) return;
+      state = state.copyWith(
+        cardCurrentCount: stockResponse.cardCurrentCount,
+        cardCapacity: stockResponse.cardCapacity,
+      );
+    } catch (e) {
+      logger.e('Failed to fetch card stock', error: e);
+    }
+  }
 
   /// 카드 배출기 연결 상태 체크
   Future<void> _checkCardDispenserConnection() async {
