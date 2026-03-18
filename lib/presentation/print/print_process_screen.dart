@@ -89,10 +89,10 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
                 ref.read(reprintIdsProvider.notifier).state = null;
                 PaymentHistoryRouteData().go(context);
               } else {
-                await ref.read(kioskRepositoryProvider).updateMaintenance(
-                      ref.read(kioskInfoServiceProvider)!.kioskMachineId,
-                      UpdateMaintenanceRequest(isUnderMaintenance: true),
-                    );
+                // await ref.read(kioskRepositoryProvider).updateMaintenance(
+                //       ref.read(kioskInfoServiceProvider)!.kioskMachineId,
+                //       UpdateMaintenanceRequest(isUnderMaintenance: true),
+                //     );
                 HomeRouteData().go(context);
               }
             }

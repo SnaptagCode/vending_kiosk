@@ -115,11 +115,6 @@ class _KioskShellState extends ConsumerState<KioskShell> {
           floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
           floatingActionButton: TripleTapFloatingButton(),
         ),
-        const Positioned(
-          top: 20,
-          left: 20,
-          child: FloatingPrinterStatusBadge(),
-        ),
         if (ref.watch(maintenanceStateProvider))
           Positioned.fill(
             child: Container(
