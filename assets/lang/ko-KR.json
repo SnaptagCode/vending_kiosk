@@ -76,5 +76,5 @@
   "currency_won": "원",
   "common_btn_back": "뒤로가기",
   "alert_title_insufficient_card_stock": "카드 재고 부족",
-  "alert_txt_insufficient_card_stock": "포토카드를 출력할 수 없습니다. 관리자에게 문의해 주세요."
+  "alert_txt_insufficient_card_stock": "포토카드를 출력할 수 없습니다.\n관리자에게 문의해 주세요."
 }
