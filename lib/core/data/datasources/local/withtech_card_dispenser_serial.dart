@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'package:serial_port_win32/serial_port_win32.dart';
 import 'package:vending_kiosk/core/common/errors/dispenser_exception.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
+import 'package:win32/win32.dart'
+    show DCB, GetLastError, PURGE_TXABORT, PURGE_TXCLEAR, PurgeComm, RTS_CONTROL_ENABLE, SetCommState;
 
 /// WITH-TECH WT-CB3/CF1/CB7/CR1/CR1F1/F2 Dispenser RS-232 프로토콜 구현.
 ///
@@ -115,6 +118,21 @@ class WithTechCardDispenserSerial {
       default:
         return 'Win32 error $code. Try closing other apps using this port or run as Administrator.';
     }
+  }
+
+  /// write 실패 시 GetLastError() 코드를 포함한 진단 메시지 생성
+  static String _writeErrorDiag() {
+    final code = GetLastError();
+    final hint = switch (code) {
+      0 => 'no error (overlapped I/O timeout — TX buffer full or device not reading)',
+      995 => 'ERROR_OPERATION_ABORTED: I/O was aborted (port closed or reset during write)',
+      996 => 'ERROR_IO_INCOMPLETE: overlapped I/O not yet complete within timeout',
+      997 => 'ERROR_IO_PENDING: overlapped I/O still pending',
+      1 => 'ERROR_INVALID_FUNCTION: invalid operation on this handle',
+      6 => 'ERROR_INVALID_HANDLE: handle is invalid (port was closed)',
+      _ => 'win32 error $code',
+    };
+    return 'GetLastError=$code ($hint)';
   }
 
   /// Win32 error 6 (ERROR_INVALID_HANDLE) 여부
@@ -271,7 +289,6 @@ class WithTechCardDispenserSerial {
         final writeOk = await _port!.writeBytesFromUint8List(packet, timeout: timeoutMs);
         if (_port == null) throw DispenserException('WithTech: Serial port disconnected during write');
         if (!writeOk) throw DispenserException('WithTech: Failed to write packet');
-
         final timeout = Duration(milliseconds: timeoutMs);
 
         // Step 1: ACK (0x20) 수신
@@ -587,16 +604,19 @@ class WithTechCardDispenserSerial {
             logger.i('WithTech: payout successful ($data cards)');
             return true;
           case rspPayoutFails: // 0x2F - 최종 실패
-            logger.e('WithTech: payout failed ($data cards dispensed)');
+            logger.e(
+                'WithTech: payout failed ($data cards dispensed) frame=[${frame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
             return false;
           case rspSystemWarning: // 0x23 - 카드 없음 등
-            logger.e('WithTech: payout system warning (status=0x${data.toRadixString(16)})');
+            logger.e(
+                'WithTech: payout system warning (status=0x${data.toRadixString(16)}) frame=[${frame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
             return false;
           case rspNak: // 0x21 - NAK
-            logger.e('WithTech: payout NAK');
+            logger.e('WithTech: payout NAK frame=[${frame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
             return false;
           case rspMaxBillsError: // 0x28 - 최대 수량 초과
-            logger.e('WithTech: payout max bills error');
+            logger.e(
+                'WithTech: payout max bills error frame=[${frame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
             return false;
           default:
             logger.w('WithTech: payout unexpected cmd=0x${cmd.toRadixString(16)} data=0x${data.toRadixString(16)}');
