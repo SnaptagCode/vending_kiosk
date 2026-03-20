@@ -119,24 +119,34 @@ class _KioskShellState extends ConsumerState<KioskShell> {
           Positioned.fill(
             child: Container(
               color: const Color(0xB3000000),
-              child: const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+              child: Stack(
                 children: [
-                  Icon(
-                    Icons.credit_card,
-                    color: Colors.white,
-                    size: 64,
-                  ),
-                  SizedBox(height: 24),
-                  Text(
-                    '카드 충전중입니다.\n잠시만 기다려주세요.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w600,
-                      height: 1.5,
+                  const SizedBox.expand(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.credit_card,
+                          color: Colors.white,
+                          size: 64,
+                        ),
+                        SizedBox(height: 24),
+                        Text(
+                          '카드 충전중입니다.\n잠시만 기다려주세요.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w600,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  const Align(
+                    alignment: Alignment.topRight,
+                    child: TripleTapFloatingButton(),
                   ),
                 ],
               ),

@@ -4,9 +4,13 @@ import 'package:vending_kiosk/core/common/constants/alert_key.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
+import 'package:vending_kiosk/core/data/models/request/update_maintenance_request.dart';
+import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/flavors.dart';
+import 'package:vending_kiosk/presentation/home/maintenance_provider.dart';
 import 'package:vending_kiosk/presentation/home/triple_tap_state.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
 import 'package:intl/intl.dart';
 
@@ -41,9 +45,15 @@ class TripleTapFloatingButton extends ConsumerWidget {
           if (enteredCode != null) {
             String correctPassword = _generateCurrentTimePin();
 
-            if (enteredCode == correctPassword || enteredCode == '960623') {
+            if (enteredCode == correctPassword || enteredCode == '970319') {
+              await ref.read(kioskRepositoryProvider).updateMaintenance(
+                    ref.read(kioskInfoServiceProvider)!.kioskMachineId,
+                    UpdateMaintenanceRequest(isUnderMaintenance: false),
+                  );
+
               SlackLogService().sendBroadcastLogToSlack(InfoKey.adminModeEnter.key);
               SetupMainRouteData().go(context);
+              ref.read(maintenanceStateProvider.notifier).state = false;
             } else {
               //await showAdminFailDialog(context); //비밀번호 불일치 → 오류 모달 표시
             }
