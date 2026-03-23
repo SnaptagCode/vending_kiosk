@@ -76,5 +76,8 @@
   "currency_won": "KRW",
   "common_btn_back": "Back",
   "alert_title_insufficient_card_stock": "Low Card Stock",
-  "alert_txt_insufficient_card_stock": "Photo cards cannot be printed. Please contact a staff member."
+  "alert_txt_insufficient_card_stock": "Photo cards cannot be printed. Please contact a staff member.",
+  "alert_title_contact_manager": "Contact Staff",
+  "alert_txt_contact_manager": "This service is currently unavailable.\nPlease contact staff.",
+  "maintenance_txt_card_charging": "Cards are being restocked.\nPlease wait."
 }

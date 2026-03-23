@@ -81,4 +81,7 @@ abstract class LocaleKeys {
   static const common_btn_back = 'common_btn_back';
   static const alert_title_insufficient_card_stock = 'alert_title_insufficient_card_stock';
   static const alert_txt_insufficient_card_stock = 'alert_txt_insufficient_card_stock';
+  static const alert_title_contact_manager = 'alert_title_contact_manager';
+  static const alert_txt_contact_manager = 'alert_txt_contact_manager';
+  static const maintenance_txt_card_charging = 'maintenance_txt_card_charging';
 }
