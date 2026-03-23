@@ -469,6 +469,7 @@ class _CardDispenserTestScreenState extends ConsumerState<CardDispenserTestScree
       CardDispenserConnectState.disconnected => '연결 안 됨',
       CardDispenserConnectState.setupInComplete => '설정 중',
       CardDispenserConnectState.pending => '대기 중',
+      CardDispenserConnectState.checking => '체크 중',
     };
   }
 
@@ -478,6 +479,7 @@ class _CardDispenserTestScreenState extends ConsumerState<CardDispenserTestScree
       CardDispenserConnectState.disconnected => Colors.red,
       CardDispenserConnectState.setupInComplete => Colors.orange,
       CardDispenserConnectState.pending => Colors.grey,
+      CardDispenserConnectState.checking => Colors.orange,
     };
   }
 
