@@ -5,22 +5,17 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
 import 'package:vending_kiosk/core/common/extensions/color.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
-import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/data.dart';
 import 'package:vending_kiosk/core/data/models/request/update_maintenance_request.dart';
-import 'package:vending_kiosk/core/providers/network_status_provider.dart';
 import 'package:vending_kiosk/core/services/card_dispenser_service.dart';
 import 'package:vending_kiosk/core/ui/theme/kiosk_colors.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
-import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
-import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
 import 'package:vending_kiosk/presentation/home/payment_response_state.dart';
 import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/print/dispense_progress_provider.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
-import 'package:vending_kiosk/presentation/setup/page_print_provider.dart';
 import 'package:vending_kiosk/presentation/print/print_process_screen_provider.dart';
 
 class PrintProcessScreen extends ConsumerStatefulWidget {
@@ -32,7 +27,6 @@ class PrintProcessScreen extends ConsumerStatefulWidget {
 
 class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
   bool _progressCompleted = false;
-  bool _progressFrozen = false;
   bool _printStarted = false;
 
   @override
@@ -48,97 +42,68 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // listen 부분에서는 로딩 오버레이 처리를 제거
     ref.listen(printProcessScreenProviderProvider, (previous, next) async {
-      if (!next.isLoading) {
-        // 로딩이 아닐 때만 처리
-        await next.when(
-          error: (error, stack) async {
-            if (!_progressCompleted && !_progressFrozen) {
-              _progressFrozen = true;
-            }
+      if (next.isLoading) return;
+      await next.when(
+        error: (error, stack) async {
+          errorLogging(error.toString(), stack);
 
-            // 슬랙에 에러 로그 전송
-            errorLogging(error.toString(), stack);
-
-            if (error is CardDispenserServiceException) {
-              final result = await DialogHelper.showContactManagerDialog(context);
-              if (result) {
-                ref.read(printQuantityNotifierProvider.notifier).reset();
-                final isReprint = ref.read(reprintIdsProvider.notifier).state != null;
-                if (isReprint) {
-                  ref.read(reprintIdsProvider.notifier).state = null;
-                  PaymentHistoryRouteData().go(context);
-                } else {
-                  await ref.read(kioskRepositoryProvider).updateMaintenance(
-                        ref.read(kioskInfoServiceProvider)!.kioskMachineId,
-                        UpdateMaintenanceRequest(isUnderMaintenance: true),
-                      );
-                  HomeRouteData().go(context);
-                }
-              }
-              return;
-            }
-
-            final result = await DialogHelper.showInsufficientCardStockDialog(context);
+          if (error is CardDispenserServiceException) {
+            final result = await DialogHelper.showContactManagerDialog(context);
             if (result) {
-              ref.read(printQuantityNotifierProvider.notifier).reset();
+              if (!mounted) return;
+              await _resetAndGoHome(context);
+            }
+            return;
+          }
 
-              final isReprint = ref.read(reprintIdsProvider.notifier).state != null;
+          final result = await DialogHelper.showInsufficientCardStockDialog(context);
+          if (result) {
+            if (!mounted) return;
+            await _resetAndGoHome(context);
+          }
+
+          ref.read(paymentResponseStateProvider.notifier).reset();
+          ref.read(printQuantityNotifierProvider.notifier).reset();
+          ref.read(reprintIdsProvider.notifier).state = null;
+          await ref.read(kioskRepositoryProvider).updateMaintenance(
+                ref.read(kioskInfoServiceProvider)!.kioskMachineId,
+                UpdateMaintenanceRequest(isUnderMaintenance: true),
+              );
+        },
+        loading: () => null,
+        data: (_) async {
+          _progressCompleted = true;
+
+          ref.read(paymentResponseStateProvider.notifier).reset();
+
+          final isReprint = ref.read(reprintIdsProvider.notifier).state != null;
+          ref.read(reprintIdsProvider.notifier).state = null;
+
+          final current = ref.read(dispenseProgressNotifierProvider).current;
+          if (current == 0) {
+            await ref.read(kioskRepositoryProvider).updateMaintenance(
+                  ref.read(kioskInfoServiceProvider)!.kioskMachineId,
+                  UpdateMaintenanceRequest(isUnderMaintenance: true),
+                );
+          }
+
+          await DialogHelper.showPrintCompleteDialog(
+            context,
+            onButtonPressed: () {
+              ref.read(printQuantityNotifierProvider.notifier).reset();
               if (isReprint) {
-                ref.read(reprintIdsProvider.notifier).state = null;
                 PaymentHistoryRouteData().go(context);
               } else {
-                await ref.read(kioskRepositoryProvider).updateMaintenance(
-                      ref.read(kioskInfoServiceProvider)!.kioskMachineId,
-                      UpdateMaintenanceRequest(isUnderMaintenance: true),
-                    );
                 HomeRouteData().go(context);
               }
-            }
-          },
-          loading: () => null,
-          data: (_) async {
-            if (!_progressCompleted) {
-              _progressCompleted = true;
-            }
-
-            final isReprint = ref.read(reprintIdsProvider.notifier).state != null;
-            if (isReprint) {
-              ref.read(reprintIdsProvider.notifier).state = null;
-            }
-
-            // Reset payment and quantity state
-            ref.read(paymentResponseStateProvider.notifier).reset();
-
-            // 카드 재고 조회
-            final current = ref.read(dispenseProgressNotifierProvider).current;
-
-            if (current == 0) {
-              await ref.read(kioskRepositoryProvider).updateMaintenance(
-                    ref.read(kioskInfoServiceProvider)!.kioskMachineId,
-                    UpdateMaintenanceRequest(isUnderMaintenance: true),
-                  );
-            }
-
-            await DialogHelper.showPrintCompleteDialog(
-              context,
-              onButtonPressed: () {
-                ref.read(printQuantityNotifierProvider.notifier).reset();
-                if (isReprint) {
-                  PaymentHistoryRouteData().go(context);
-                } else {
-                  HomeRouteData().go(context);
-                }
-              },
-            );
-          },
-        );
-      }
+            },
+          );
+        },
+      );
     });
-    // NOTE: kioskInfoServiceProvider는 하위 로직/화면에서 사용될 수 있어 watch 유지
-    final kioskInfo = ref.read(kioskInfoServiceProvider);
 
+    final kioskInfo = ref.read(kioskInfoServiceProvider);
     final buttonColor =
         kioskInfo?.mainButtonColor != null ? kioskInfo!.mainButtonColor.toColor() : const Color(0xFF4CAF50);
     final buttonTextColor = kioskInfo?.buttonTextColor != null ? kioskInfo!.buttonTextColor.toColor() : Colors.white;
@@ -149,7 +114,6 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
       ),
       child: Center(
         child: Column(
-          // crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             SizedBox(height: 60.h),
             Text.rich(
@@ -158,15 +122,11 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
                 children: [
                   TextSpan(
                     text: '${LocaleKeys.sub03_txt_01.tr()}\n',
-                    style: context.typography.vendingTitle1B.copyWith(
-                      color: buttonColor,
-                    ),
+                    style: context.typography.vendingTitle1B.copyWith(color: buttonColor),
                   ),
                   TextSpan(
                     text: LocaleKeys.please_wait.tr(),
-                    style: context.typography.vendingTitle1B.copyWith(
-                      color: buttonTextColor,
-                    ),
+                    style: context.typography.vendingTitle1B.copyWith(color: buttonTextColor),
                   ),
                 ],
               ),
@@ -175,9 +135,7 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
             Text(
               LocaleKeys.sub03_txt_03.tr(),
               textAlign: TextAlign.center,
-              style: context.typography.vendingBody3B.copyWith(
-                color: buttonTextColor,
-              ),
+              style: context.typography.vendingBody3B.copyWith(color: buttonTextColor),
             ),
             SizedBox(height: 44.h),
             Image.asset(
@@ -189,7 +147,7 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
             SizedBox(height: 21.h),
             _PrintProgressBar(),
             SizedBox(height: 16.h),
-            _PrintCountText(progressCompleted: _progressCompleted, progressFrozen: _progressFrozen),
+            _PrintCountText(progressCompleted: _progressCompleted),
             SizedBox(height: 40.h),
           ],
         ),
@@ -197,19 +155,23 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
     );
   }
 
-  bool checkCardFeederIsEmpty(String errorMessage) {
-    return errorMessage.contains('Card feeder is empty');
-  }
+  /// 에러 발생 후 공통 처리: 수량 초기화 → 정비 상태 설정(재출력 아닐 때) → 화면 이동
+  Future<void> _resetAndGoHome(BuildContext context) async {
+    ref.read(printQuantityNotifierProvider.notifier).reset();
+    ref.read(paymentResponseStateProvider.notifier).reset();
 
-  void checkCardSingleCardCount() {
-    final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 0;
-
-    if (ref.read(cardCountProvider).currentCount < 1) {
-      ref.read(pagePrintProvider.notifier).set(PagePrintType.double);
-      SlackLogService().sendLogToSlack('*[MachineId : $machineId]*, change pagePrintType double');
+    final isReprint = ref.read(reprintIdsProvider.notifier).state != null;
+    ref.read(reprintIdsProvider.notifier).state = null;
+    if (!isReprint) {
+      await ref.read(kioskRepositoryProvider).updateMaintenance(
+            ref.read(kioskInfoServiceProvider)!.kioskMachineId,
+            UpdateMaintenanceRequest(isUnderMaintenance: true),
+          );
+    }
+    if (isReprint) {
+      PaymentHistoryRouteData().go(context);
     } else {
-      ref.read(pagePrintProvider.notifier).set(PagePrintType.single);
-      SlackLogService().sendLogToSlack('*[MachineId : $machineId]*, change pagePrintType single');
+      HomeRouteData().go(context);
     }
   }
 
@@ -227,9 +189,7 @@ class _PrintProgressBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final kioskColors = context.theme.extension<KioskColors>()!;
     final quantity = ref.watch(printQuantityNotifierProvider);
-    final current = quantity.current;
-    final total = quantity.total;
-    final progressValue = total > 0 ? current / total : 0.0;
+    final progressValue = quantity.total > 0 ? quantity.current / quantity.total : 0.0;
 
     return SizedBox(
       width: 480.w,
@@ -279,25 +239,17 @@ class _PrintProgressBar extends ConsumerWidget {
 
 /// 출력 개수를 텍스트로 표시 (예: 2 / 5)
 class _PrintCountText extends ConsumerWidget {
-  const _PrintCountText({
-    required this.progressCompleted,
-    required this.progressFrozen,
-  });
+  const _PrintCountText({required this.progressCompleted});
 
   final bool progressCompleted;
-  final bool progressFrozen;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final quantity = ref.watch(printQuantityNotifierProvider);
-    // final current = 6; // quantity.current;
-    // final total = 10; // quantity.total;
     final current = quantity.current;
     final total = quantity.total;
 
-    // 표시할 현재/전체 값 계산
     final displayCurrent = total == 0 ? 0 : (progressCompleted ? total : current);
-    final displayTotal = total;
 
     final kioskColors = context.kioskColors;
     final textShadow = [
@@ -315,7 +267,6 @@ class _PrintCountText extends ConsumerWidget {
       textAlign: TextAlign.center,
       text: TextSpan(
         children: [
-          // current: progressBar gradient + weight 700
           WidgetSpan(
             alignment: PlaceholderAlignment.baseline,
             baseline: TextBaseline.alphabetic,
@@ -330,22 +281,11 @@ class _PrintCountText extends ConsumerWidget {
               ).createShader(
                 Rect.fromLTWH(0, 0, bounds.width, bounds.height),
               ),
-              child: Text(
-                '$displayCurrent',
-                style: baseStyle,
-              ),
+              child: Text('$displayCurrent', style: baseStyle),
             ),
           ),
-          // slash: weight 300
-          TextSpan(
-            text: ' / ',
-            style: baseStyle,
-          ),
-          // total: white, weight 700
-          TextSpan(
-            text: '$displayTotal',
-            style: baseStyle,
-          ),
+          TextSpan(text: ' / ', style: baseStyle),
+          TextSpan(text: '$total', style: baseStyle),
         ],
       ),
     );
