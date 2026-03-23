@@ -261,6 +261,11 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
       return Text(text, style: TextStyle(fontSize: 16.sp));
     }
 
+    // 환불 완료 또는 결제 실패 상태인 경우 텍스트 색상을 회색으로 변경
+    if (order.orderStatus == OrderStatus.refunded || order.orderStatus == OrderStatus.failed) {
+      return Text(text, style: TextStyle(fontSize: 16.sp, color: Color(0xFF9D9D9D)));
+    }
+
     return GestureDetector(
       onTap: () => _handleReprint(context, order),
       child: Text(
