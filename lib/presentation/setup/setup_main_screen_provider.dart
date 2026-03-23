@@ -9,8 +9,6 @@ import 'package:vending_kiosk/core/data/models/response/card_stock_recharge_resp
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
 import 'package:vending_kiosk/core/providers/version_notifier.dart';
-import 'package:vending_kiosk/core/services/card_dispenser_manager.dart';
-import 'package:vending_kiosk/core/services/card_dispenser_service.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/setup/card_dispenser_connect_state.dart';
@@ -80,8 +78,8 @@ class SetupMainState {
 
 @riverpod
 class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
-  bool _isCheckingDispenser = false;
   bool _isDisposed = false;
+  bool _hasFetchedStock = false;
 
   @override
   SetupMainState build() {
@@ -94,18 +92,19 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
     final kioskInfo = ref.watch(kioskInfoServiceProvider);
     final versionState = ref.watch(versionStateProvider);
     final getInfoByKey = ref.watch(getInfoByKeyProvider);
-    // keepAlive provider에서 연결 상태를 가져와서 build() 재실행 시에도 유지
+    // keepAlive provider watch: 체크 완료 시 UI 자동 갱신
     final cardDispenserState = ref.watch(cardDispenserConnectProvider);
 
-    // pending 또는 disconnected 상태일 때 자동 감지 실행
-    // (keepAlive provider가 disconnected를 기억하므로, setup 재진입 시에도 재체크 필요)
-    Future.microtask(() => _checkCardDispenserConnection());
-    // 화면 진입 시마다 서버에서 최신 카드 재고 조회
-    Future.microtask(() => _fetchCardStock());
+    // 카드 재고는 화면 진입 시 1회만 조회
+    if (!_hasFetchedStock) {
+      _hasFetchedStock = true;
+      Future.microtask(() => _fetchCardStock());
+    }
 
     return SetupMainState(
-      // 인스턴스 변수에서 가져와서 build() 재실행 시에도 checking 상태 유지
-      isCheckingDispenser: _isCheckingDispenser,
+      // checking/pending 상태이면 로딩 표시
+      isCheckingDispenser: cardDispenserState == CardDispenserConnectState.checking ||
+          cardDispenserState == CardDispenserConnectState.pending,
       cardDispenserState: cardDispenserState,
       machineId: kioskInfo?.kioskMachineId ?? 0,
       currentVersion: versionState.currentVersion,
@@ -118,7 +117,8 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
   }
 
   /// 외부에서 재시도 호출용 (UI 버튼)
-  Future<void> retryCardDispenserConnection() => _checkCardDispenserConnection();
+  Future<void> retryCardDispenserConnection() =>
+      ref.read(cardDispenserConnectProvider.notifier).runCheck();
 
   /// 서버에서 최신 카드 재고 조회
   Future<void> _fetchCardStock() async {
@@ -134,54 +134,6 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
       );
     } catch (e) {
       logger.e('Failed to fetch card stock', error: e);
-    }
-  }
-
-  /// 카드 배출기 연결 상태 체크
-  Future<void> _checkCardDispenserConnection() async {
-    if (_isCheckingDispenser || _isDisposed) return;
-    _isCheckingDispenser = true;
-    state = state.copyWith(isCheckingDispenser: true);
-
-    try {
-      // 이미 연결되어 있으면 health check로 통신 가능 여부 확인
-      if (CardDispenserManager.isInstanceConnected) {
-        final isHealthy = await CardDispenserManager.checkInstanceHealth();
-        if (_isDisposed) return;
-        if (isHealthy) {
-          state = state.copyWith(cardDispenserState: CardDispenserConnectState.connected);
-          ref.read(cardDispenserConnectProvider.notifier).update(CardDispenserConnectState.connected);
-          return;
-        }
-        // health check 실패 시 기존 연결을 해제하고 autoDetect로 재시도
-        await CardDispenserManager.disconnectAll();
-        if (_isDisposed) return;
-      }
-
-      // 연결되지 않은 경우 자동 감지 시도
-      final service = ref.read(cardDispenserServiceProvider.notifier);
-      final detected = await service.autoDetectPort();
-
-      if (_isDisposed) return;
-
-      if (detected == null) {
-        state = state.copyWith(cardDispenserState: CardDispenserConnectState.disconnected);
-        ref.read(cardDispenserConnectProvider.notifier).update(CardDispenserConnectState.disconnected);
-        return;
-      }
-
-      // autoDetectPort()가 non-null을 반환했다 = 연결 + health check 성공
-      logger.d('SetupMainScreenNotifier: detected=$detected → connected');
-      state = state.copyWith(cardDispenserState: CardDispenserConnectState.connected);
-      ref.read(cardDispenserConnectProvider.notifier).update(CardDispenserConnectState.connected);
-    } catch (e) {
-      logger.e('Failed to check card dispenser connection', error: e);
-      if (_isDisposed) return;
-      state = state.copyWith(cardDispenserState: CardDispenserConnectState.disconnected);
-      ref.read(cardDispenserConnectProvider.notifier).update(CardDispenserConnectState.disconnected);
-    } finally {
-      _isCheckingDispenser = false;
-      if (!_isDisposed) state = state.copyWith(isCheckingDispenser: false);
     }
   }
 
