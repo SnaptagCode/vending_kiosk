@@ -9,6 +9,7 @@ import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/data.dart';
 import 'package:vending_kiosk/core/data/models/request/update_maintenance_request.dart';
 import 'package:vending_kiosk/core/providers/network_status_provider.dart';
+import 'package:vending_kiosk/core/services/card_dispenser_service.dart';
 import 'package:vending_kiosk/core/ui/theme/kiosk_colors.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
@@ -60,17 +61,22 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
             // 슬랙에 에러 로그 전송
             errorLogging(error.toString(), stack);
 
-            // 네트워크 오류인지 체크
-            final isNetworkError = ref.read(networkStatusNotifierProvider.notifier).isNetworkError(error);
-
-            // 네트워크 오류라면 카드 단일 카드 수량 확인 후 완료 알럿 표시
-            if (isNetworkError) {
-              await DialogHelper.showPrintCompleteDialog(
-                context,
-                onButtonPressed: () {
+            if (error is CardDispenserServiceException) {
+              final result = await DialogHelper.showContactManagerDialog(context);
+              if (result) {
+                ref.read(printQuantityNotifierProvider.notifier).reset();
+                final isReprint = ref.read(reprintIdsProvider.notifier).state != null;
+                if (isReprint) {
+                  ref.read(reprintIdsProvider.notifier).state = null;
+                  PaymentHistoryRouteData().go(context);
+                } else {
+                  await ref.read(kioskRepositoryProvider).updateMaintenance(
+                        ref.read(kioskInfoServiceProvider)!.kioskMachineId,
+                        UpdateMaintenanceRequest(isUnderMaintenance: true),
+                      );
                   HomeRouteData().go(context);
-                },
-              );
+                }
+              }
               return;
             }
 

@@ -71,5 +71,8 @@
   "currency_won": "韩元",
   "common_btn_back": "返回",
   "alert_title_insufficient_card_stock": "库存不足",
-  "alert_txt_insufficient_card_stock": "无法打印照片卡。请联系工作人员。"
+  "alert_txt_insufficient_card_stock": "无法打印照片卡。请联系工作人员。",
+  "alert_title_contact_manager": "通知",
+  "alert_txt_contact_manager": "当前服务暂时无法使用。\n请联系工作人员。",
+  "maintenance_txt_card_charging": "正在补充卡片。\n请稍候。"
 }

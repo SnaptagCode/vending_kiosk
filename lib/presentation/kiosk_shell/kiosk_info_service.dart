@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:path/path.dart' as p;
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/response/kiosk_machine_info.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
@@ -48,6 +51,26 @@ class KioskInfoService extends _$KioskInfoService {
 
     try {
       _isLoading = true;
+
+      // 런처가 미리 저장한 파일에서 먼저 읽기 (fullscreen 충돌 방지)
+      final cached = await _readFromLauncherCache();
+
+      SlackLogService().sendLogToSlack("getKioskMachineInfo: cached: $cached");
+      if (cached != null && cached.kioskMachineId != 0) {
+        state = cached;
+        _cachedMachineId = cached.kioskMachineId;
+        _cachedKioskEventId = cached.kioskEventId;
+        ref.read(frontPhotoListProvider.notifier).fetch();
+        await _startPeriodicTimer();
+        _getInfoByKey = true;
+        _isLoading = false;
+        ref.read(getInfoByKeyProvider.notifier).state = true;
+
+        SlackLogService().sendLogToSlack("getKioskMachineInfo: $cached");
+        return cached;
+      }
+
+      // 파일이 없거나 유효하지 않으면 기존 API 호출로 fallback
       final kioskRepo = ref.read(kioskRepositoryProvider);
       final deviceUUID = await ref.read(deviceUuidProvider.future);
       final response = await kioskRepo.getKioskMachineInfoByKey(deviceUUID);
@@ -73,6 +96,21 @@ class KioskInfoService extends _$KioskInfoService {
       _isLoading = false;
       ref.read(getInfoByKeyProvider.notifier).state = false;
       state = null;
+      return null;
+    }
+  }
+
+  /// 런처가 ~/Snaptag/runtime/kiosk_machine_info.json에 저장한 캐시를 읽습니다.
+  Future<KioskMachineInfo?> _readFromLauncherCache() async {
+    try {
+      final home = Platform.environment['USERPROFILE'];
+      if (home == null) return null;
+      final file = File(p.join(home, 'Snaptag', 'runtime', 'kiosk_machine_info.json'));
+      if (!await file.exists()) return null;
+      final body = await file.readAsString();
+      final json = jsonDecode(body) as Map<String, dynamic>;
+      return KioskMachineInfo.fromJson(json);
+    } catch (_) {
       return null;
     }
   }

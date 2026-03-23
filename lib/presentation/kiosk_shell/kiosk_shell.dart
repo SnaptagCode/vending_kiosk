@@ -8,6 +8,8 @@ import 'package:vending_kiosk/core/ui/widget/back_button.dart';
 import 'package:vending_kiosk/core/ui/widget/kiosk_navigator_button.dart';
 import 'package:vending_kiosk/core/ui/widget/printer_status_badge.dart';
 import 'package:vending_kiosk/core/ui/widget/triple_tap_fab.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:vending_kiosk/locale_keys.dart';
 import 'package:vending_kiosk/presentation/home/maintenance_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:loader_overlay/loader_overlay.dart';
@@ -42,6 +44,13 @@ class _KioskShellState extends ConsumerState<KioskShell> {
 
   @override
   Widget build(BuildContext context) {
+    // maintenanceStateProvider가 false가 되면 에러 메시지 초기화
+    ref.listen(maintenanceStateProvider, (_, next) {
+      if (!next) {
+        ref.read(maintenanceErrorProvider.notifier).state = false;
+      }
+    });
+
     final settings = ref.read(kioskInfoServiceProvider);
 
     return Stack(
@@ -121,27 +130,34 @@ class _KioskShellState extends ConsumerState<KioskShell> {
               color: const Color(0xB3000000),
               child: Stack(
                 children: [
-                  const SizedBox.expand(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.credit_card,
-                          color: Colors.white,
-                          size: 64,
-                        ),
-                        SizedBox(height: 24),
-                        Text(
-                          '카드 충전중입니다.\n잠시만 기다려주세요.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w600,
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
+                  SizedBox.expand(
+                    child: Builder(
+                      builder: (context) {
+                        final isError = ref.watch(maintenanceErrorProvider);
+                        return Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              isError ? Icons.error_outline : Icons.credit_card,
+                              color: Colors.white,
+                              size: 64,
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              isError
+                                  ? LocaleKeys.alert_txt_contact_manager.tr()
+                                  : LocaleKeys.maintenance_txt_card_charging.tr(),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 42.sp,
+                                fontWeight: FontWeight.w600,
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                   const Align(
