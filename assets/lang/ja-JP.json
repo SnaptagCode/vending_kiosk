@@ -76,7 +76,7 @@
   "currency_won": "ウォン",
   "common_btn_back": "戻る",
   "alert_title_insufficient_card_stock": "カード不足",
-  "alert_txt_insufficient_card_stock": "フォトカードを印刷できません。スタッフにお問い合わせください。",
+  "alert_txt_insufficient_card_stock": "フォトカードを印刷できません。\nスタッフにお問い合わせください。",
   "alert_title_contact_manager": "係員へお問い合わせ",
   "alert_txt_contact_manager": "ただいまご利用いただけません。\n係員にお声がけください。",
   "maintenance_txt_card_charging": "カード補充中です。\nしばらくお待ちください。"

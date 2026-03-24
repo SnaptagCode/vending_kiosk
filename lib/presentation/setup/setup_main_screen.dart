@@ -13,9 +13,8 @@ import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/common/sound/sound_manager.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:vending_kiosk/core/services/card_dispenser_manager.dart';
+import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
 import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
-import 'package:vending_kiosk/locale_keys.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
@@ -60,7 +59,7 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
           kioskInfo?.kioskMachineId == null) {
         await DialogHelper.showSetupDialog(
           context,
-          title: LocaleKeys.alert_title_empty_event.tr(),
+          title: '이벤트를 실행하려면\n키오스크 기기번호를 입력해 주세요.',
         );
         return;
       }
@@ -79,7 +78,21 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
   }
 
   Future<bool> _checkPaymentDevice() async {
-    return await ref.read(setupMainScreenNotifierProvider.notifier).checkPaymentDevice();
+    try {
+      final response = await ref.read(paymentRepositoryProvider).check();
+      SlackLogService().sendLogToSlack("Payment Device check: $response");
+
+      return true;
+    } catch (e) {
+      SlackLogService().sendErrorLogToSlack("Payment Device check: $e");
+
+      DialogHelper.showSetupDialog(
+        context,
+        title: '리더기 점검',
+        content: '리더기 응답이 없습니다.\n연결 상태를 확인한 뒤 다시 시도해 주세요.',
+      );
+      return false;
+    }
   }
 
   Future<void> _startEventFlow(BuildContext context) async {

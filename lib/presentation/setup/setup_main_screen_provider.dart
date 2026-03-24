@@ -117,8 +117,7 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
   }
 
   /// 외부에서 재시도 호출용 (UI 버튼)
-  Future<void> retryCardDispenserConnection() =>
-      ref.read(cardDispenserConnectProvider.notifier).runCheck();
+  Future<void> retryCardDispenserConnection() => ref.read(cardDispenserConnectProvider.notifier).runCheck();
 
   /// 서버에서 최신 카드 재고 조회
   Future<void> _fetchCardStock() async {
@@ -134,18 +133,6 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
       );
     } catch (e) {
       logger.e('Failed to fetch card stock', error: e);
-    }
-  }
-
-  /// 결제 디바이스 체크
-  Future<bool> checkPaymentDevice() async {
-    try {
-      final response = await ref.read(paymentRepositoryProvider).check();
-      SlackLogService().sendLogToSlack("Payment Device check: $response");
-      return true;
-    } catch (e) {
-      SlackLogService().sendErrorLogToSlack("Payment Device check: $e");
-      return false;
     }
   }
 
