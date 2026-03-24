@@ -95,8 +95,6 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
       final dispenserReady = await CardDispenserManager.checkAndRecover();
       if (dispenserReady == false) {
         throw InsufficientCardStockException(
-          requestedQuantity: 1,
-          availableStock: 0,
           description: '배출기에 카드가 없습니다.',
         );
       }

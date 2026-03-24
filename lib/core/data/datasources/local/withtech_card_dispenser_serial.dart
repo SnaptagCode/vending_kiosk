@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:ffi';
+import 'dart:io';
 import 'dart:typed_data';
+
+import 'package:path/path.dart' as p;
 
 import 'package:serial_port_win32/serial_port_win32.dart';
 import 'package:vending_kiosk/core/common/errors/dispenser_exception.dart';
@@ -254,6 +257,51 @@ class WithTechCardDispenserSerial {
     ]);
   }
 
+  /// 시리얼 통신 로그를 파일에 기록 (%USERPROFILE%\Snaptag\Log\YYYY-MM-DD.txt)
+  static Future<void> _logSerial(String direction, Uint8List data) async {
+    try {
+      final home = Platform.environment['USERPROFILE'];
+      if (home == null) return;
+      final dir = Directory(p.join(home, 'Snaptag', 'Log'));
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      final now = DateTime.now().toLocal();
+      final fileName = '${now.year.toString().padLeft(4, '0')}-'
+          '${now.month.toString().padLeft(2, '0')}-'
+          '${now.day.toString().padLeft(2, '0')}.txt';
+      final hex = _toHex(data);
+      final line = '${now.toIso8601String()} $direction [$hex]\n';
+      await File(p.join(dir.path, fileName)).writeAsString(line, mode: FileMode.append);
+    } catch (_) {}
+  }
+
+  /// Uint8List → hex 문자열 변환 (예: "02 1e 05 03")
+  static String _toHex(Uint8List data) => data.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
+
+  /// TX 패킷을 콘솔 + 파일에 기록
+  static void _logTx(Uint8List data) {
+    logger.d('WithTech: TX [${_toHex(data)}]');
+    unawaited(_logSerial('TX', data));
+  }
+
+  /// RX 프레임을 콘솔 + 파일에 기록
+  static void _logRxFrame(Uint8List data, {String label = 'RX'}) {
+    logger.d('WithTech: $label [${_toHex(data)}]');
+    unawaited(_logSerial(label, data));
+  }
+
+  /// 입력 버퍼 비우기 (이전 잔류 데이터 제거)
+  Future<void> _flushInputBuffer() async {
+    try {
+      await _port!.readBytes(1024, timeout: const Duration(milliseconds: 1));
+    } catch (e) {
+      if (_isInvalidHandleError(e)) {
+        _isConnected = false;
+        _port = null;
+        throw DispenserException('WithTech: Serial port handle invalidated. Reconnect required.');
+      }
+    }
+  }
+
   /// 패킷 송신 + ACK 확인 + 실제 응답 수신
   ///
   /// 프로토콜 흐름 (spec 1.6):
@@ -275,17 +323,9 @@ class WithTechCardDispenserSerial {
     for (int attempt = 0; attempt <= retryCount; attempt++) {
       try {
         // 입력 버퍼 비우기
-        try {
-          await _port!.readBytes(1024, timeout: const Duration(milliseconds: 1));
-        } catch (e) {
-          if (_isInvalidHandleError(e)) {
-            _isConnected = false;
-            _port = null;
-            throw DispenserException('WithTech: Serial port handle invalidated (win32 error 6). Reconnect required.');
-          }
-        }
+        await _flushInputBuffer();
 
-        logger.d('WithTech: TX [${packet.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
+        _logTx(packet);
         final writeOk = await _port!.writeBytesFromUint8List(packet, timeout: timeoutMs);
         if (_port == null) throw DispenserException('WithTech: Serial port disconnected during write');
         if (!writeOk) throw DispenserException('WithTech: Failed to write packet');
@@ -295,7 +335,7 @@ class WithTechCardDispenserSerial {
         Uint8List ackFrame;
         try {
           ackFrame = await _port!.readBytes(frameSize, timeout: timeout);
-          logger.d('WithTech: RX ACK [${ackFrame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
+          _logRxFrame(ackFrame, label: 'RX ACK');
           if (ackFrame.length < frameSize) throw TimeoutException('WithTech: ACK read timeout');
         } catch (e) {
           if (_isInvalidHandleError(e)) {
@@ -349,10 +389,11 @@ class WithTechCardDispenserSerial {
         Uint8List respFrame;
         try {
           respFrame = await _port!.readBytes(frameSize, timeout: timeout);
-          logger.d(
-              'WithTech: RX [${respFrame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}] (${respFrame.length}/${frameSize}B)');
-          if (respFrame.length < frameSize)
+          logger.d('WithTech: RX [${_toHex(respFrame)}] (${respFrame.length}/${frameSize}B)');
+          unawaited(_logSerial('RX', respFrame));
+          if (respFrame.length < frameSize) {
             throw TimeoutException('WithTech: Response read timeout after ${timeoutMs}ms');
+          }
         } catch (e) {
           if (_isInvalidHandleError(e)) {
             _isConnected = false;
@@ -549,18 +590,10 @@ class WithTechCardDispenserSerial {
 
     try {
       // 입력 버퍼 비우기 (이전 잔류 데이터 제거)
-      try {
-        await _port!.readBytes(1024, timeout: const Duration(milliseconds: 1));
-      } catch (e) {
-        if (_isInvalidHandleError(e)) {
-          _isConnected = false;
-          _port = null;
-          throw DispenserException('WithTech: Serial port handle invalidated. Reconnect required.');
-        }
-      }
+      await _flushInputBuffer();
 
       final packet = _createPacket(cmdPayoutFirst, count);
-      logger.d('WithTech: TX [${packet.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
+      _logTx(packet);
 
       final writeOk = await _port!.writeBytesFromUint8List(packet, timeout: 2000);
       if (_port == null) throw DispenserException('WithTech: Serial port disconnected during write');
@@ -587,7 +620,7 @@ class WithTechCardDispenserSerial {
 
         if (frame.length < frameSize) continue;
 
-        logger.d('WithTech: RX [${frame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
+        _logRxFrame(frame);
 
         if (frame[0] != stx) continue;
 
@@ -651,19 +684,11 @@ class WithTechCardDispenserSerial {
 
     try {
       // 버퍼 비우기
-      try {
-        await _port!.readBytes(1024, timeout: const Duration(milliseconds: 1));
-      } catch (e) {
-        if (_isInvalidHandleError(e)) {
-          _isConnected = false;
-          _port = null;
-          throw DispenserException('WithTech: Serial port handle invalidated. Reconnect required.');
-        }
-      }
+      await _flushInputBuffer();
 
       final cmdToSend = lastStatus ? cmdRequestLastStatus : cmdRequestStatus;
       final packet = _createPacket(cmdToSend, 0x00);
-      logger.d('WithTech: TX [${packet.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
+      _logTx(packet);
 
       final writeOk = await _port!.writeBytesFromUint8List(packet, timeout: 2000);
       if (!writeOk) throw DispenserException('WithTech: Failed to write status request packet');
@@ -687,7 +712,7 @@ class WithTechCardDispenserSerial {
         if (frame.length < frameSize) break;
         if (frame[0] != stx) continue;
 
-        logger.d('WithTech: RX [${frame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
+        _logRxFrame(frame);
 
         final rspCmd = frame[1];
         final data = frame[2];

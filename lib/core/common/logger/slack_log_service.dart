@@ -224,12 +224,11 @@ $guidePart
   Future<void> sendCardDispenserErrorLogToSlack(String msg) async {
     final kioskInfo = _container.read(kioskInfoServiceProvider);
     final version = _container.read(versionStateProvider).currentVersion;
-    final eventType = kioskInfo?.eventType ?? "-";
     final cleanedMsg = msg.replaceFirst(RegExp(r'^Exception:\s*'), '');
 
     final title = '''🔴 카드 배출기 에러
     ───────────────────
-Kiosk: ${kioskInfo?.kioskMachineId ?? 0}  /  $version
+Kiosk: ${kioskInfo?.kioskMachineName ?? ""}  /  $version
 업체(구단): 한화이글스
 ───────────────────
 $cleanedMsg
