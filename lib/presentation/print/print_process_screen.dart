@@ -11,6 +11,8 @@ import 'package:vending_kiosk/core/services/card_dispenser_service.dart';
 import 'package:vending_kiosk/core/ui/theme/kiosk_colors.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
+import 'package:vending_kiosk/presentation/home/maintenance_provider.dart';
+import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
 import 'package:vending_kiosk/presentation/home/payment_response_state.dart';
 import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
@@ -48,28 +50,17 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
         error: (error, stack) async {
           errorLogging(error.toString(), stack);
 
-          if (error is CardDispenserServiceException) {
-            final result = await DialogHelper.showContactManagerDialog(context);
+          if (error is InsufficientCardStockException) {
+            final result = await DialogHelper.showInsufficientCardStockDialog(context);
             if (result) {
-              if (!mounted) return;
               await _resetAndGoHome(context);
             }
             return;
           }
 
-          final result = await DialogHelper.showInsufficientCardStockDialog(context);
-          if (result) {
-            if (!mounted) return;
-            await _resetAndGoHome(context);
-          }
-
-          ref.read(paymentResponseStateProvider.notifier).reset();
-          ref.read(printQuantityNotifierProvider.notifier).reset();
-          ref.read(reprintIdsProvider.notifier).state = null;
-          await ref.read(kioskRepositoryProvider).updateMaintenance(
-                ref.read(kioskInfoServiceProvider)!.kioskMachineId,
-                UpdateMaintenanceRequest(isUnderMaintenance: true),
-              );
+          ref.read(maintenanceErrorProvider.notifier).state = true;
+          await DialogHelper.showContactManagerDialog(context);
+          return await _resetAndGoHome(context);
         },
         loading: () => null,
         data: (_) async {
@@ -157,8 +148,8 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
 
   /// 에러 발생 후 공통 처리: 수량 초기화 → 정비 상태 설정(재출력 아닐 때) → 화면 이동
   Future<void> _resetAndGoHome(BuildContext context) async {
-    ref.read(printQuantityNotifierProvider.notifier).reset();
     ref.read(paymentResponseStateProvider.notifier).reset();
+    ref.read(printQuantityNotifierProvider.notifier).reset();
 
     final isReprint = ref.read(reprintIdsProvider.notifier).state != null;
     ref.read(reprintIdsProvider.notifier).state = null;
