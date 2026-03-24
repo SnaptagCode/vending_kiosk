@@ -15,6 +15,7 @@ abstract class KioskMachineInfo with _$KioskMachineInfo {
     @Default(0) int echoId,
     @Default(0.0) double photoCardPrice,
     @Default('') String printedEventName,
+    @Default('') String kioskMachineName,
     @Default(false) bool isExpose,
     @Default('') String cardMaterialType,
     @Default(false) bool printableWithoutEmbed,

@@ -38,8 +38,6 @@ class PhotoCardPreviewScreenProvider extends _$PhotoCardPreviewScreenProvider {
       // 재고 확인
       if (stockResponse.cardCurrentCount < quantity.total) {
         throw InsufficientCardStockException(
-          requestedQuantity: quantity.total,
-          availableStock: stockResponse.cardCurrentCount,
           description: '카드 재고가 부족하여 결제를 진행할 수 없습니다.',
         );
       }
@@ -49,8 +47,6 @@ class PhotoCardPreviewScreenProvider extends _$PhotoCardPreviewScreenProvider {
       final dispenserReady = await CardDispenserManager.checkAndRecover();
       if (dispenserReady == false) {
         throw InsufficientCardStockException(
-          requestedQuantity: quantity.total,
-          availableStock: 0,
           description: '배출기에 카드가 없습니다.',
         );
       }
