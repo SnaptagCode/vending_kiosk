@@ -50,6 +50,15 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
         error: (error, stack) async {
           errorLogging(error.toString(), stack);
 
+          final printJobId = ref.read(printJobIdProvider);
+          if (printJobId != null) {
+            await ref
+                .read(kioskRepositoryProvider)
+                .failVendingPrintJob(printJobId: printJobId, failureReason: error.toString());
+            ref.read(printJobIdProvider.notifier).state = null;
+            return;
+          }
+
           if (error is InsufficientCardStockException) {
             final result = await DialogHelper.showInsufficientCardStockDialog(context);
             if (result) {
@@ -65,6 +74,12 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
         loading: () => null,
         data: (_) async {
           _progressCompleted = true;
+
+          final printJobId = ref.read(printJobIdProvider);
+          if (printJobId != null) {
+            await ref.read(kioskRepositoryProvider).succeedVendingPrintJob(printJobId);
+            ref.read(printJobIdProvider.notifier).state = null;
+          }
 
           ref.read(paymentResponseStateProvider.notifier).reset();
 
@@ -83,7 +98,9 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
             context,
             onButtonPressed: () {
               ref.read(printQuantityNotifierProvider.notifier).reset();
-              if (isReprint) {
+              if (printJobId != null) {
+                HomeRouteData().go(context);
+              } else if (isReprint) {
                 PaymentHistoryRouteData().go(context);
               } else {
                 HomeRouteData().go(context);
@@ -151,8 +168,17 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
     ref.read(paymentResponseStateProvider.notifier).reset();
     ref.read(printQuantityNotifierProvider.notifier).reset();
 
+    final printJobId = ref.read(printJobIdProvider);
+    ref.read(printJobIdProvider.notifier).state = null;
+
     final isReprint = ref.read(reprintIdsProvider.notifier).state != null;
     ref.read(reprintIdsProvider.notifier).state = null;
+
+    if (printJobId != null) {
+      HomeRouteData().go(context);
+      return;
+    }
+
     if (!isReprint) {
       await ref.read(kioskRepositoryProvider).updateMaintenance(
             ref.read(kioskInfoServiceProvider)!.kioskMachineId,

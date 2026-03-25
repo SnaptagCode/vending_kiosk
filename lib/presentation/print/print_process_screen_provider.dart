@@ -22,17 +22,42 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
 
   /// 프린트(카드 배출) 작업 시작 — ViewModel 진입점
   Future<void> startPrint() async {
-    // if (state is AsyncLoading) {
-    //   logger.w('PrintProcessScreenProvider: startPrint 이미 실행 중 - 중복 요청 무시');
-    //   return;
-    // }
     state = const AsyncLoading();
+    final printJobId = ref.read(printJobIdProvider);
     try {
-      await _executePrintJob();
+      if (printJobId != null && ref.read(reprintIdsProvider) != null) {
+        // REPRINT: 기존 출력 로직 그대로
+        await _executePrintJob();
+        await ref.read(kioskRepositoryProvider).succeedVendingPrintJob(printJobId);
+      } else if (printJobId != null) {
+        // ARBITRARY: 배출기 동작만
+        await _executeDispenserOnlyJob();
+        await ref.read(kioskRepositoryProvider).succeedVendingPrintJob(printJobId);
+      } else {
+        await _executePrintJob();
+      }
       state = const AsyncData(null);
     } catch (e, st) {
       logger.e('PrintProcessScreenProvider.print failure', error: e, stackTrace: st);
+
       state = AsyncError(e, st);
+    }
+  }
+
+  /// polling ARBITRARY job 전용 — 배출기 동작만 수행
+  Future<void> _executeDispenserOnlyJob() async {
+    final quantity = ref.read(printQuantityNotifierProvider);
+    for (int i = 0; i < quantity.total; i++) {
+      logger.i('Print job: Dispensing card ${i + 1}/${quantity.total}...');
+      SlackLogService().sendLogToSlack('Print job: Dispensing card ${i + 1}/${quantity.total}...');
+
+      final dispenserReady = await CardDispenserManager.checkAndRecover();
+      if (dispenserReady == false) {
+        throw InsufficientCardStockException(description: '배출기에 카드가 없습니다.');
+      }
+
+      await ref.read(cardDispenserServiceProvider.notifier).dispenseAndWait(count: 1, index: i);
+      ref.read(printQuantityNotifierProvider.notifier).increment();
     }
   }
 
