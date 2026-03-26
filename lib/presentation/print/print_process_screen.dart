@@ -52,9 +52,6 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
 
           final printJobId = ref.read(printJobIdProvider);
           if (printJobId != null) {
-            await ref
-                .read(kioskRepositoryProvider)
-                .failVendingPrintJob(printJobId: printJobId, failureReason: error.toString());
             ref.read(printJobIdProvider.notifier).state = null;
             return;
           }

@@ -24,6 +24,7 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
   Future<void> startPrint() async {
     state = const AsyncLoading();
     final printJobId = ref.read(printJobIdProvider);
+
     try {
       if (printJobId != null && ref.read(reprintIdsProvider) != null) {
         // REPRINT: 기존 출력 로직 그대로
@@ -41,6 +42,12 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
       logger.e('PrintProcessScreenProvider.print failure', error: e, stackTrace: st);
 
       state = AsyncError(e, st);
+
+      if (printJobId != null) {
+        await ref
+            .read(kioskRepositoryProvider)
+            .failVendingPrintJob(printJobId: printJobId, failureReason: e.toString());
+      }
     }
   }
 
