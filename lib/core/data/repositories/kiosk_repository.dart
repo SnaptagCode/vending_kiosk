@@ -32,6 +32,9 @@ import 'package:vending_kiosk/core/data/models/response/vending_order_status_res
 import 'package:vending_kiosk/core/data/models/response/vending_print_status_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_print_list_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_reprint_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_polling_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_job_ok_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_job_fail_response.dart';
 import 'package:vending_kiosk/core/network/dio_client.dart';
 import 'package:vending_kiosk/flavors.dart';
 import 'package:vending_kiosk/lib.dart';
@@ -361,6 +364,45 @@ class _KioskRepository {
       return await _apiClient.updateMaintenance(
         kioskMachineId: kioskMachineId,
         body: request.toJson(),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Vending Print Job APIs
+  Future<VendingPrintPollingResponse> getVendingPrintPolling(int kioskMachineId) async {
+    try {
+      return await _apiClient.getVendingPrintPolling(kioskMachineId: kioskMachineId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<VendingPrintJobOkResponse> pickVendingPrintJob(int printJobId) async {
+    try {
+      return await _apiClient.pickVendingPrintJob(printJobId: printJobId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<VendingPrintJobOkResponse> succeedVendingPrintJob(int printJobId) async {
+    try {
+      return await _apiClient.succeedVendingPrintJob(printJobId: printJobId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<VendingPrintJobFailResponse> failVendingPrintJob({
+    required int printJobId,
+    required String failureReason,
+  }) async {
+    try {
+      return await _apiClient.failVendingPrintJob(
+        printJobId: printJobId,
+        body: {'failureReason': failureReason},
       );
     } catch (e) {
       rethrow;

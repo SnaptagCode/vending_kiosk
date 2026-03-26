@@ -52,3 +52,6 @@ final reprintModeProvider = StateProvider<bool>((ref) => false);
 
 /// 재출력 대상 IDs — null이면 일반 출력(createOrderInfoProvider 사용)
 final reprintIdsProvider = StateProvider<List<int>?>((ref) => null);
+
+/// polling으로 선점한 print job ID — null이면 일반 결제/재출력 흐름
+final printJobIdProvider = StateProvider<int?>((ref) => null);

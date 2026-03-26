@@ -18,6 +18,9 @@ import 'package:vending_kiosk/core/data/models/response/vending_order_status_res
 import 'package:vending_kiosk/core/data/models/response/vending_print_status_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_print_list_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_reprint_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_polling_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_job_ok_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_job_fail_response.dart';
 import 'package:retrofit/retrofit.dart';
 
 part 'kiosk_api_client.g.dart';
@@ -174,6 +177,28 @@ abstract class KioskApiClient {
   @PATCH('/v1/machine/{kioskMachineId}/maintenance')
   Future<bool> updateMaintenance({
     @Path('kioskMachineId') required int kioskMachineId,
+    @Body() required Map<String, dynamic> body,
+  });
+
+  // Vending Print Job APIs
+  @GET('/v1/vending/print/polling/{kioskMachineId}')
+  Future<VendingPrintPollingResponse> getVendingPrintPolling({
+    @Path('kioskMachineId') required int kioskMachineId,
+  });
+
+  @POST('/v1/vending/print/job/{printJobId}/pick')
+  Future<VendingPrintJobOkResponse> pickVendingPrintJob({
+    @Path('printJobId') required int printJobId,
+  });
+
+  @POST('/v1/vending/print/job/{printJobId}/success')
+  Future<VendingPrintJobOkResponse> succeedVendingPrintJob({
+    @Path('printJobId') required int printJobId,
+  });
+
+  @POST('/v1/vending/print/job/{printJobId}/fail')
+  Future<VendingPrintJobFailResponse> failVendingPrintJob({
+    @Path('printJobId') required int printJobId,
     @Body() required Map<String, dynamic> body,
   });
 }
