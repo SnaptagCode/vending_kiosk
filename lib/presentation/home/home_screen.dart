@@ -87,7 +87,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final response = await ref.read(kioskRepositoryProvider).getVendingPrintPolling(kioskInfo.kioskMachineId);
 
       if (!response.exists) return;
-      if (response.type != VendingPrintJobType.arbitrary) return;
 
       // 선점
       await ref.read(kioskRepositoryProvider).pickVendingPrintJob(response.printJobId);
@@ -112,6 +111,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       // 성공 처리
       await ref.read(kioskRepositoryProvider).succeedVendingPrintJob(printJobId);
+
+      ref.read(printJobIdProvider.notifier).state = null;
     } catch (e) {
       // 실패 처리
       if (printJobId != 0) {
@@ -119,8 +120,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             .read(kioskRepositoryProvider)
             .failVendingPrintJob(printJobId: printJobId, failureReason: e.toString());
       }
-    } finally {
       ref.read(printJobIdProvider.notifier).state = null;
+    } finally {
       // 임의 출력 처리 후 polling 재개
       if (printJobId != 0) {
         _startPrintJobPolling();

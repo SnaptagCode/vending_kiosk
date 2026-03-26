@@ -78,7 +78,6 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
           final printJobId = ref.read(printJobIdProvider);
           if (printJobId != null) {
             await ref.read(kioskRepositoryProvider).succeedVendingPrintJob(printJobId);
-            ref.read(printJobIdProvider.notifier).state = null;
           }
 
           ref.read(paymentResponseStateProvider.notifier).reset();
@@ -99,6 +98,7 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
             onButtonPressed: () {
               ref.read(printQuantityNotifierProvider.notifier).reset();
               if (printJobId != null) {
+                ref.read(printJobIdProvider.notifier).state = null;
                 HomeRouteData().go(context);
               } else if (isReprint) {
                 PaymentHistoryRouteData().go(context);
