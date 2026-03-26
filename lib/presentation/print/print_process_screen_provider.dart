@@ -34,6 +34,13 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
         // ARBITRARY: 배출기 동작만
         await _executeDispenserOnlyJob();
         await ref.read(kioskRepositoryProvider).succeedVendingPrintJob(printJobId);
+        await ref.read(kioskRepositoryProvider).consumeCardStock(
+              CardStockConsumeRequest(
+                machineId: ref.read(kioskInfoServiceProvider)!.kioskMachineId,
+                uniqueKey: await ref.read(deviceUuidProvider.future),
+                requestCount: 1,
+              ),
+            );
       } else {
         await _executePrintJob();
       }
