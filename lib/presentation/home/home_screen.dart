@@ -7,6 +7,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
 import 'package:vending_kiosk/core/common/extensions/color.dart';
+import 'package:vending_kiosk/core/data/models/enums/vending_print_job_type.dart';
 import 'package:vending_kiosk/core/data/models/request/update_maintenance_request.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
@@ -18,6 +19,7 @@ import 'package:vending_kiosk/presentation/kiosk_shell/home_timeout_provider.dar
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
 import 'package:vending_kiosk/presentation/home/payment/photo_card_preview_screen_provider.dart';
+import 'package:vending_kiosk/presentation/print/print_process_screen_provider.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
 import 'package:vending_kiosk/presentation/setup/uuid_provider.dart';
 import 'package:loader_overlay/loader_overlay.dart';
@@ -32,22 +34,29 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   Timer? _maintenanceTimer;
   bool _isCheckingMaintenance = false;
+  Timer? _printJobPollingTimer;
+  bool _isCheckingPrintJob = false;
+  int _selectedQuantity = 1;
 
   @override
   void initState() {
     super.initState();
 
     _startMaintenancePolling();
+    _startPrintJobPolling();
   }
 
   @override
   void dispose() {
     _maintenanceTimer?.cancel();
     _isCheckingMaintenance = false;
+    _printJobPollingTimer?.cancel();
+    _isCheckingPrintJob = false;
     super.dispose();
   }
 
   void _startMaintenancePolling() {
+    _maintenanceTimer?.cancel();
     _maintenanceTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
       if (_isCheckingMaintenance) return;
       _isCheckingMaintenance = true;
@@ -57,6 +66,61 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         _isCheckingMaintenance = false;
       }
     });
+  }
+
+  void _startPrintJobPolling() {
+    _printJobPollingTimer?.cancel();
+    _printJobPollingTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (_isCheckingPrintJob) return;
+      _isCheckingPrintJob = true;
+      try {
+        await _checkPrintJob();
+      } finally {
+        _isCheckingPrintJob = false;
+      }
+    });
+  }
+
+  Future<void> _checkPrintJob() async {
+    int printJobId = 0;
+    try {
+      final kioskInfo = ref.read(kioskInfoServiceProvider);
+      if (kioskInfo == null) return;
+
+      final response = await ref.read(kioskRepositoryProvider).getVendingPrintPolling(kioskInfo.kioskMachineId);
+
+      if (!response.exists) return;
+
+      // 선점
+      await ref.read(kioskRepositoryProvider).pickVendingPrintJob(response.printJobId);
+
+      // polling 중단 (이후 print screen으로 이동)
+      _printJobPollingTimer?.cancel();
+
+      // 임의출력 처리
+      printJobId = response.printJobId;
+      ref.read(printJobIdProvider.notifier).state = printJobId;
+      ref.read(printQuantityNotifierProvider.notifier).setQuantity(response.requestCount);
+
+      // 재출력 처리
+      if (response.type == VendingPrintJobType.reprint) {
+        ref.read(reprintIdsProvider.notifier).state = response.printedPhotoCardIdList;
+        PrintProcessRouteData().go(context);
+        return;
+      }
+
+      // 배출 실행
+      ref.read(printProcessScreenProviderProvider.notifier).startPrint();
+
+      ref.read(printJobIdProvider.notifier).state = null;
+    } catch (e) {
+      ref.read(printJobIdProvider.notifier).state = null;
+    } finally {
+      // 임의 출력 처리 후 polling 재개
+      if (printJobId != 0) {
+        _startPrintJobPolling();
+      }
+    }
   }
 
   Future<bool> _checkMaintenance() async {
@@ -82,12 +146,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final kiosk = ref.watch(kioskInfoServiceProvider);
-    final quantity = ref.watch(printQuantityNotifierProvider);
     final paymentState = ref.watch(paymentNotifierProvider);
 
     // 가격 계산
     final unitPrice = kiosk?.photoCardPrice ?? 1000;
-    final totalPrice = unitPrice * quantity.total;
+    final totalPrice = unitPrice * _selectedQuantity;
     final formattedPrice = NumberFormat.currency(locale: 'ko_KR', symbol: '').format(totalPrice);
 
     ref.listen<AsyncValue<void>>(
@@ -115,11 +178,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               timeoutNotifier.resumeTimer();
             }
 
+            bool handled = false;
             if (error is PaymentFailedException) {
               if (error is InsufficientCardStockException) {
-                final result = await DialogHelper.showInsufficientCardStockDialog(
-                  context,
-                );
+                final result = await DialogHelper.showInsufficientCardStockDialog(context);
                 if (result) {
                   await ref.read(kioskRepositoryProvider).updateMaintenance(
                         ref.read(kioskInfoServiceProvider)!.kioskMachineId,
@@ -127,44 +189,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       );
                   _startMaintenancePolling();
                 }
-                return;
-              }
-              if (error is TimeoutPaymentException) {
-                await DialogHelper.showTimeoutPaymentDialog(
-                  context,
-                );
-                return;
-              }
-              if (error.description?.contains('한도') ?? false) {
-                await DialogHelper.showCardLimitExceededDialog(
-                  context,
-                );
-                return;
-              }
-              if (error.description?.contains('잔액') ?? false) {
-                await DialogHelper.showInsufficientBalanceDialog(
-                  context,
-                );
-                return;
-              }
-              if (error.description?.contains('인증') ?? false) {
-                await DialogHelper.showVerificationErrorDialog(
-                  context,
-                );
-                return;
-              }
-              if (error.description?.contains('가맹점') ?? false) {
-                await DialogHelper.showMerchantRestrictionDialog(
-                  context,
-                );
-                return;
+                handled = true;
+              } else if (error is TimeoutPaymentException) {
+                await DialogHelper.showTimeoutPaymentDialog(context);
+                handled = true;
+              } else if (error.description?.contains('한도') ?? false) {
+                await DialogHelper.showCardLimitExceededDialog(context);
+                handled = true;
+              } else if (error.description?.contains('잔액') ?? false) {
+                await DialogHelper.showInsufficientBalanceDialog(context);
+                handled = true;
+              } else if (error.description?.contains('인증') ?? false) {
+                await DialogHelper.showVerificationErrorDialog(context);
+                handled = true;
+              } else if (error.description?.contains('가맹점') ?? false) {
+                await DialogHelper.showMerchantRestrictionDialog(context);
+                handled = true;
               }
             }
 
-            await DialogHelper.showPurchaseFailedDialog(
-              context,
-            );
-            return;
+            if (!handled) {
+              await DialogHelper.showPurchaseFailedDialog(context);
+            }
+
+            _startPrintJobPolling();
           },
           loading: () => null,
           data: (_) async {
@@ -307,7 +355,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           style: context.typography.vendingBody2B.copyWith(color: mainTextColor),
                                         ),
                                         Text(
-                                          '${quantity.total} ${LocaleKeys.unit_pcs.tr()}',
+                                          '$_selectedQuantity ${LocaleKeys.unit_pcs.tr()}',
                                           style: context.typography.vendingBody1B.copyWith(color: buttonColor),
                                         )
                                       ],
@@ -342,6 +390,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       if (isUnderMaintenance) return;
                                       _maintenanceTimer?.cancel();
                                       _isCheckingMaintenance = false;
+                                      _printJobPollingTimer?.cancel();
+                                      ref.read(printQuantityNotifierProvider.notifier).setQuantity(_selectedQuantity);
                                       await ref.read(photoCardPreviewScreenProviderProvider.notifier).payment();
                                       // PrintProcessRouteData().go(context);
                                     },
@@ -390,10 +440,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     Color buttonColor,
     Color mainTextColor,
   ) {
-    final isSelected = ref.watch(printQuantityNotifierProvider).total == value;
+    final isSelected = _selectedQuantity == value;
 
     return GestureDetector(
-      onTap: () => ref.read(printQuantityNotifierProvider.notifier).setQuantity(value),
+      onTap: () => setState(() => _selectedQuantity = value),
       child: Container(
         width: 144.w,
         height: 92.h,
