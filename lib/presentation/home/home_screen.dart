@@ -4,8 +4,10 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_tts/flutter_tts.dart';
+// import 'package:flutter_tts/flutter_tts.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
+import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_polling_response.dart';
 import 'package:vending_kiosk/core/common/extensions/color.dart';
 import 'package:vending_kiosk/core/data/models/enums/vending_print_job_type.dart';
 import 'package:vending_kiosk/core/data/models/request/update_maintenance_request.dart';
@@ -36,6 +38,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isCheckingMaintenance = false;
   Timer? _printJobPollingTimer;
   bool _isCheckingPrintJob = false;
+  int _pollingFailureCount = 0;
+  static const int _maxPollingFailures = 5;
   int _selectedQuantity = 1;
 
   @override
@@ -83,14 +87,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _checkPrintJob() async {
     int printJobId = 0;
+
+    // Phase 1: 폴링 API 호출 (실패 시 재시도 카운팅)
+    final VendingPrintPollingResponse response;
     try {
       final kioskInfo = ref.read(kioskInfoServiceProvider);
       if (kioskInfo == null) return;
 
-      final response = await ref.read(kioskRepositoryProvider).getVendingPrintPolling(kioskInfo.kioskMachineId);
+      response = await ref.read(kioskRepositoryProvider).getVendingPrintPolling(kioskInfo.kioskMachineId);
 
-      if (!response.exists) return;
+      // 폴링 성공 — 실패 카운터 리셋
+      _pollingFailureCount = 0;
+    } catch (e) {
+      // 폴링 실패 — 카운터 증가
+      _pollingFailureCount++;
 
+      if (_pollingFailureCount >= _maxPollingFailures) {
+        SlackLogService().sendErrorLogToSlack(
+          '재출력/임의출력 상태확인 실패했습니다($_maxPollingFailures회 시도 실패)',
+        );
+        _pollingFailureCount = 0;
+      }
+
+      ref.read(printJobIdProvider.notifier).state = null;
+      return;
+    }
+
+    if (!response.exists) return;
+
+    // Phase 2: 작업 처리 (폴링 재시도와 무관)
+    try {
       // 선점
       await ref.read(kioskRepositoryProvider).pickVendingPrintJob(response.printJobId);
 
