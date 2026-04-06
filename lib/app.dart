@@ -5,24 +5,24 @@ import 'dart:ui';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:vending_kiosk/core/common/extensions/button_styles.dart';
+import 'package:vending_kiosk/core/common/launcher/launcher_service.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/providers/network_status_provider.dart';
 import 'package:vending_kiosk/core/providers/theme_provider.dart';
+import 'package:vending_kiosk/core/services/card_dispenser_manager.dart';
 import 'package:vending_kiosk/core/ui/theme/kiosk_colors.dart';
 import 'package:vending_kiosk/core/ui/theme/kiosk_typography.dart';
+import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
+import 'package:vending_kiosk/core/ui/widget/general_error_widget.dart';
 import 'package:vending_kiosk/flavors.dart';
 import 'package:vending_kiosk/locale_keys.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/home_timeout_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/routers/go_router.dart';
-import 'package:vending_kiosk/presentation/kiosk_shell/home_timeout_provider.dart';
-import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
-import 'package:vending_kiosk/core/common/launcher/launcher_service.dart';
-import 'package:vending_kiosk/core/services/card_dispenser_manager.dart';
-import 'package:vending_kiosk/core/ui/widget/general_error_widget.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
-import 'package:go_router/go_router.dart';
 import 'package:vending_kiosk/presentation/setup/alert_definition_provider.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -114,6 +114,7 @@ class _AppState extends ConsumerState<App> with WindowListener {
         titleBarStyle: TitleBarStyle.hidden,
       );
       await windowManager.waitUntilReadyToShow(windowOptions, () async {
+        await windowManager.setPosition(Offset(-6, 0.0));
         await windowManager.setFullScreen(true);
         await windowManager.show();
       });
