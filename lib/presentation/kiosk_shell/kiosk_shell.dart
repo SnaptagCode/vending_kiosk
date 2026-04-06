@@ -31,9 +31,9 @@ class _KioskShellState extends ConsumerState<KioskShell> {
   void initState() {
     super.initState();
 
-    _periodicTimer = Timer.periodic(const Duration(minutes: 30), (timer) {
-      SlackLogService().sendPeriodicLogBroadcastLogToSlack();
-    });
+    // _periodicTimer = Timer.periodic(const Duration(minutes: 30), (timer) {
+    //   SlackLogService().sendPeriodicLogBroadcastLogToSlack();
+    // });
   }
 
   @override
