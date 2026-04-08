@@ -1,7 +1,7 @@
 name: vending_kiosk
 description: "A new Flutter project."
 publish_to: "none"
-version: 1.0.0
+version: 1.0.1
 
 environment:
   sdk: ^3.6.0
@@ -58,7 +58,7 @@ dependencies:
   serial_port_win32: ^2.3.0
 
   # Text to Speech
-  flutter_tts: ^4.2.0
+  # flutter_tts: ^4.2.0
 
 dev_dependencies:
   flutter_test:
