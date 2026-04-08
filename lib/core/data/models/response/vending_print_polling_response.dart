@@ -8,13 +8,13 @@ part 'vending_print_polling_response.g.dart';
 class VendingPrintPollingResponse with _$VendingPrintPollingResponse {
   const factory VendingPrintPollingResponse({
     required bool exists,
-    required int printJobId,
-    required int kioskMachineId,
-    required VendingPrintJobType type,
+    required int? printJobId,
+    required int? kioskMachineId,
+    required VendingPrintJobType? type,
     required int? kioskOrderId,
-    required int requestCount,
-    required List<int> printedPhotoCardIdList,
-    required int reprintTargetCount,
+    required int? requestCount,
+    required List<int>? printedPhotoCardIdList,
+    required int? reprintTargetCount,
   }) = _VendingPrintPollingResponse;
 
   factory VendingPrintPollingResponse.fromJson(Map<String, dynamic> json) =>
