@@ -1,15 +1,15 @@
 import 'dart:developer';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vending_kiosk/core/data/models/entities/slack_log_template.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:collection/collection.dart';
+import 'package:vending_kiosk/core/providers/version_notifier.dart';
+import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
 import 'package:vending_kiosk/presentation/core/printer_log_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/setup/alert_definition_provider.dart';
-import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
-import 'package:vending_kiosk/core/providers/version_notifier.dart';
 
 /// 서버 API POST /v1/internal/slack-alert 로 Slack 알림 전송 (type + message)
 class SlackLogService {
@@ -212,7 +212,7 @@ ${cardCount == 0 ? "- 단면 -> 양면 모드" : "- 단면 모드 설정\n- 단�
     return '''
 $formattedTitle
 ───────────────────
-Kiosk: ${slackLogTemplate.kioskMachineInfo?.kioskMachineId ?? 0}  /  ${slackLogTemplate.appVersion}
+Kiosk: ${slackLogTemplate.kioskMachineInfo?.kioskMachineName.isNotEmpty == true ? '${slackLogTemplate.kioskMachineInfo!.kioskMachineName} (${slackLogTemplate.kioskMachineInfo!.kioskMachineId})' : slackLogTemplate.kioskMachineInfo?.kioskMachineId ?? 0}  /  ${slackLogTemplate.appVersion}
 업체(구단): ${slackLogTemplate.serviceName}
 ───────────────────
 ${slackLogTemplate.description}
