@@ -344,7 +344,7 @@ class CardDispenserManager {
         final resetOk = await reset();
         if (!resetOk) {
           logger.w('CardDispenserManager: reset failed (PAYOUT_WORKING) index=$index');
-          throw DispenserException('카드 배출기 초기화 실패. 장치 상태를 확인해 주세요.');
+          // throw DispenserException('카드 배출기 초기화 실패. 장치 상태를 확인해 주세요.');
         }
 
         final msg = err.description ?? '장치가 배출을 거부했습니다. 카드 수량 및 장치 상태를 확인해 주세요.';

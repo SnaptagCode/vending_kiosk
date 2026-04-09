@@ -143,7 +143,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         final name = kioskInfo?.kioskMachineName ?? '';
         final id = kioskInfo?.kioskMachineId ?? '';
         SlackLogService().sendErrorLogToSlack(
-          '[$name ($id)] 임의출력/재출력에 실패했습니다',
+          '[$name ($id)] 임의출력/재출력에 상태확인 실패했습니다',
         );
         _gaveUpPrintJobId = response.printJobId;
         _printJobFailureCount = 0;
