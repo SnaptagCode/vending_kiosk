@@ -51,6 +51,9 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
       state = AsyncError(e, st);
 
       if (printJobId != null) {
+        if (ref.read(reprintIdsProvider) == null) {
+          SlackLogService().sendArbitraryPrintFailLogToSlack();
+        }
         await ref
             .read(kioskRepositoryProvider)
             .failVendingPrintJob(printJobId: printJobId, failureReason: e.toString());
@@ -143,7 +146,9 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
       logger.i('=====================================================');
       await ref.read(cardDispenserServiceProvider.notifier).dispenseAndWait(count: 1, index: index);
     } catch (e) {
-      SlackLogService().sendCardDispenserErrorLogToSlack(e.toString());
+      // if ((e as DispenserException).message != '카드 배출기 초기화 실패. 장치 상태를 확인해 주세요.') {
+      //   SlackLogService().sendCardDispenserErrorLogToSlack(e.toString());
+      // }
       rethrow;
     }
 

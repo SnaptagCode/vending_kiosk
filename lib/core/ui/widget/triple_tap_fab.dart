@@ -45,7 +45,7 @@ class TripleTapFloatingButton extends ConsumerWidget {
           if (enteredCode != null) {
             String correctPassword = _generateCurrentTimePin();
 
-            if (enteredCode == correctPassword || enteredCode == '970319') {
+            if (enteredCode == correctPassword || enteredCode == '970415') {
               await ref.read(kioskRepositoryProvider).updateMaintenance(
                     ref.read(kioskInfoServiceProvider)!.kioskMachineId,
                     UpdateMaintenanceRequest(isUnderMaintenance: false),
