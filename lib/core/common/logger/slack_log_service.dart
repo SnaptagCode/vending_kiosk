@@ -39,20 +39,20 @@ class SlackLogService {
 
   Future<void> sendErrorLogToSlack(String message) async {
     final type = kDebugMode ? 'test_error_log' : 'error_log';
-    // await _sendSlackAlert('test_error_log', message);
-    await _sendSlackAlert(type, message);
+    await _sendSlackAlert('test_error_log', message);
+    // await _sendSlackAlert(type, message);
   }
 
   Future<void> sendLogToSlack(String message) async {
     final type = kDebugMode ? 'test_log' : 'log';
-    // await _sendSlackAlert('test_log', message);
-    await _sendSlackAlert(type, message);
+    await _sendSlackAlert('test_log', message);
+    // await _sendSlackAlert(type, message);
   }
 
   Future<void> _sendServiceAlarmToSlack(String message) async {
     final type = kDebugMode ? 'test_service' : 'service';
-    // await _sendSlackAlert('test_service', message);
-    await _sendSlackAlert(type, message);
+    await _sendSlackAlert('test_service', message);
+    // await _sendSlackAlert(type, message);
   }
 
   Future<void> _sendVendingToSlack(String message) async {
@@ -221,6 +221,18 @@ $guidePart
 ''';
   }
 
+  Future<void> sendArbitraryPrintFailLogToSlack() async {
+    final kioskInfo = _container.read(kioskInfoServiceProvider);
+    final version = _container.read(versionStateProvider).currentVersion;
+
+    final message = '''🔴  임의출력/재출력에 실패했습니다. 카드 수량을 확인해주세요.
+───────────────────
+Kiosk: ${kioskInfo?.kioskMachineName.isNotEmpty == true ? '${kioskInfo?.kioskMachineName} (${kioskInfo?.kioskMachineId})' : kioskInfo?.kioskMachineId ?? 0}  /  $version
+''';
+
+    await _sendVendingToSlack(message);
+  }
+
   Future<void> sendCardDispenserErrorLogToSlack(String msg) async {
     final kioskInfo = _container.read(kioskInfoServiceProvider);
     final version = _container.read(versionStateProvider).currentVersion;
@@ -228,8 +240,7 @@ $guidePart
 
     final title = '''🔴 카드 배출기 에러
     ───────────────────
-Kiosk: ${kioskInfo?.kioskMachineName ?? ""}  /  $version
-업체(구단): 한화이글스
+Kiosk: ${kioskInfo?.kioskMachineName.isNotEmpty == true ? '${kioskInfo?.kioskMachineName} (${kioskInfo?.kioskMachineId})' : kioskInfo?.kioskMachineId ?? 0}  /  $version
 ───────────────────
 $cleanedMsg
 ''';
