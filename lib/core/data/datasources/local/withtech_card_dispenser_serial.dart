@@ -1,15 +1,12 @@
 import 'dart:async';
-import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
-
 import 'package:serial_port_win32/serial_port_win32.dart';
 import 'package:vending_kiosk/core/common/errors/dispenser_exception.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
-import 'package:win32/win32.dart'
-    show DCB, GetLastError, PURGE_TXABORT, PURGE_TXCLEAR, PurgeComm, RTS_CONTROL_ENABLE, SetCommState;
+import 'package:win32/win32.dart' show GetLastError;
 
 /// WITH-TECH WT-CB3/CF1/CB7/CR1/CR1F1/F2 Dispenser RS-232 프로토콜 구현.
 ///
@@ -647,10 +644,10 @@ class WithTechCardDispenserSerial {
           case rspNak: // 0x21 - NAK
             logger.e('WithTech: payout NAK frame=[${frame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
             return false;
-          case rspMaxBillsError: // 0x28 - 최대 수량 초과
-            logger.e(
-                'WithTech: payout max bills error frame=[${frame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
-            return false;
+          // case rspMaxBillsError: // 0x28 - 최대 수량 초과
+          //   logger.e(
+          //       'WithTech: payout max bills error frame=[${frame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}]');
+          //   return false;
           default:
             logger.w('WithTech: payout unexpected cmd=0x${cmd.toRadixString(16)} data=0x${data.toRadixString(16)}');
         }
