@@ -163,8 +163,8 @@ class PaymentService extends _$PaymentService {
     final response = await _updateOrder(isRefund: false, description: "시간초과");
     SlackLogService().sendLogToSlack("paymentResponse1004 : $response");
 
-    SlackLogService().sendPaymentBroadcastLogToSlak(InfoKey.paymentFail.key,
-        paymentDescription: "사유: 시간초과\n- 인증번호: ${''}\n- 승인번호: ${paymentResponse.approvalNo ?? "없음"}");
+    // SlackLogService().sendPaymentBroadcastLogToSlak(InfoKey.paymentFail.key,
+    //     paymentDescription: "사유: 시간초과\n- 인증번호: ${''}\n- 승인번호: ${paymentResponse.approvalNo ?? "없음"}");
 
     // 결제 실패 Exception throw
     throw TimeoutPaymentException(description: "시간초과");

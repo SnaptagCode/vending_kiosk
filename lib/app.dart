@@ -104,7 +104,7 @@ class _AppState extends ConsumerState<App> with WindowListener {
 
   Future<void> _ensureFullScreenOnce() async {
     if (_initializedFullScreen) return;
-    _initializedFullScreen = true;
+    // _initializedFullScreen = true;
 
     if (Platform.isWindows) {
       WindowOptions windowOptions = WindowOptions(
