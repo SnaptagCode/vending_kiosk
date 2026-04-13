@@ -119,13 +119,31 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
   }
 
   Future<void> _updatePrintStatus(int printedPhotoCardId, PrintedStatus status) async {
-    try {
-      ref.read(kioskRepositoryProvider).updateVendingPrintStatus(
-            printedPhotoCardId,
-            UpdateVendingPrintStatusRequest(status: status),
-          );
-    } catch (e) {
-      rethrow;
+    const maxRetries = 3;
+    int attempt = 0;
+
+    while (attempt < maxRetries) {
+      try {
+        await ref.read(kioskRepositoryProvider).updateVendingPrintStatus(
+              printedPhotoCardId,
+              UpdateVendingPrintStatusRequest(status: status),
+            );
+        return;
+      } catch (e) {
+        attempt++;
+        // logger.w('PrintService._updatePrintStatus attempt $attempt/$maxRetries failure', error: e);
+
+        if (attempt >= maxRetries) {
+          final kioskInfo = ref.read(kioskInfoServiceProvider);
+          final machineId = kioskInfo?.kioskMachineId ?? 0;
+          final machineName = kioskInfo?.kioskMachineName ?? '';
+          SlackLogService().sendErrorLogToSlack(
+              '[MACHINE_NAME: $machineName (MACHINE_ID: $machineId)] PrintService._updatePrintStatus failure after $maxRetries retries: $e');
+          logger.e('PrintService._updatePrintStatus failure', error: e);
+          return;
+        }
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
     }
   }
 

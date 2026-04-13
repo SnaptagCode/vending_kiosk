@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vending_kiosk/core/common/constants/alert_key.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
@@ -11,16 +13,14 @@ import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_order_status_response.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
+import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
+import 'package:vending_kiosk/presentation/home/payment/create_order_info_state.dart';
+import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
+import 'package:vending_kiosk/presentation/home/payment/payment_response_state.dart';
+import 'package:vending_kiosk/presentation/home/payment/verify_photo_card_provider.dart';
 import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
-import 'package:vending_kiosk/presentation/home/payment/verify_photo_card_provider.dart';
-import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
 import 'package:vending_kiosk/presentation/setup/page_print_provider.dart';
-import 'package:vending_kiosk/presentation/home/payment/create_order_info_state.dart';
-import 'package:vending_kiosk/presentation/home/payment/payment_response_state.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
-import 'package:intl/intl.dart';
 
 part 'payment_service.g.dart';
 
@@ -163,8 +163,8 @@ class PaymentService extends _$PaymentService {
     final response = await _updateOrder(isRefund: false, description: "시간초과");
     SlackLogService().sendLogToSlack("paymentResponse1004 : $response");
 
-    SlackLogService().sendPaymentBroadcastLogToSlak(InfoKey.paymentFail.key,
-        paymentDescription: "사유: 시간초과\n- 인증번호: ${''}\n- 승인번호: ${paymentResponse.approvalNo ?? "없음"}");
+    // SlackLogService().sendPaymentBroadcastLogToSlak(InfoKey.paymentFail.key,
+    //     paymentDescription: "사유: 시간초과\n- 인증번호: ${''}\n- 승인번호: ${paymentResponse.approvalNo ?? "없음"}");
 
     // 결제 실패 Exception throw
     throw TimeoutPaymentException(description: "시간초과");
@@ -172,11 +172,11 @@ class PaymentService extends _$PaymentService {
 
   /// 취소된 결제 처리
   Future<void> _handleCancelledPayment(PaymentResponse paymentResponse) async {
-    final response = await _updateOrder(isRefund: false, description: "고객취소");
-    SlackLogService().sendLogToSlack("paymentResponse1000 : $response");
+    // final response = await _updateOrder(isRefund: false, description: "고객취소");
+    // SlackLogService().sendLogToSlack("paymentResponse1000 : $response");
 
-    SlackLogService().sendPaymentBroadcastLogToSlak(InfoKey.paymentFail.key,
-        paymentDescription: "사유: 사용자가 결제취소 누름\n- 인증번호: ${''}\n- 승인번호: ${paymentResponse.approvalNo ?? "없음"}");
+    // SlackLogService().sendPaymentBroadcastLogToSlak(InfoKey.paymentFail.key,
+    //     paymentDescription: "사유: 사용자가 결제취소 누름\n- 인증번호: ${''}\n- 승인번호: ${paymentResponse.approvalNo ?? "없음"}");
 
     // 결제 실패 Exception throw
     throw CancelledPaymentException(description: "고객취소");
