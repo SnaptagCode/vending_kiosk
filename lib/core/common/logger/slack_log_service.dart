@@ -38,20 +38,20 @@ class SlackLogService {
 
   Future<void> sendErrorLogToSlack(String message) async {
     final type = kDebugMode ? 'test_error_log' : 'error_log';
-    await _sendSlackAlert('test_error_log', message);
-    // await _sendSlackAlert(type, message);
+    // await _sendSlackAlert('test_error_log', message);
+    await _sendSlackAlert(type, message);
   }
 
   Future<void> sendLogToSlack(String message) async {
     final type = kDebugMode ? 'test_log' : 'log';
-    await _sendSlackAlert('test_log', message);
-    // await _sendSlackAlert(type, message);
+    // await _sendSlackAlert('test_log', message);
+    await _sendSlackAlert(type, message);
   }
 
   Future<void> _sendServiceAlarmToSlack(String message) async {
     final type = kDebugMode ? 'test_service' : 'service';
-    await _sendSlackAlert('test_service', message);
-    // await _sendSlackAlert(type, message);
+    // await _sendSlackAlert('test_service', message);
+    await _sendSlackAlert(type, message);
   }
 
   Future<void> _sendVendingToSlack(String message) async {
