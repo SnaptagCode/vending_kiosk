@@ -198,7 +198,7 @@ ${cardCount == 0 ? "- 단면 -> 양면 모드" : "- 단면 모드 설정\n- 단�
 $formattedTitle
 ───────────────────
 Kiosk: ${slackLogTemplate.kioskMachineInfo?.kioskMachineName.isNotEmpty == true ? '${slackLogTemplate.kioskMachineInfo!.kioskMachineName} (${slackLogTemplate.kioskMachineInfo!.kioskMachineId})' : slackLogTemplate.kioskMachineInfo?.kioskMachineId ?? 0}  /  ${slackLogTemplate.appVersion}
-업체(구단): ${slackLogTemplate.serviceName}
+eventName: ${slackLogTemplate.serviceName}
 ───────────────────
 ${slackLogTemplate.description}
 ${slackLogTemplate.title == "카드 인쇄 모드 변경" ? cardInfo : ""}
