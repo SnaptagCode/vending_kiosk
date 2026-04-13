@@ -120,7 +120,7 @@ class _AppState extends ConsumerState<App> with WindowListener {
         alwaysOnTop: true,
       );
       await windowManager.waitUntilReadyToShow(windowOptions, () async {
-        await windowManager.setPosition(const Offset(-10, 0.0));
+        await windowManager.setPosition(const Offset(-6, 0.0));
         await windowManager.show();
       });
     }
