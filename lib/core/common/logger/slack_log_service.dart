@@ -69,25 +69,13 @@ class SlackLogService {
     final def = definitions.firstWhereOrNull((e) => e.key == errorKey);
     final kioskInfo = _container.read(kioskInfoServiceProvider);
     final version = _container.read(versionStateProvider).currentVersion;
-    final eventType = kioskInfo?.eventType ?? "-";
-
-    final serviceNameMap = {
-      "SUF": "수원FC",
-      "SEF": "서울 이랜드 FC",
-      "KEEFO": "성수 B'Day",
-      "AGFC": "안산그리너스FC",
-      "HWEG": "한화 이글스",
-      "ETC": "기타"
-    };
-
-    final serviceName = serviceNameMap[eventType] ?? '-';
 
     return def != null && errorKey != null
         ? SlackLogTemplate(
             key: errorKey,
             category: def.category,
             title: def.title,
-            serviceName: serviceName,
+            serviceName: kioskInfo?.printedEventName.isNotEmpty == true ? kioskInfo!.printedEventName : '-',
             appVersion: version,
             guideText: def.guideText,
             guideUrl: def.guideUrl,
@@ -97,7 +85,7 @@ class SlackLogService {
             key: '',
             category: '',
             title: '',
-            serviceName: serviceName,
+            serviceName: kioskInfo?.printedEventName.isNotEmpty == true ? kioskInfo!.printedEventName : '-',
             appVersion: version,
             description: '',
             kioskMachineInfo: kioskInfo);
@@ -236,7 +224,7 @@ Kiosk: ${kioskInfo?.kioskMachineName.isNotEmpty == true ? '${kioskInfo?.kioskMac
     final cleanedMsg = msg.replaceFirst(RegExp(r'^Exception:\s*'), '');
 
     final title = '''🔴 카드 배출기 에러
-    ───────────────────
+───────────────────
 Kiosk: ${kioskInfo?.kioskMachineName.isNotEmpty == true ? '${kioskInfo?.kioskMachineName} (${kioskInfo?.kioskMachineId})' : kioskInfo?.kioskMachineId ?? 0}  /  $version
 ───────────────────
 $cleanedMsg
