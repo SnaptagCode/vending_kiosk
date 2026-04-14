@@ -69,13 +69,24 @@ class SlackLogService {
     final def = definitions.firstWhereOrNull((e) => e.key == errorKey);
     final kioskInfo = _container.read(kioskInfoServiceProvider);
     final version = _container.read(versionStateProvider).currentVersion;
+    final eventType = kioskInfo?.eventType ?? "-";
+
+    final serviceNameMap = {
+      "SUF": "수원FC",
+      "SEF": "서울 이랜드 FC",
+      "KEEFO": "성수 B'Day",
+      "AGFC": "안산그리너스FC",
+      "HWEG": "한화이글스"
+    };
+
+    final serviceName = serviceNameMap[eventType] ?? '기타';
 
     return def != null && errorKey != null
         ? SlackLogTemplate(
             key: errorKey,
             category: def.category,
             title: def.title,
-            serviceName: kioskInfo?.printedEventName.isNotEmpty == true ? kioskInfo!.printedEventName : '-',
+            serviceName: serviceName,
             appVersion: version,
             guideText: def.guideText,
             guideUrl: def.guideUrl,
@@ -85,7 +96,7 @@ class SlackLogService {
             key: '',
             category: '',
             title: '',
-            serviceName: kioskInfo?.printedEventName.isNotEmpty == true ? kioskInfo!.printedEventName : '-',
+            serviceName: serviceName,
             appVersion: version,
             description: '',
             kioskMachineInfo: kioskInfo);
@@ -198,7 +209,7 @@ ${cardCount == 0 ? "- 단면 -> 양면 모드" : "- 단면 모드 설정\n- 단�
 $formattedTitle
 ───────────────────
 Kiosk: ${slackLogTemplate.kioskMachineInfo?.kioskMachineName.isNotEmpty == true ? '${slackLogTemplate.kioskMachineInfo!.kioskMachineName} (${slackLogTemplate.kioskMachineInfo!.kioskMachineId})' : slackLogTemplate.kioskMachineInfo?.kioskMachineId ?? 0}  /  ${slackLogTemplate.appVersion}
-eventName: ${slackLogTemplate.serviceName}
+업체(구단): ${slackLogTemplate.serviceName}
 ───────────────────
 ${slackLogTemplate.description}
 ${slackLogTemplate.title == "카드 인쇄 모드 변경" ? cardInfo : ""}
