@@ -11,7 +11,6 @@ import 'package:vending_kiosk/core/common/extensions/color.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/enums/vending_print_job_type.dart';
 import 'package:vending_kiosk/core/data/models/request/update_maintenance_request.dart';
-import 'package:vending_kiosk/core/data/models/response/vending_print_polling_response.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
@@ -38,9 +37,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isCheckingMaintenance = false;
   Timer? _printJobPollingTimer;
   bool _isCheckingPrintJob = false;
-  int _printJobFailureCount = 0;
-  static const int _maxPrintJobFailures = 3;
-  int? _gaveUpPrintJobId;
   int _selectedQuantity = 1;
 
   @override
@@ -87,82 +83,70 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _checkPrintJob() async {
-    int printJobId = 0;
-
-    // Phase 1: 폴링 API 호출 (실패 시 재시도 카운팅)
-    final VendingPrintPollingResponse response;
     try {
       final kioskInfo = ref.read(kioskInfoServiceProvider);
       if (kioskInfo == null) return;
 
-      response = await ref.read(kioskRepositoryProvider).getVendingPrintPolling(kioskInfo.kioskMachineId);
-    } catch (e) {
-      ref.read(printJobIdProvider.notifier).state = null;
-      return;
-    }
+      const maxRetries = 3;
+      dynamic response;
+      for (int attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          response = await ref.read(kioskRepositoryProvider).getVendingPrintPolling(kioskInfo.kioskMachineId);
+          break;
+        } catch (e) {
+          if (attempt == maxRetries) {
+            final kioskInfo = ref.read(kioskInfoServiceProvider);
+            final name = kioskInfo?.kioskMachineName ?? '';
+            final id = kioskInfo?.kioskMachineId ?? '';
+            SlackLogService().sendErrorLogToSlack(
+              '[$name ($id)] 임의출력/재출력 상태확인 실패했습니다 ($maxRetries회 시도 실패)',
+            );
 
-    if (!response.exists) return;
-
-    // 이미 포기한 job이면 스킵
-    if (response.printJobId != null && response.printJobId == _gaveUpPrintJobId) return;
-
-    // 새 job이 오면 실패 카운터 리셋
-    if (response.printJobId != _gaveUpPrintJobId) {
-      _printJobFailureCount = 0;
-    }
-
-    // Phase 2: 작업 처리 (폴링 재시도와 무관)
-    try {
-      // 선점
-      await ref.read(kioskRepositoryProvider).pickVendingPrintJob(response.printJobId!);
-
-      // polling 중단 (이후 print screen으로 이동)
-      _printJobPollingTimer?.cancel();
-
-      // 임의출력 처리
-      printJobId = response.printJobId!;
-      ref.read(printJobIdProvider.notifier).state = printJobId;
-      ref.read(printQuantityNotifierProvider.notifier).setQuantity(response.requestCount!);
-
-      // 재출력 처리
-      if (response.type == VendingPrintJobType.reprint) {
-        ref.read(reprintIdsProvider.notifier).state = response.printedPhotoCardIdList!;
-        PrintProcessRouteData().go(context);
-        return;
+            rethrow;
+          }
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
       }
 
-      // 배출 실행
-      ref.read(printProcessScreenProviderProvider.notifier).startPrint();
+      if (!response.exists) return;
 
-      ref.read(printJobIdProvider.notifier).state = null;
-      _printJobFailureCount = 0;
-    } catch (e) {
-      _printJobFailureCount++;
-      if (_printJobFailureCount >= _maxPrintJobFailures) {
-        final kioskInfo = ref.read(kioskInfoServiceProvider);
-        final name = kioskInfo?.kioskMachineName ?? '';
-        final id = kioskInfo?.kioskMachineId ?? '';
-        SlackLogService().sendErrorLogToSlack(
-          '[$name ($id)] 임의출력/재출력에 상태확인 실패했습니다',
-        );
-        _gaveUpPrintJobId = response.printJobId;
-        _printJobFailureCount = 0;
-        // 서버에 job 실패 처리 (pick된 경우에만)
-        if (printJobId != 0) {
+      try {
+        // 선점
+        await ref.read(kioskRepositoryProvider).pickVendingPrintJob(response.printJobId!);
+
+        // polling 중단 (이후 print screen으로 이동)
+        _printJobPollingTimer?.cancel();
+
+        // 임의출력 처리
+        ref.read(printJobIdProvider.notifier).state = response.printJobId;
+        ref.read(printQuantityNotifierProvider.notifier).setQuantity(response.requestCount!);
+
+        // 재출력 처리
+        if (response.type == VendingPrintJobType.reprint) {
+          ref.read(reprintIdsProvider.notifier).state = response.printedPhotoCardIdList;
+          if (mounted) PrintProcessRouteData().go(context);
+          return;
+        }
+
+        // 배출 실행
+        ref.read(printProcessScreenProviderProvider.notifier).startPrint();
+
+        ref.read(printJobIdProvider.notifier).state = null;
+      } catch (e) {
+        ref.read(printJobIdProvider.notifier).state = null;
+        if (response.printJobId != null) {
           try {
             await ref.read(kioskRepositoryProvider).failVendingPrintJob(
-                  printJobId: printJobId,
-                  failureReason: '키오스크 출력 $_maxPrintJobFailures회 실패',
+                  printJobId: response.printJobId!,
+                  failureReason: '임의출력 실패',
                 );
           } catch (_) {}
         }
       }
+    } catch (e) {
       ref.read(printJobIdProvider.notifier).state = null;
     } finally {
-      // 임의 출력 처리 후 polling 재개 (3회 실패 시 catch에서 중단됨)
-      if (printJobId != 0) {
-        _startPrintJobPolling();
-      }
+      _startPrintJobPolling();
     }
   }
 
