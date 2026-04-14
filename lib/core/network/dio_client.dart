@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
-import 'package:vending_kiosk/core/common/constants/alert_key.dart';
 import 'package:vending_kiosk/core/common/errors/server_exception.dart';
 import 'package:vending_kiosk/core/common/logger/dio_logger.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
@@ -66,7 +65,7 @@ final dioProvider = Provider.family<Dio, String>((ref, baseUrl) {
             SlackLogService().sendLogToSlack(formattedMessage);
           } else if (statusCode >= 500) {
             SlackLogService().sendErrorLogToSlack(formattedMessage);
-            SlackLogService().sendBroadcastLogToSlack(ErrorKey.severError.key);
+            // SlackLogService().sendBroadcastLogToSlack(ErrorKey.severError.key);
           }
         },
         request: false,

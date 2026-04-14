@@ -7,7 +7,6 @@ import 'package:vending_kiosk/core/data/models/entities/slack_log_template.dart'
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/providers/version_notifier.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
-import 'package:vending_kiosk/presentation/core/printer_log_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/setup/alert_definition_provider.dart';
 
@@ -72,9 +71,15 @@ class SlackLogService {
     final version = _container.read(versionStateProvider).currentVersion;
     final eventType = kioskInfo?.eventType ?? "-";
 
-    final serviceNameMap = {"SUF": "수원FC", "SEF": "서울 이랜드 FC", "KEEFO": "성수 B'Day", "AGFC": "안산그리너스FC"};
+    final serviceNameMap = {
+      "SUF": "수원FC",
+      "SEF": "서울 이랜드 FC",
+      "KEEFO": "성수 B'Day",
+      "AGFC": "안산그리너스FC",
+      "HWEG": "한화이글스"
+    };
 
-    final serviceName = serviceNameMap[eventType] ?? '-';
+    final serviceName = serviceNameMap[eventType] ?? '기타';
 
     return def != null && errorKey != null
         ? SlackLogTemplate(
@@ -104,22 +109,18 @@ class SlackLogService {
     if (slackLogTemplate.category.isNotEmpty) {
       final kioskInfo = slackLogTemplate.kioskMachineInfo;
       final eventName = kioskInfo?.printedEventName ?? "-";
-      final printLog = _container.read(printerLogProvider);
-      final printerheadTemp = printLog?.heaterTemperature ?? 0;
-      final printerheadTempString = printerheadTemp != 0 ? (printerheadTemp / 100).toStringAsFixed(2) : "알 수 없음";
+      // final printLog = _container.read(printerLogProvider);
+      // final printerheadTemp = printLog?.heaterTemperature ?? 0;
+      // final printerheadTempString = printerheadTemp != 0 ? (printerheadTemp / 100).toStringAsFixed(2) : "알 수 없음";
 
       String description;
 
       description = '''
 ${slackLogTemplate.description}
 
-- 단면 카드 수량 : ${cardCount.currentCount} / ${cardCount.initialCount}
 - 불러온 이벤트 : $eventName
 - 프린터 연결 상태 : 정상
 - 결제 단말기 연결 상태 : 정상
-- 프린터 온도 : $printerheadTempString°C
-- 리본 잔량 : ${printLog?.rbnRemainingRatio != null ? "${printLog?.rbnRemainingRatio}%" : "알 수 없음"}
-- 필름 잔량 : ${printLog?.filmRemainingRatio != null ? "${printLog?.filmRemainingRatio}%" : "알 수 없음"}
 ''';
 
       final message = buildSlackAlertMessage(
@@ -153,16 +154,10 @@ ${slackLogTemplate.description}
     final machineId = slackLogTemplate.kioskMachineInfo?.kioskMachineId ?? 0;
 
     if (machineId != 0) {
-      final printerLog = _container.read(printerLogProvider);
       final cardCount = _container.read(cardCountProvider);
-      final printerheadTemp = printerLog?.heaterTemperature ?? 0;
-      final printerheadTempString = printerheadTemp != 0 ? (printerheadTemp / 100).toStringAsFixed(2) : "알 수 없음";
       String description;
       description = '''
-- 프린터 온도 : $printerheadTempString°C
-- 리본 잔량 : ${printerLog?.rbnRemainingRatio != null ? "${printerLog?.rbnRemainingRatio}%" : "알 수 없음"}
-- 필름 잔량 : ${printerLog?.filmRemainingRatio != null ? "${printerLog?.filmRemainingRatio}%" : "알 수 없음"}
-- 단면 카드 수량 : ${cardCount.currentCount} / ${cardCount.initialCount}
+- 카드 수량 : ${cardCount.currentCount} / ${cardCount.initialCount}
 ''';
 
       final message = buildSlackAlertMessage(
@@ -239,7 +234,7 @@ Kiosk: ${kioskInfo?.kioskMachineName.isNotEmpty == true ? '${kioskInfo?.kioskMac
     final cleanedMsg = msg.replaceFirst(RegExp(r'^Exception:\s*'), '');
 
     final title = '''🔴 카드 배출기 에러
-    ───────────────────
+───────────────────
 Kiosk: ${kioskInfo?.kioskMachineName.isNotEmpty == true ? '${kioskInfo?.kioskMachineName} (${kioskInfo?.kioskMachineId})' : kioskInfo?.kioskMachineId ?? 0}  /  $version
 ───────────────────
 $cleanedMsg

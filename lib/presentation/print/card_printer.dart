@@ -79,6 +79,34 @@ class PrinterService extends _$PrinterService {
     }
   }
 
+  Future<void> _checkKioskAliveWithRetry({
+    required int kioskEventId,
+    required int machineId,
+    required String remainingSingleSidedCount,
+  }) async {
+    const maxRetries = 3;
+    int attempt = 0;
+
+    while (attempt < maxRetries) {
+      try {
+        await ref.read(kioskRepositoryProvider).checkKioskAlive(
+              kioskEventId: kioskEventId,
+              machineId: machineId,
+              remainingSingleSidedCount: remainingSingleSidedCount,
+            );
+        return;
+      } catch (e) {
+        attempt++;
+        if (attempt >= maxRetries) {
+          SlackLogService().sendErrorLogToSlack(
+            'PrinterService._checkKioskAliveWithRetry failure after $maxRetries retries: $e',
+          );
+          return;
+        }
+      }
+    }
+  }
+
   Future<void> printImage({
     required File? frontFile,
     required File? embeddedFile,
@@ -100,11 +128,11 @@ class PrinterService extends _$PrinterService {
         ref.read(printerLogProvider.notifier).update(log);
         // await ref.read(kioskRepositoryProvider).updatePrintLog(request: log);
         if (kioskEventId != 0) {
-          await ref.read(kioskRepositoryProvider).checkKioskAlive(
-                kioskEventId: kioskEventId,
-                machineId: machineId,
-                remainingSingleSidedCount: cardCountState.remainingSingleSidedCount,
-              );
+          await _checkKioskAliveWithRetry(
+            kioskEventId: kioskEventId,
+            machineId: machineId,
+            remainingSingleSidedCount: cardCountState.remainingSingleSidedCount,
+          );
         }
       }
       // 프린트 성공 시 상태를 완료로 변경

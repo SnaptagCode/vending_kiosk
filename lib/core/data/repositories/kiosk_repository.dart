@@ -1,3 +1,6 @@
+import 'dart:developer';
+
+import 'package:dio/dio.dart';
 import 'package:vending_kiosk/core/data/datasources/remote/kiosk_api_client.dart';
 import 'package:vending_kiosk/core/data/models/request/card_stock_consume_request.dart';
 import 'package:vending_kiosk/core/data/models/request/card_stock_recharge_request.dart';
@@ -81,7 +84,13 @@ class _KioskRepository {
   Future<void> sendSlackAlert({required int machineId, required String type, required String message}) async {
     try {
       await _apiClient.sendSlackAlert(machineId: machineId, body: {'type': type, 'text': message});
-    } catch (e) {
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode ?? 0;
+      if (statusCode >= 500) {
+        // 서버 5xx 에러 시 슬랙 알림 없이 무시
+        log('Slack 알림 전송 실패 (5xx 에러 무시): $statusCode');
+        return;
+      }
       rethrow;
     }
   }
