@@ -6,7 +6,7 @@ part 'vending_print_job_fail_response.g.dart';
 @freezed
 class VendingPrintJobFailResponse with _$VendingPrintJobFailResponse {
   const factory VendingPrintJobFailResponse({
-    required String failureReason,
+    String? failureReason,
     required bool ok,
   }) = _VendingPrintJobFailResponse;
 
