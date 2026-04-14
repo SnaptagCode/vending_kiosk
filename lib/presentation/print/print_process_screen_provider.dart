@@ -140,7 +140,7 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
           SlackLogService().sendErrorLogToSlack(
               '[MACHINE_NAME: $machineName (MACHINE_ID: $machineId)] PrintService._updatePrintStatus failure after $maxRetries retries: $e');
           logger.e('PrintService._updatePrintStatus failure', error: e);
-          return;
+          rethrow;
         }
         await Future.delayed(const Duration(milliseconds: 300));
       }
