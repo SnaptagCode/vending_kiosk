@@ -118,7 +118,6 @@ class SlackLogService {
       description = '''
 ${slackLogTemplate.description}
 
-- 단면 카드 수량 : ${cardCount.currentCount} / ${cardCount.initialCount}
 - 불러온 이벤트 : $eventName
 - 프린터 연결 상태 : 정상
 - 결제 단말기 연결 상태 : 정상
