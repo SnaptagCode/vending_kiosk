@@ -15,11 +15,13 @@ class AuthCodeKeypad extends StatefulWidget {
     super.key,
     required this.onCompleted,
     required this.mode,
+    this.initialValue = '',
   });
 
   /// 코드 입력이 완료되었을 때 실행할 콜백 함수
   final Function(String code) onCompleted;
   final ModeType mode;
+  final String initialValue;
 
   @override
   State<AuthCodeKeypad> createState() => _AuthCodeKeypadState();
@@ -36,6 +38,7 @@ class _AuthCodeKeypadState extends State<AuthCodeKeypad> {
     super.initState();
     maxLength = (widget.mode == ModeType.admin) ? 6 : 4;
     _isObscured = (widget.mode == ModeType.admin) ? true : false;
+    _code = widget.initialValue;
   }
 
   /// 숫자 추가
