@@ -16,7 +16,9 @@ final dioProvider = Provider.family<Dio, String>((ref, baseUrl) {
     sendHook: (log) {
       SlackLogService().sendLogToSlack(log);
     },
-    request: false,
+    machineIdProvider: () => ref.read(kioskInfoServiceProvider)?.kioskMachineId,
+    request: true,
+    requestBody: true,
   ));
   dio.interceptors.add(
     PrettyDioLogger(

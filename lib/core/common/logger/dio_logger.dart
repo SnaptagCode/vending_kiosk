@@ -40,6 +40,8 @@ class DioLogger extends Interceptor {
 
   final bool enabled;
 
+  final int? Function()? machineIdProvider;
+
   DioLogger({
     this.request = true,
     this.requestHeader = false,
@@ -52,6 +54,7 @@ class DioLogger extends Interceptor {
     this.filter,
     this.enabled = true,
     this.sendHook,
+    this.machineIdProvider,
   });
 
   @override
@@ -89,20 +92,26 @@ class DioLogger extends Interceptor {
     if (requestBody && options.method != 'GET') {
       final dynamic data = options.data;
       if (data != null) {
-        if (data is Map) _printMapAsTable(options.data as Map?, header: 'Body');
-        if (data is FormData) {
+        logPrint('╔ Body');
+        logPrint('║');
+        if (data is Map) {
+          _printPrettyMap(data);
+        } else if (data is FormData) {
           final formDataMap = <String, dynamic>{}
             ..addEntries(data.fields)
             ..addEntries(data.files);
-          _printMapAsTable(formDataMap, header: 'Form data | ${data.boundary}');
+          _printPrettyMap(formDataMap);
         } else {
           _printBlock(data.toString());
         }
+        logPrint('║');
+        _printLine('╚');
       }
     }
-    if (!options.path.contains('slack') ||
-        !options.path.contains('machine/maintenance') ||
-        !options.path.contains('polling')) {
+    if (!options.path.contains('slack') &&
+        !options.path.contains('machine/maintenance') &&
+        !options.path.contains('polling') &&
+        !options.path.contains('error-code')) {
       sendHook?.call(_buffer.toString());
     }
     handler.next(options);
@@ -174,7 +183,8 @@ class DioLogger extends Interceptor {
     }
     if (!response.requestOptions.path.contains('slack') &&
         !response.requestOptions.path.contains('maintenance') &&
-        !response.requestOptions.path.contains('polling')) {
+        !response.requestOptions.path.contains('polling') &&
+        !response.requestOptions.path.contains('error-code')) {
       sendHook?.call(_buffer.toString());
     }
     handler.next(response);
@@ -208,16 +218,20 @@ class DioLogger extends Interceptor {
   void _printResponseHeader(Response response, int responseTime) {
     final uri = response.requestOptions.uri;
     final method = response.requestOptions.method;
+    final machineId = machineIdProvider?.call();
+    final machineIdPart = machineId != null ? ' ║ machineId : $machineId' : '';
     _printBoxed(
         header:
-            'Response ║ $method ║ Status: ${response.statusCode} ${response.statusMessage}  ║ Time: $responseTime ms',
+            'Response ║ $method ║ Status: ${response.statusCode} ${response.statusMessage}  ║ Time: $responseTime ms$machineIdPart',
         text: uri.toString());
   }
 
   void _printRequestHeader(RequestOptions options) {
     final uri = options.uri;
     final method = options.method;
-    _printBoxed(header: 'Request ║ $method ', text: uri.toString());
+    final machineId = machineIdProvider?.call();
+    final machineIdPart = machineId != null ? ' ║ machineId : $machineId' : '';
+    _printBoxed(header: 'Request ║ $method$machineIdPart', text: uri.toString());
   }
 
   void _printLine([String pre = '', String suf = '╝']) => logPrint('$pre${'═' * maxWidth}$suf');
