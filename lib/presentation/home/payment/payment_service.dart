@@ -6,7 +6,6 @@ import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/entities/order_error_entity.dart';
 import 'package:vending_kiosk/core/data/models/enums/order_status.dart';
 import 'package:vending_kiosk/core/data/models/request/create_vending_order_request.dart';
-import 'package:vending_kiosk/core/data/models/request/update_back_photo_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_vending_order_status_request.dart';
 import 'package:vending_kiosk/core/data/models/response/create_vending_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
@@ -117,10 +116,10 @@ class PaymentService extends _$PaymentService {
   Future<void> _handleEmptyApprovalNumber(PaymentResponse paymentResponse, String machineId) async {
     SlackLogService().sendLogToSlack('*[MachineId: $machineId]*\nNull approvalNo Card');
 
-    await ref.read(kioskRepositoryProvider).updateBackPhotoStatus(UpdateBackPhotoRequest(
-          photoAuthNumber: '',
-          status: "STARTED",
-        ));
+    // await ref.read(kioskRepositoryProvider).updateBackPhotoStatus(UpdateBackPhotoRequest(
+    //       photoAuthNumber: '',
+    //       status: "STARTED",
+    //     ));
 
     await _updateFailOrder(description: _formatPaymentMessages(paymentResponse));
 
