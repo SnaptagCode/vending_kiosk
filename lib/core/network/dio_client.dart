@@ -59,6 +59,8 @@ final dioProvider = Provider.family<Dio, String>((ref, baseUrl) {
       final isSlackAlertRequest = requestPath.contains('slack-alert');
 
       // DioLogger를 사용해서 예쁘게 가공된 로그 메시지를 받아서 상태 코드별로 분기
+      // 실제 handler를 넘기지 않고 더미 핸들러로 로그 포맷팅만 수행
+      // (handler를 넘기면 DioLogger 내부에서 handler.next()를 호출해 이중 호출 버그 발생)
       final errorLogger = DioLogger(
         sendHook: (log) {
           if (isSlackAlertRequest) return;
@@ -67,14 +69,13 @@ final dioProvider = Provider.family<Dio, String>((ref, baseUrl) {
             SlackLogService().sendLogToSlack(formattedMessage);
           } else if (statusCode >= 500) {
             SlackLogService().sendErrorLogToSlack(formattedMessage);
-            // SlackLogService().sendBroadcastLogToSlack(ErrorKey.severError.key);
           }
         },
         request: false,
       );
 
-      // DioLogger를 실제로 실행시켜서 sendHook이 호출되도록 함
-      errorLogger.onError(err, handler);
+      // 더미 핸들러로 로그만 처리 — 실제 handler는 아래에서 1회만 호출
+      errorLogger.onError(err, ErrorInterceptorHandler());
 
       if (err.response?.data != null) {
         try {
