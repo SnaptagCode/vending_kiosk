@@ -79,8 +79,8 @@ final dioProvider = Provider.family<Dio, String>((ref, baseUrl) {
 
       if (err.response?.data != null) {
         try {
-          // ServerException으로 wrapping
-          return handler.reject(ServerException.fromDioError(err));
+          final serverException = ServerException.fromDioError(err);
+          return handler.reject(serverException);
         } catch (e) {
           logger.i('SeverError 파싱 실패: $e');
         }
