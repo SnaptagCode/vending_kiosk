@@ -1,6 +1,6 @@
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vending_kiosk/presentation/home/payment/create_order_info_state.dart';
 
 part 'payment_response_state.g.dart';
@@ -22,7 +22,7 @@ class PaymentResponseState extends _$PaymentResponseState {
         SlackLogService().sendErrorLogToSlack('OrderResponse : $orderResponse \n PaymentResponse: $response');
       }
 
-      SlackLogService().sendLogToSlack('PaymentResponse: $response');
+      // SlackLogService().sendLogToSlack('PaymentResponse: $response');
     } catch (e) {
       SlackLogService().sendLogToSlack('PaymentResponseState Exception: $e');
     }
