@@ -22,7 +22,7 @@ class PaymentResponseState extends _$PaymentResponseState {
         SlackLogService().sendLogToSlack('OrderResponse : $orderResponse \n PaymentResponse: $response');
       }
 
-      SlackLogService().sendLogToSlack('PaymentResponse: $response');
+      // SlackLogService().sendLogToSlack('PaymentResponse: $response');
     } catch (e) {
       SlackLogService().sendLogToSlack('PaymentResponseState Exception: $e');
     }
