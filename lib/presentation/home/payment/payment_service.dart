@@ -6,7 +6,6 @@ import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/entities/order_error_entity.dart';
 import 'package:vending_kiosk/core/data/models/enums/order_status.dart';
 import 'package:vending_kiosk/core/data/models/request/create_vending_order_request.dart';
-import 'package:vending_kiosk/core/data/models/request/update_back_photo_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_vending_order_status_request.dart';
 import 'package:vending_kiosk/core/data/models/response/create_vending_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
@@ -117,10 +116,10 @@ class PaymentService extends _$PaymentService {
   Future<void> _handleEmptyApprovalNumber(PaymentResponse paymentResponse, String machineId) async {
     SlackLogService().sendLogToSlack('*[MachineId: $machineId]*\nNull approvalNo Card');
 
-    await ref.read(kioskRepositoryProvider).updateBackPhotoStatus(UpdateBackPhotoRequest(
-          photoAuthNumber: '',
-          status: "STARTED",
-        ));
+    // await ref.read(kioskRepositoryProvider).updateBackPhotoStatus(UpdateBackPhotoRequest(
+    //       photoAuthNumber: '',
+    //       status: "STARTED",
+    //     ));
 
     await _updateFailOrder(description: _formatPaymentMessages(paymentResponse));
 
@@ -172,7 +171,7 @@ class PaymentService extends _$PaymentService {
 
   /// 취소된 결제 처리
   Future<void> _handleCancelledPayment(PaymentResponse paymentResponse) async {
-    // final response = await _updateOrder(isRefund: false, description: "고객취소");
+    await _updateOrder(isRefund: false, description: "고객취소");
     // SlackLogService().sendLogToSlack("paymentResponse1000 : $response");
 
     // SlackLogService().sendPaymentBroadcastLogToSlak(InfoKey.paymentFail.key,
@@ -338,37 +337,43 @@ class PaymentService extends _$PaymentService {
 
   Future<VendingOrderStatusResponse> _updateOrder(
       {required bool isRefund, int? orderid, String? photoAuthNumber, String? description}) async {
-    try {
-      final settings = ref.read(kioskInfoServiceProvider);
-      final approval = ref.read(paymentResponseStateProvider);
-      final orderId = orderid ?? ref.read(createOrderInfoProvider)?.order.id;
-      final cardCount = ref.read(printQuantityNotifierProvider).total;
-      if (orderId == null) {
-        throw Exception('No order id available');
-      }
-      logger.i(
-          'respCode: ${approval?.respCode} \trespCode: ${approval?.respCode} \nORDER STATUS: ${approval?.orderState}');
-      final OrderStatus defaultStatus = isRefund ? OrderStatus.refunded_failed : OrderStatus.failed;
-      final OrderStatus orderStatus = (isRefund && approval?.orderState == OrderStatus.failed)
-          ? OrderStatus.refunded_failed
-          : approval?.orderState ?? defaultStatus;
-
-      final request = UpdateVendingOrderStatusRequest(
-        kioskEventId: settings!.kioskEventId,
-        kioskMachineId: settings.kioskMachineId,
-        status: orderStatus,
-        description: description,
-        amount: settings.photoCardPrice.toInt() * cardCount,
-        authSeqNumber: approval?.approvalNo ?? '-',
-        detail: approval?.KSNET ?? '{}',
-        approvalNumber: approval?.approvalNo ?? '-',
-      );
-
-      return await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(orderId.toInt(), request);
-    } catch (e) {
-      SlackLogService().sendErrorLogToSlack('update order error: $e');
-      rethrow;
+    final settings = ref.read(kioskInfoServiceProvider);
+    final approval = ref.read(paymentResponseStateProvider);
+    final orderId = orderid ?? ref.read(createOrderInfoProvider)?.order.id;
+    final cardCount = ref.read(printQuantityNotifierProvider).total;
+    if (orderId == null) {
+      throw Exception('No order id available');
     }
+    logger
+        .i('respCode: ${approval?.respCode} \trespCode: ${approval?.respCode} \nORDER STATUS: ${approval?.orderState}');
+    final OrderStatus defaultStatus = isRefund ? OrderStatus.refunded_failed : OrderStatus.failed;
+    final OrderStatus orderStatus = (isRefund && approval?.orderState == OrderStatus.failed)
+        ? OrderStatus.refunded_failed
+        : approval?.orderState ?? defaultStatus;
+
+    final request = UpdateVendingOrderStatusRequest(
+      kioskEventId: settings!.kioskEventId,
+      kioskMachineId: settings.kioskMachineId,
+      status: orderStatus,
+      description: description,
+      amount: settings.photoCardPrice.toInt() * cardCount,
+      authSeqNumber: approval?.approvalNo ?? '-',
+      detail: approval?.KSNET ?? '{}',
+      approvalNumber: approval?.approvalNo ?? '-',
+    );
+
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        return await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(orderId.toInt(), request);
+      } catch (e) {
+        if (attempt >= 3) {
+          SlackLogService().sendErrorLogToSlack('update order error after 3 retries: $e');
+          rethrow;
+        }
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+    }
+    throw Exception('unreachable');
   }
 
   Future<VendingOrderStatusResponse> _updateFailOrder({required String description}) async {
