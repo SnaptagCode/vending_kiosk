@@ -123,7 +123,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
         // 재출력 처리
         if (response.type == VendingPrintJobType.reprint) {
-          ref.read(reprintIdsProvider.notifier).state = response.printedPhotoCardIdList;
+          final ids = response.printedPhotoCardIdList;
+          if (ids == null) {
+            SlackLogService().sendErrorLogToSlack('재출력 job(${response.printJobId})의 printedPhotoCardIdList가 null입니다');
+            return;
+          }
+          ref.read(reprintIdsProvider.notifier).state = ids;
           if (mounted) PrintProcessRouteData().go(context);
           return;
         }
