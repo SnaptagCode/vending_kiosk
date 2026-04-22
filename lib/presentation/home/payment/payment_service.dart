@@ -367,7 +367,7 @@ class PaymentService extends _$PaymentService {
         return await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(orderId.toInt(), request);
       } catch (e) {
         if (attempt >= 3) {
-          SlackLogService().sendLogToSlack('update order error after 3 retries: $e');
+          SlackLogService().sendErrorLogToSlack('update order error after 3 retries: $e');
           rethrow;
         }
         await Future.delayed(const Duration(milliseconds: 500));
