@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:vending_kiosk/core/common/launcher/launcher_service.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
@@ -208,6 +209,8 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
     try {
       state = state.copyWith(isLoading: true);
 
+      logger.d('rechargeCardStock request: machineId=${state.machineId}, requestCount=$cardNumber');
+
       final response = await ref.read(kioskRepositoryProvider).rechargeCardStock(
             CardStockRechargeRequest(
               machineId: state.machineId,
@@ -220,7 +223,11 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
       state = state.copyWith(isLoading: false, cardCurrentCount: response.cardCurrentCount);
       return response;
     } catch (e) {
-      logger.e('Failed to recharge card stock', error: e);
+      if (e is DioException) {
+        logger.e('Failed to recharge card stock | status: ${e.response?.statusCode} | body: ${e.response?.data}', error: e);
+      } else {
+        logger.e('Failed to recharge card stock', error: e);
+      }
       state = state.copyWith(
         isLoading: false,
         errorMessage: '카드 재고 충전 중 오류가 발생했습니다.',

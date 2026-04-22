@@ -228,7 +228,7 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
 
                         int cardNumber = int.parse(value);
 
-                        if (cardNumber > setupMainViewModel.cardCapacity) {
+                        if (setupMainViewModel.cardCurrentCount + cardNumber > setupMainViewModel.cardCapacity) {
                           await DialogHelper.showSetupDialog(context,
                               title: '입력 수량 초과', content: '최대 ${setupMainViewModel.cardCapacity}장까지 입력 가능합니다.');
                           return;
@@ -312,9 +312,10 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                         return;
                       }
 
+                      // 서버는 requestCount를 "추가할 양"으로 처리하므로 addCount만 전송
                       await ref
                           .read(setupMainScreenNotifierProvider.notifier)
-                          .rechargeCardStock(cardNumber: total);
+                          .rechargeCardStock(cardNumber: addCount);
                     },
                     borderRadius: BorderRadius.circular(12),
                     splashColor: Colors.transparent,

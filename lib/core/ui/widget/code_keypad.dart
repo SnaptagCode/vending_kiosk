@@ -32,37 +32,51 @@ class _AuthCodeKeypadState extends State<AuthCodeKeypad> {
   late final int maxLength;
   String _code = ''; // 입력된 코드 상태
   bool _isObscured = false; //비밀번호 가림 설정 - false 도입시 위치 옮기기 필요 todo
+  bool _isInitialValue = false; // 초기값 상태 여부
 
   @override
   void initState() {
     super.initState();
-    maxLength = (widget.mode == ModeType.admin) ? 6 : 4;
+    maxLength = switch (widget.mode) {
+      ModeType.admin => 6,
+      ModeType.card => 3,
+      _ => 4,
+    };
     _isObscured = (widget.mode == ModeType.admin) ? true : false;
     _code = widget.initialValue;
+    _isInitialValue = widget.initialValue.isNotEmpty;
   }
 
   /// 숫자 추가
   void _addNumber(String number) {
-    if (_code.length < maxLength) {
-      setState(() {
+    setState(() {
+      if (_isInitialValue) {
+        _code = '';
+        _isInitialValue = false;
+      }
+      if (_code.length < maxLength) {
         _code += number;
-      });
-    }
+      }
+    });
   }
 
   /// 마지막 입력 삭제
   void _removeLast() {
-    if (_code.isNotEmpty) {
-      setState(() {
+    setState(() {
+      if (_isInitialValue) {
+        _code = '';
+        _isInitialValue = false;
+      } else if (_code.isNotEmpty) {
         _code = _code.substring(0, _code.length - 1);
-      });
-    }
+      }
+    });
   }
 
   /// 입력 초기화
   void _clear() {
     setState(() {
       _code = '';
+      _isInitialValue = false;
     });
   }
 
