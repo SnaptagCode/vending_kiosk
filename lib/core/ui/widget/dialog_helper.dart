@@ -264,9 +264,117 @@ class DialogHelper {
     );
   }
 
+  /// 카드 추가 다이얼로그 (수량 입력 필드 + 취소/확인)
+  static Future<int?> showCardAddDialog(
+    BuildContext context, {
+    required int cardCapacity,
+  }) async {
+    int? enteredValue;
+
+    return await showDialog<int>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return DefaultTextStyle(
+              style: TextStyle(
+                fontFamily: context.locale.languageCode == 'ja'
+                    ? 'MPLUSRounded'
+                    : 'Cafe24Ssurround2',
+              ),
+              child: Dialog(
+                backgroundColor: Colors.white,
+                insetPadding: EdgeInsets.symmetric(horizontal: 211.w),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20.r)),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(40.w, 60.h, 40.w, 40.h),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        '카드 추가',
+                        textAlign: TextAlign.center,
+                        style: context.typography.kioskAlert1B.copyWith(
+                            fontFamily: 'Pretendard', color: Colors.black),
+                      ),
+                      SizedBox(height: 20.h),
+                      Text(
+                        '추가 카드 수량 (최대 $cardCapacity장까지 추가 가능)',
+                        textAlign: TextAlign.center,
+                        style: context.typography.kioskAlert2M.copyWith(
+                            fontFamily: 'Pretendard', color: Colors.black),
+                      ),
+                      SizedBox(height: 20.h),
+                      InkWell(
+                        onTap: () async {
+                          final value = await DialogHelper.showKeypadDialog(
+                              context, mode: ModeType.card);
+                          if (value == null || value.isEmpty) return;
+                          setState(() => enteredValue = int.tryParse(value));
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          height: 80.h,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: Colors.black),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          alignment: Alignment.centerRight,
+                          padding: EdgeInsets.symmetric(horizontal: 20.w),
+                          child: Text(
+                            enteredValue != null ? '$enteredValue 장' : '',
+                            style: context.typography.kioskBody2B
+                                .copyWith(color: Colors.black),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 36.h),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(null),
+                              style: context.setupDialogCancelButtonStyle,
+                              child: const Text('취소'),
+                            ),
+                          ),
+                          SizedBox(width: 12.w),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: enteredValue == null
+                                  ? null
+                                  : () async {
+                                      await SoundManager().playSound();
+                                      if (!dialogContext.mounted) return;
+                                      Navigator.of(dialogContext)
+                                          .pop(enteredValue);
+                                    },
+                              style: context.setupDialogConfirmButtonStyle,
+                              child: const Text('확인'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   static Future<String?> showKeypadDialog(
     BuildContext context, {
     required ModeType mode,
+    String initialValue = '',
   }) async {
     return await showDialog<String>(
       context: context,
@@ -287,6 +395,7 @@ class DialogHelper {
               height: 600.h,
               child: AuthCodeKeypad(
                 mode: mode,
+                initialValue: initialValue,
                 onCompleted: (code) {
                   print("입력된 코드: $code");
                   Navigator.pop(context, code);

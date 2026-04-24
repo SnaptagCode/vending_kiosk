@@ -1,30 +1,28 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dio/dio.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:vending_kiosk/core/common/constants/alert_key.dart';
 import 'package:vending_kiosk/core/common/constants/image_paths.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
+import 'package:vending_kiosk/core/common/launcher/launcher_service.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/common/sound/sound_manager.dart';
+import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
-import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
-import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
+import 'package:vending_kiosk/core/providers/version_notifier.dart';
+import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
+import 'package:vending_kiosk/presentation/setup/alert_definition_provider.dart';
 import 'package:vending_kiosk/presentation/setup/card_dispenser_connect_state.dart';
 import 'package:vending_kiosk/presentation/setup/setup_main_screen_provider.dart';
-import 'package:vending_kiosk/presentation/setup/alert_definition_provider.dart';
-import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:vending_kiosk/core/providers/version_notifier.dart';
-import 'package:vending_kiosk/core/common/launcher/launcher_service.dart';
 
 class SetupMainScreen extends ConsumerStatefulWidget {
   const SetupMainScreen({super.key});
@@ -199,6 +197,7 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  // 라벨
                   SizedBox(
                     width: 240.w,
                     height: 80.h,
@@ -211,11 +210,10 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                       ),
                     ),
                   ),
-                  //SizedBox(width: 40.w),
+                  // 수량 입력 필드
                   Container(
-                    width: 520.w,
+                    width: 377.w,
                     height: 80.h,
-                    //padding: EdgeInsets.only(top: 50.w),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       border: Border.all(color: Colors.black),
@@ -224,13 +222,13 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                     child: InkWell(
                       borderRadius: const BorderRadius.all(Radius.circular(12)),
                       onTap: () async {
-                        String? value = await DialogHelper.showKeypadDialog(context, mode: ModeType.card);
+                        String? value = await DialogHelper.showKeypadDialog(context, mode: ModeType.card, initialValue: '250');
 
-                        if (value == null || value.isEmpty) return; // 값이 없으면 종료
+                        if (value == null || value.isEmpty) return;
 
                         int cardNumber = int.parse(value);
 
-                        if (cardNumber > setupMainViewModel.cardCapacity) {
+                        if (setupMainViewModel.cardCurrentCount + cardNumber > setupMainViewModel.cardCapacity) {
                           await DialogHelper.showSetupDialog(context,
                               title: '입력 수량 초과', content: '최대 ${setupMainViewModel.cardCapacity}장까지 입력 가능합니다.');
                           return;
@@ -242,9 +240,104 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                       },
                       child: Align(
                         alignment: Alignment.center,
-                        child: Text((setupMainViewModel.cardCurrentCount).toString(),
-                            textAlign: TextAlign.center,
-                            style: context.typography.kioskBody2B.copyWith(color: Colors.black)),
+                        child: Text(
+                          (setupMainViewModel.cardCurrentCount).toString(),
+                          textAlign: TextAlign.center,
+                          style: context.typography.kioskBody2B.copyWith(color: Colors.black),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 20.w),
+                  // 초기화 버튼
+                  // 초기화 버튼
+                  InkWell(
+                    onTap: () async {
+                      final confirmed = await DialogHelper.showSetupDialog(
+                        context,
+                        title: '카드 수량 초기화',
+                        content: '카드 수량이 0장으로 변경됩니다.',
+                        showCancelButton: true,
+                      );
+                      if (!confirmed) return;
+                      await ref
+                          .read(setupMainScreenNotifierProvider.notifier)
+                          .rechargeCardStock(cardNumber: 0);
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    splashColor: Colors.transparent,
+                    highlightColor: Colors.transparent,
+                    child: Container(
+                      width: 100.w,
+                      height: 80.h,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Color(0xFF1D1E20), width: 2),
+                      ),
+                      child: Text(
+                        '초기화',
+                        style: TextStyle(
+                          fontSize: 20.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                          letterSpacing: -0.2,
+                          height: 1.0,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 10.w),
+                  // 추가 버튼
+                  InkWell(
+                    onTap: () async {
+                      final value = await DialogHelper.showKeypadDialog(
+                        context,
+                        mode: ModeType.card,
+                        initialValue: '250',
+                      );
+                      if (value == null || value.isEmpty) return;
+                      if (!context.mounted) return;
+
+                      final addCount = int.parse(value);
+                      final total =
+                          setupMainViewModel.cardCurrentCount + addCount;
+
+                      if (total > setupMainViewModel.cardCapacity) {
+                        await DialogHelper.showSetupDialog(context,
+                            title: '입력 수량 초과',
+                            content:
+                                '최대 ${setupMainViewModel.cardCapacity}장까지 입력 가능합니다.');
+                        return;
+                      }
+
+                      // 서버는 requestCount를 "추가할 양"으로 처리하므로 addCount만 전송
+                      await ref
+                          .read(setupMainScreenNotifierProvider.notifier)
+                          .rechargeCardStock(cardNumber: addCount);
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    splashColor: Colors.transparent,
+                    highlightColor: Colors.transparent,
+                    child: Container(
+                      width: 100.w,
+                      height: 80.h,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Color(0xFF000000),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Color(0xFF1D1E20), width: 2),
+                      ),
+                      child: Text(
+                        '추가',
+                        style: TextStyle(
+                          fontSize: 20.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          letterSpacing: -0.2,
+                          height: 1.0,
+                        ),
                       ),
                     ),
                   ),
