@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:http/http.dart' as http;
 import 'package:vending_kiosk/core/common/cp949/cp949_codec.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/response/kscat_device_response.dart';
 import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
-import 'package:vending_kiosk/lib.dart';
-import 'package:http/http.dart' as http;
 
 class PaymentApiClient {
   PaymentApiClient();
@@ -91,7 +91,9 @@ class PaymentApiClient {
     final decode = cp949.decodeString(broken);
     final trim = trimValues(json.decode(decode));
     final paymentResponse = trim..addAll({'KSNET': '$callback($trim)'});
-    logger.i(paymentResponse.toString());
+    final machineId = RegExp(r'MI(\d+)$').firstMatch(callback)?.group(1) ?? 'unknown';
+    SlackLogService().sendLogToSlack(
+        '*[MachineId: $machineId | KSCAT paymentResponse]*\n ${PaymentResponse.fromJson(paymentResponse)}');
     return PaymentResponse.fromJson(paymentResponse);
   }
 
