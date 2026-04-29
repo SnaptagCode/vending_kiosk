@@ -1,14 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:vending_kiosk/core/common/logger/logger_service.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/datasources/remote/payment_api_client.dart';
 import 'package:vending_kiosk/core/data/models/request/kscat_device_request.dart';
-import 'package:vending_kiosk/core/data/models/response/kscat_device_response.dart';
 import 'package:vending_kiosk/core/data/models/request/payment_request.dart';
+import 'package:vending_kiosk/core/data/models/response/kscat_device_response.dart';
 import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
 import 'package:vending_kiosk/core/domain/entities/invoice.dart';
-import 'package:vending_kiosk/lib.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'payment_repository.g.dart';
 
@@ -44,7 +43,8 @@ class PaymentRepository {
       terminalId: cardTerminalId ?? 'AT0416146A',
     );
 
-    logger.d('PaymentRequest: ${request.serialize()}');
+    final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 'unknown';
+    SlackLogService().sendLogToSlack('*[MachineId: $machineId | KSCAT PaymentRequest]*\n ${request.serialize()}');
 
     return _request(request);
   }

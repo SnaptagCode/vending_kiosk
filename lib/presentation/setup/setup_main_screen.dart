@@ -76,13 +76,14 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
   }
 
   Future<bool> _checkPaymentDevice() async {
+    final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId.toString() ?? 'unknown';
     try {
       final response = await ref.read(paymentRepositoryProvider).check();
-      SlackLogService().sendLogToSlack("Payment Device check: $response");
+      SlackLogService().sendLogToSlack("*[MachineId: $machineId]*\nPayment Device check: $response");
 
       return true;
     } catch (e) {
-      SlackLogService().sendErrorLogToSlack("Payment Device check: $e");
+      SlackLogService().sendErrorLogToSlack("*[MachineId: $machineId]*\nPayment Device check: $e");
 
       DialogHelper.showSetupDialog(
         context,
