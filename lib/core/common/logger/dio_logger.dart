@@ -219,7 +219,7 @@ class DioLogger extends Interceptor {
     final uri = response.requestOptions.uri;
     final method = response.requestOptions.method;
     final machineId = machineIdProvider?.call();
-    final machineIdPart = machineId != null ? ' ║ machineId : $machineId' : '';
+    final machineIdPart = machineId != null ? ' ║ MachineId : $machineId' : '';
     _printBoxed(
         header:
             'Response ║ $method ║ Status: ${response.statusCode} ${response.statusMessage}  ║ Time: $responseTime ms$machineIdPart',
@@ -230,7 +230,7 @@ class DioLogger extends Interceptor {
     final uri = options.uri;
     final method = options.method;
     final machineId = machineIdProvider?.call();
-    final machineIdPart = machineId != null ? ' ║ machineId : $machineId' : '';
+    final machineIdPart = machineId != null ? ' ║ MachineId : $machineId' : '';
     _printBoxed(header: 'Request ║ $method$machineIdPart', text: uri.toString());
   }
 
