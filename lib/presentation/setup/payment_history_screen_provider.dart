@@ -121,7 +121,8 @@ class PaymentHistoryNotifier extends _$PaymentHistoryNotifier {
             originalApprovalNo: order.purchaseAuthNumber,
             originalApprovalDate: DateFormat('yyMMdd').format(DateTime.parse(order.completedAt!)),
           );
-      SlackLogService().sendLogToSlack('refund response: $response');
+      final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId.toString() ?? 'unknown';
+      SlackLogService().sendLogToSlack('*[MachineId: $machineId]*\nrefund response: $response');
 
       state = state.copyWith(refundState: AsyncValue.data(response));
       await _updateOrderStatus(order, response);
