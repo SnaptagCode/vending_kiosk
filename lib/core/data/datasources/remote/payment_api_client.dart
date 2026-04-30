@@ -14,6 +14,68 @@ class PaymentApiClient {
   static const int _defaultWebPort = 27098;
   static const String _configPath = r'C:\KSCAT\config.ini';
 
+  static Future<void> ensureLogLevel(int level) async {
+    try {
+      final file = File(_configPath);
+      final content = await file.readAsString();
+      final current = _parseIniSectionStatic(content, 'log')['level'];
+      if (current?.trim() == level.toString()) {
+        SlackLogService().sendLogToSlack('KSCAT config.ini [log] level already $level, skipping');
+        return;
+      }
+      final updated = _replaceIniValue(content, 'log', 'level', level.toString());
+      await file.writeAsString(updated);
+      SlackLogService().sendLogToSlack('KSCAT config.ini [log] level → $level');
+    } catch (e) {
+      SlackLogService().sendLogToSlack('Failed to update KSCAT log level: $e');
+    }
+  }
+
+  static Map<String, String> _parseIniSectionStatic(String ini, String sectionName) {
+    final target = sectionName.trim().toLowerCase();
+    final map = <String, String>{};
+    String? currentSection;
+    for (final rawLine in const LineSplitter().convert(ini)) {
+      final line = rawLine.trim();
+      if (line.isEmpty || line.startsWith(';') || line.startsWith('#')) continue;
+      if (line.startsWith('[') && line.endsWith(']')) {
+        currentSection = line.substring(1, line.length - 1).trim().toLowerCase();
+        continue;
+      }
+      if (currentSection != target) continue;
+      final idx = line.indexOf('=');
+      if (idx <= 0) continue;
+      map[line.substring(0, idx).trim().toLowerCase()] = line.substring(idx + 1).trim();
+    }
+    return map;
+  }
+
+  static String _replaceIniValue(String ini, String section, String key, String value) {
+    final sectionPattern = RegExp(r'\r?\n');
+    final lines = ini.split(sectionPattern);
+    final lineEnding = ini.contains('\r\n') ? '\r\n' : '\n';
+    final targetSection = section.trim().toLowerCase();
+    final targetKey = key.trim().toLowerCase();
+    bool inSection = false;
+    bool replaced = false;
+    final result = lines.map((rawLine) {
+      final line = rawLine.trim();
+      if (line.startsWith('[') && line.endsWith(']')) {
+        inSection = line.substring(1, line.length - 1).trim().toLowerCase() == targetSection;
+        return rawLine;
+      }
+      if (inSection && !replaced) {
+        final idx = line.indexOf('=');
+        if (idx > 0 && line.substring(0, idx).trim().toLowerCase() == targetKey) {
+          replaced = true;
+          return '${rawLine.substring(0, rawLine.indexOf('=') + 1)}$value';
+        }
+      }
+      return rawLine;
+    }).join(lineEnding);
+    return result;
+  }
+
   static String? _cachedBaseUrl;
 
   Future<String> _resolveBaseUrl() async {
