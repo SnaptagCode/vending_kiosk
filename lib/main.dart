@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:vending_kiosk/app.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
+import 'package:vending_kiosk/core/data/datasources/remote/payment_api_client.dart';
 import 'package:vending_kiosk/flavors.dart';
 import 'package:vending_kiosk/lib.dart';
 import 'package:window_manager/window_manager.dart';
@@ -34,6 +35,7 @@ void main() async {
       // WindowManager 초기화만 수행 (설정은 App에서)
       if (Platform.isWindows) {
         await windowManager.ensureInitialized();
+        await PaymentApiClient.ensureLogLevel(2);
       }
 
       // ✅ FlutterError 로그 자동 감지
