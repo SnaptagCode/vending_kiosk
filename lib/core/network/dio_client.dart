@@ -7,7 +7,6 @@ import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 
-
 final dioProvider = Provider.family<Dio, String>((ref, baseUrl) {
   final dio = Dio()
     ..options.baseUrl = baseUrl
@@ -65,13 +64,20 @@ final dioProvider = Provider.family<Dio, String>((ref, baseUrl) {
       final errorLogger = DioLogger(
         sendHook: (log) {
           if (isSlackAlertRequest) return;
+          final path = err.requestOptions.path;
           final lines = log.split('\n');
           if (lines.isNotEmpty) lines[0] = '${lines[0]} ║ MachineId: $machineId';
           final formattedMessage = lines.join('\n');
-          if (statusCode >= 400 && statusCode < 500) {
-            SlackLogService().sendLogToSlack(formattedMessage);
-          } else if (statusCode >= 500) {
-            SlackLogService().sendErrorLogToSlack(formattedMessage);
+          if (path.startsWith('/v1/order')) {
+            if (statusCode >= 400 && statusCode < 500) {
+              SlackLogService().sendLogToSlack(formattedMessage);
+            } else if (statusCode >= 500) {
+              SlackLogService().sendErrorLogToSlack(formattedMessage);
+            }
+          } else {
+            if (statusCode >= 500) {
+              SlackLogService().sendErrorLogToSlack(formattedMessage);
+            }
           }
         },
         request: false,
