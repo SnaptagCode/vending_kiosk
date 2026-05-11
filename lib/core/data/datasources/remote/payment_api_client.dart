@@ -14,7 +14,11 @@ class PaymentApiClient {
   static const int _defaultWebPort = 27098;
   static const String _configPath = r'C:\KSCAT\config.ini';
 
+  static bool _logLevelEnsured = false;
+
   static Future<void> ensureLogLevel(int level) async {
+    if (_logLevelEnsured) return;
+    _logLevelEnsured = true;
     try {
       final file = File(_configPath);
       final content = await file.readAsString();

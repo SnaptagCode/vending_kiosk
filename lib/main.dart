@@ -11,7 +11,6 @@ import 'package:vending_kiosk/app.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/datasources/remote/payment_api_client.dart';
 import 'package:vending_kiosk/flavors.dart';
-import 'package:vending_kiosk/lib.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main() async {
