@@ -9,7 +9,6 @@ class F {
   static String get name => appFlavor?.name ?? '';
 
   static String get title {
-    return 'snaptag(dev)';
     switch (appFlavor) {
       case Flavor.dev:
         return 'snaptag(dev)';
@@ -21,7 +20,6 @@ class F {
   }
 
   static String get adminBaseUrl {
-    return 'https://kiosk-admin-dev-server.snaptag.co.kr';
     switch (F.appFlavor) {
       case Flavor.dev:
         return 'https://kiosk-admin-dev-server.snaptag.co.kr';
@@ -33,7 +31,6 @@ class F {
   }
 
   static String get kioskBaseUrl {
-    return 'https://dev-api-spring-kiosk.snaptag.co.kr';
     switch (F.appFlavor) {
       case Flavor.dev:
         return 'https://dev-api-spring-kiosk.snaptag.co.kr';
@@ -45,7 +42,6 @@ class F {
   }
 
   static String get qrCodePrefix {
-    return 'https://dev-photocard-kiosk-qr.snaptag.co.kr';
     switch (appFlavor) {
       case Flavor.dev:
         return 'https://dev-photocard-kiosk-qr.snaptag.co.kr';
