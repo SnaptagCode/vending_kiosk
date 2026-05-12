@@ -1,17 +1,21 @@
 import 'dart:developer';
 
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vending_kiosk/core/data/datasources/remote/kiosk_api_client.dart';
 import 'package:vending_kiosk/core/data/models/request/card_stock_consume_request.dart';
 import 'package:vending_kiosk/core/data/models/request/card_stock_recharge_request.dart';
-import 'package:vending_kiosk/core/data/models/request/unique_key_request.dart';
-import 'package:vending_kiosk/core/data/models/request/update_back_photo_request.dart';
 import 'package:vending_kiosk/core/data/models/request/create_order_request.dart';
-import 'package:vending_kiosk/core/data/models/request/create_print_request.dart';
+import 'package:vending_kiosk/core/data/models/request/create_vending_order_request.dart';
 import 'package:vending_kiosk/core/data/models/request/get_back_photo_by_qr_request.dart';
 import 'package:vending_kiosk/core/data/models/request/get_orders_request.dart';
+import 'package:vending_kiosk/core/data/models/request/unique_key_request.dart';
+import 'package:vending_kiosk/core/data/models/request/update_back_photo_request.dart';
+import 'package:vending_kiosk/core/data/models/request/update_maintenance_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_order_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_print_request.dart';
+import 'package:vending_kiosk/core/data/models/request/update_vending_order_status_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_vending_print_status_request.dart';
 import 'package:vending_kiosk/core/data/models/response/alert_definition_response.dart';
 import 'package:vending_kiosk/core/data/models/response/back_photo_card_response.dart';
@@ -19,31 +23,23 @@ import 'package:vending_kiosk/core/data/models/response/back_photo_status_respon
 import 'package:vending_kiosk/core/data/models/response/card_stock_consume_response.dart';
 import 'package:vending_kiosk/core/data/models/response/card_stock_recharge_response.dart';
 import 'package:vending_kiosk/core/data/models/response/create_order_response.dart';
-import 'package:vending_kiosk/core/data/models/response/create_print_response.dart';
+import 'package:vending_kiosk/core/data/models/response/create_vending_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/kiosk_machine_info.dart';
+import 'package:vending_kiosk/core/data/models/response/machine_card_stock_response.dart';
+import 'package:vending_kiosk/core/data/models/response/machine_maintenance_response.dart';
 import 'package:vending_kiosk/core/data/models/response/nominated_photo_list.dart';
 import 'package:vending_kiosk/core/data/models/response/order_list_response.dart';
 import 'package:vending_kiosk/core/data/models/response/update_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/update_print_response.dart';
-import 'package:vending_kiosk/core/data/models/response/machine_card_stock_response.dart';
-import 'package:vending_kiosk/core/data/models/response/machine_maintenance_response.dart';
-import 'package:vending_kiosk/core/data/models/request/create_vending_order_request.dart';
-import 'package:vending_kiosk/core/data/models/request/update_maintenance_request.dart';
-import 'package:vending_kiosk/core/data/models/request/update_vending_order_status_request.dart';
-import 'package:vending_kiosk/core/data/models/response/create_vending_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_order_status_response.dart';
-import 'package:vending_kiosk/core/data/models/response/vending_print_status_response.dart';
-import 'package:vending_kiosk/core/data/models/response/vending_print_list_response.dart';
-import 'package:vending_kiosk/core/data/models/response/vending_reprint_response.dart';
-import 'package:vending_kiosk/core/data/models/response/vending_print_polling_response.dart';
-import 'package:vending_kiosk/core/data/models/response/vending_print_job_ok_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_print_job_fail_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_job_ok_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_list_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_polling_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_status_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_reprint_response.dart';
 import 'package:vending_kiosk/core/network/dio_client.dart';
 import 'package:vending_kiosk/flavors.dart';
-import 'package:vending_kiosk/lib.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
 import 'package:vending_kiosk/presentation/print/dispense_progress_provider.dart';
 
 part 'kiosk_repository.g.dart';
@@ -282,6 +278,18 @@ class _KioskRepository {
     try {
       await _apiClient.checkKioskAlive(
           kioskEventId: kioskEventId, machineId: machineId, remainingSingleSidedCount: remainingSingleSidedCount);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> sendKioskLog({required int machineId, required String title, required String content}) async {
+    try {
+      await _apiClient.sendKioskLog(body: {
+        'machineId': machineId,
+        'title': title,
+        'content': content,
+      });
     } catch (e) {
       rethrow;
     }
