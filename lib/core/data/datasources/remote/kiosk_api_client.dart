@@ -1,27 +1,26 @@
 import 'package:dio/dio.dart';
+import 'package:retrofit/retrofit.dart';
 import 'package:vending_kiosk/core/data/models/response/alert_definition_response.dart';
 import 'package:vending_kiosk/core/data/models/response/back_photo_card_response.dart';
 import 'package:vending_kiosk/core/data/models/response/back_photo_status_response.dart';
+import 'package:vending_kiosk/core/data/models/response/card_stock_consume_response.dart';
+import 'package:vending_kiosk/core/data/models/response/card_stock_recharge_response.dart';
 import 'package:vending_kiosk/core/data/models/response/create_order_response.dart';
-import 'package:vending_kiosk/core/data/models/response/create_print_response.dart';
+import 'package:vending_kiosk/core/data/models/response/create_vending_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/kiosk_machine_info.dart';
+import 'package:vending_kiosk/core/data/models/response/machine_card_stock_response.dart';
+import 'package:vending_kiosk/core/data/models/response/machine_maintenance_response.dart';
 import 'package:vending_kiosk/core/data/models/response/nominated_photo_list.dart';
 import 'package:vending_kiosk/core/data/models/response/order_list_response.dart';
 import 'package:vending_kiosk/core/data/models/response/update_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/update_print_response.dart';
-import 'package:vending_kiosk/core/data/models/response/card_stock_consume_response.dart';
-import 'package:vending_kiosk/core/data/models/response/card_stock_recharge_response.dart';
-import 'package:vending_kiosk/core/data/models/response/machine_card_stock_response.dart';
-import 'package:vending_kiosk/core/data/models/response/machine_maintenance_response.dart';
-import 'package:vending_kiosk/core/data/models/response/create_vending_order_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_order_status_response.dart';
-import 'package:vending_kiosk/core/data/models/response/vending_print_status_response.dart';
-import 'package:vending_kiosk/core/data/models/response/vending_print_list_response.dart';
-import 'package:vending_kiosk/core/data/models/response/vending_reprint_response.dart';
-import 'package:vending_kiosk/core/data/models/response/vending_print_polling_response.dart';
-import 'package:vending_kiosk/core/data/models/response/vending_print_job_ok_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_print_job_fail_response.dart';
-import 'package:retrofit/retrofit.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_job_ok_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_list_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_polling_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_print_status_response.dart';
+import 'package:vending_kiosk/core/data/models/response/vending_reprint_response.dart';
 
 part 'kiosk_api_client.g.dart';
 
@@ -112,6 +111,11 @@ abstract class KioskApiClient {
   @POST('/v1/internal/slack/kiosk-by-type/{machineId}')
   Future<void> sendSlackAlert({
     @Path('machineId') required int machineId,
+    @Body() required Map<String, dynamic> body,
+  });
+
+  @POST('/v1/internal/slack/kiosk-log')
+  Future<void> sendKioskLog({
     @Body() required Map<String, dynamic> body,
   });
 
