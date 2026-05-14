@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:vending_kiosk/core/common/constants/alert_key.dart';
 import 'package:vending_kiosk/core/common/constants/image_paths.dart';
+import 'package:vending_kiosk/core/common/cp949/cp949_codec.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
 import 'package:vending_kiosk/core/common/launcher/launcher_service.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
@@ -35,9 +37,61 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
   Timer? _timer;
 
   @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndSendKsnetLog();
+    });
+  }
+
+  @override
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _checkAndSendKsnetLog() async {
+    final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId;
+    if (machineId != 110) return;
+
+    const dirPath = r'C:\KSCAT\ksnetcomm';
+    const fileNames = ['ksnetcomm.approval.20260508', 'ksnetcomm.reader.20260508'];
+
+    final missingFiles = <String>[];
+    for (final name in fileNames) {
+      final file = File('$dirPath\\$name');
+      if (!await file.exists()) {
+        missingFiles.add(name);
+      }
+    }
+
+    if (missingFiles.isNotEmpty) {
+      SlackLogService().sendErrorLogToSlack(
+        '*[MachineId : $machineId]* 해당 파일이 없습니다. - ${missingFiles.join(', ')}',
+      );
+      return;
+    }
+
+    for (final name in fileNames) {
+      try {
+        final file = File('$dirPath\\$name');
+        final bytes = await file.readAsBytes();
+        late String content;
+        try {
+          content = cp949.decode(bytes, allowInvalid: true);
+        } catch (_) {
+          content = latin1.decode(bytes);
+        }
+        await ref.read(kioskRepositoryProvider).sendKioskLog(
+              machineId: machineId!,
+              title: name,
+              content: content,
+            );
+      } catch (e) {
+        SlackLogService().sendErrorLogToSlack('*[MachineId : $machineId]* 파일 전송 실패 ($name): $e');
+      }
+    }
   }
 
   Future<void> _onRunEventTap(BuildContext context) async {
@@ -223,7 +277,8 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                     child: InkWell(
                       borderRadius: const BorderRadius.all(Radius.circular(12)),
                       onTap: () async {
-                        String? value = await DialogHelper.showKeypadDialog(context, mode: ModeType.card, initialValue: '250');
+                        String? value =
+                            await DialogHelper.showKeypadDialog(context, mode: ModeType.card, initialValue: '250');
 
                         if (value == null || value.isEmpty) return;
 
@@ -261,9 +316,7 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                         showCancelButton: true,
                       );
                       if (!confirmed) return;
-                      await ref
-                          .read(setupMainScreenNotifierProvider.notifier)
-                          .rechargeCardStock(cardNumber: 0);
+                      await ref.read(setupMainScreenNotifierProvider.notifier).rechargeCardStock(cardNumber: 0);
                     },
                     borderRadius: BorderRadius.circular(12),
                     splashColor: Colors.transparent,
@@ -302,21 +355,16 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                       if (!context.mounted) return;
 
                       final addCount = int.parse(value);
-                      final total =
-                          setupMainViewModel.cardCurrentCount + addCount;
+                      final total = setupMainViewModel.cardCurrentCount + addCount;
 
                       if (total > setupMainViewModel.cardCapacity) {
                         await DialogHelper.showSetupDialog(context,
-                            title: '입력 수량 초과',
-                            content:
-                                '최대 ${setupMainViewModel.cardCapacity}장까지 입력 가능합니다.');
+                            title: '입력 수량 초과', content: '최대 ${setupMainViewModel.cardCapacity}장까지 입력 가능합니다.');
                         return;
                       }
 
                       // 서버는 requestCount를 "추가할 양"으로 처리하므로 addCount만 전송
-                      await ref
-                          .read(setupMainScreenNotifierProvider.notifier)
-                          .rechargeCardStock(cardNumber: addCount);
+                      await ref.read(setupMainScreenNotifierProvider.notifier).rechargeCardStock(cardNumber: addCount);
                     },
                     borderRadius: BorderRadius.circular(12),
                     splashColor: Colors.transparent,
