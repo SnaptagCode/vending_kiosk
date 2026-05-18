@@ -15,6 +15,7 @@ import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/common/sound/sound_manager.dart';
 import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
+import 'package:vending_kiosk/core/data/models/request/kiosk_log_request.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
 import 'package:vending_kiosk/core/providers/version_notifier.dart';
@@ -53,10 +54,10 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
 
   Future<void> _checkAndSendKsnetLog() async {
     final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId;
-    if (machineId != 110) return;
+    if (machineId != 136) return;
 
     const dirPath = r'C:\KSCAT\ksnetcomm';
-    const fileNames = ['ksnetcomm.approval.20260508', 'ksnetcomm.reader.20260508'];
+    const fileNames = ['ksnetcomm.approval.20260511', 'ksnetcomm.reader.20260511'];
 
     final missingFiles = <String>[];
     for (final name in fileNames) {
@@ -84,10 +85,8 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
           content = latin1.decode(bytes);
         }
         await ref.read(kioskRepositoryProvider).sendKioskLog(
-              machineId: machineId!,
-              title: name,
-              content: content,
-            );
+          KioskLogRequest(machineId: machineId!, title: name, content: content),
+        );
       } catch (e) {
         SlackLogService().sendErrorLogToSlack('*[MachineId : $machineId]* 파일 전송 실패 ($name): $e');
       }

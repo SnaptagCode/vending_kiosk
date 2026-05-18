@@ -10,6 +10,7 @@ import 'package:vending_kiosk/core/data/models/request/create_order_request.dart
 import 'package:vending_kiosk/core/data/models/request/create_vending_order_request.dart';
 import 'package:vending_kiosk/core/data/models/request/get_back_photo_by_qr_request.dart';
 import 'package:vending_kiosk/core/data/models/request/get_orders_request.dart';
+import 'package:vending_kiosk/core/data/models/request/kiosk_log_request.dart';
 import 'package:vending_kiosk/core/data/models/request/unique_key_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_back_photo_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_maintenance_request.dart';
@@ -283,12 +284,29 @@ class _KioskRepository {
     }
   }
 
-  Future<void> sendKioskLog({required int machineId, required String title, required String content}) async {
+  // 파일 읽기 성공
+  Future<void> sendKioskLog(KioskLogRequest request) async {
     try {
       await _apiClient.sendKioskLog(body: {
-        'machineId': machineId,
-        'title': title,
-        'content': content,
+        if (request.logId != null) 'id': request.logId,
+        'machineId': request.machineId,
+        'title': request.title,
+        'content': request.content,
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // 파일 없거나 읽기 실패 시
+  Future<void> sendMachineLog(KioskLogRequest request) async {
+    try {
+      await _apiClient.sendKioskLog(body: {
+        if (request.logId != null) 'id': request.logId,
+        'machineId': request.machineId,
+        'title': request.title,
+        'content': request.content,
+        'step': 'ERROR',
       });
     } catch (e) {
       rethrow;

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -6,7 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:loader_overlay/loader_overlay.dart';
 // import 'package:flutter_tts/flutter_tts.dart';
+import 'package:vending_kiosk/core/common/cp949/cp949_codec.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
+import 'package:vending_kiosk/core/data/models/request/kiosk_log_request.dart';
 import 'package:vending_kiosk/core/common/extensions/color.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/enums/vending_print_job_type.dart';
@@ -166,12 +170,96 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             uniqueKey: uniqueKey,
           );
 
+      final logItems = response.machineLogPath;
+      if (logItems != null && logItems.isNotEmpty) {
+        for (final item in logItems) {
+          await _sendMachineLogFile(item.path, item.id, kioskInfo.kioskMachineId);
+        }
+      }
+
       if (mounted) {
         ref.read(maintenanceStateProvider.notifier).state = response.isUnderMaintenance;
       }
       return response.isUnderMaintenance;
     } catch (_) {
       return false;
+    }
+  }
+
+  Future<void> _sendMachineLogFile(String path, int logId, int machineId) async {
+    final fileName = path.split(r'\').last;
+    final file = File(path);
+
+    // 파일 존재 여부 확인 (경로 접근 권한 오류 포함)
+    bool exists;
+    try {
+      exists = await file.exists();
+    } catch (e) {
+      try {
+        await ref.read(kioskRepositoryProvider).sendMachineLog(
+          KioskLogRequest.withLogId(logId: logId, machineId: machineId, title: fileName, content: '경로 접근 실패: $e'),
+        );
+      } catch (_) {
+        SlackLogService().sendErrorLogToSlack(
+          '*[MachineId: $machineId / LogId: $logId]* 경로 접근 실패 알림 전송 실패 ($path): $e',
+        );
+      }
+      return;
+    }
+
+    // 파일 없음
+    if (!exists) {
+      try {
+        await ref.read(kioskRepositoryProvider).sendMachineLog(
+          KioskLogRequest.withLogId(logId: logId, machineId: machineId, title: fileName, content: '파일 없음: $path'),
+        );
+      } catch (e) {
+        SlackLogService().sendErrorLogToSlack(
+          '*[MachineId: $machineId / LogId: $logId]* 파일 없음 알림 전송 실패 ($path): $e',
+        );
+      }
+      return;
+    }
+
+    // 파일 읽기
+    late String content;
+    try {
+      final bytes = await file.readAsBytes();
+
+      if (bytes.isEmpty) {
+        await ref.read(kioskRepositoryProvider).sendMachineLog(
+          KioskLogRequest.withLogId(logId: logId, machineId: machineId, title: fileName, content: '파일이 비어 있음: $path'),
+        );
+        return;
+      }
+
+      try {
+        content = cp949.decode(bytes, allowInvalid: true);
+      } catch (_) {
+        content = latin1.decode(bytes);
+      }
+    } catch (e) {
+      try {
+        await ref.read(kioskRepositoryProvider).sendMachineLog(
+          KioskLogRequest.withLogId(logId: logId, machineId: machineId, title: fileName, content: '파일 읽기 실패: $e'),
+        );
+      } catch (_) {
+        SlackLogService().sendErrorLogToSlack(
+          '*[MachineId: $machineId / LogId: $logId]* 파일 읽기 실패 알림 전송 실패 ($path): $e',
+        );
+      }
+      return;
+    }
+
+    // 파일 전송
+    try {
+      await ref.read(kioskRepositoryProvider).sendKioskLog(
+        KioskLogRequest.withLogId(logId: logId, machineId: machineId, title: fileName, content: content),
+      );
+    } catch (e) {
+      SlackLogService().sendErrorLogToSlack(
+        '*[MachineId: $machineId / LogId: $logId]* 로그 전송 실패 ($path): $e',
+      );
     }
   }
 
