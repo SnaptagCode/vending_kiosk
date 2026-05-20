@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
@@ -31,6 +33,13 @@ final dioProvider = Provider.family<Dio, String>((ref, baseUrl) {
     // Request가 보내기 전에 실행됩니다.
     // 예를 들어, 헤더를 설정하거나 요청을 변환할 수 있습니다.
     onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+      if (options.data is FormData) {
+        final boundary = (options.data as FormData).boundary;
+        options.contentType = 'multipart/form-data; boundary=$boundary';
+      } else if (options.data is Map || options.data is List) {
+        options.data = jsonEncode(options.data);
+        options.contentType = 'application/json; charset=utf-8';
+      }
       return handler.next(options);
     },
     // Response를 받은 후에 실행됩니다.

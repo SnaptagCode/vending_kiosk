@@ -8,7 +8,7 @@ class MachineMaintenanceResponse with _$MachineMaintenanceResponse {
   const factory MachineMaintenanceResponse({
     required int machineId,
     required bool isUnderMaintenance,
-    List<MachineLogItem>? machineLogPath,
+    List<MachineLogItem>? machineLogPaths,
   }) = _MachineMaintenanceResponse;
 
   factory MachineMaintenanceResponse.fromJson(Map<String, dynamic> json) =>

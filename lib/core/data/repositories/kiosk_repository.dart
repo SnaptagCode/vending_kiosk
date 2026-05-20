@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:developer';
 
 import 'package:dio/dio.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vending_kiosk/core/data/datasources/remote/kiosk_api_client.dart';
@@ -284,30 +286,21 @@ class _KioskRepository {
     }
   }
 
-  // 파일 읽기 성공
-  Future<void> sendKioskLog(KioskLogRequest request) async {
+  Future<void> sendKioskLog(KioskLogRequest request, {bool isError = false}) async {
+    final jsonBody = jsonEncode({
+      if (request.logId != null) 'id': request.logId,
+      'machineId': request.machineId,
+      'title': request.title,
+      'content': request.content,
+      if (isError) 'step': 'ERROR',
+    });
+    final formData = FormData()
+      ..files.add(MapEntry(
+        'request',
+        MultipartFile.fromString(jsonBody, contentType: MediaType('application', 'json')),
+      ));
     try {
-      await _apiClient.sendKioskLog(body: {
-        if (request.logId != null) 'id': request.logId,
-        'machineId': request.machineId,
-        'title': request.title,
-        'content': request.content,
-      });
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  // 파일 없거나 읽기 실패 시
-  Future<void> sendMachineLog(KioskLogRequest request) async {
-    try {
-      await _apiClient.sendKioskLog(body: {
-        if (request.logId != null) 'id': request.logId,
-        'machineId': request.machineId,
-        'title': request.title,
-        'content': request.content,
-        'step': 'ERROR',
-      });
+      await _apiClient.sendKioskLog(body: formData);
     } catch (e) {
       rethrow;
     }
