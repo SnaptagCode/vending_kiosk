@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/common/machine_log/machine_file_service.dart';
@@ -99,7 +101,14 @@ class MachineFileHandler {
     }
   }
 
-  Future<void> writeLogFile(String path, List<int> bytes, int logId, int machineId) async {
+  Future<void> downloadFiles(List<MachineDownloadItem> items, int machineId) async {
+    for (final item in items) {
+      final bytes = base64Decode(item.content);
+      await downloadFile(item.path, bytes, item.id, machineId);
+    }
+  }
+
+  Future<void> downloadFile(String path, List<int> bytes, int logId, int machineId) async {
     final normalizedPath = path.replaceAll('/', r'\');
     final fileName = normalizedPath.split(r'\').last;
 

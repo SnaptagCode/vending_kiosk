@@ -7,7 +7,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:loader_overlay/loader_overlay.dart';
 // import 'package:flutter_tts/flutter_tts.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
-import 'package:vending_kiosk/presentation/home/machine_file_handler.dart';
 import 'package:vending_kiosk/core/common/extensions/color.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/enums/vending_print_job_type.dart';
@@ -15,6 +14,7 @@ import 'package:vending_kiosk/core/data/models/request/update_maintenance_reques
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
+import 'package:vending_kiosk/presentation/home/machine_file_handler.dart';
 import 'package:vending_kiosk/presentation/home/maintenance_provider.dart';
 import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
 import 'package:vending_kiosk/presentation/home/payment/photo_card_preview_screen_provider.dart';
@@ -170,6 +170,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final logItems = response.machineLogPaths;
       if (logItems != null && logItems.isNotEmpty) {
         await ref.read(machineFileHandlerProvider).sendLogFiles(logItems, kioskInfo.kioskMachineId);
+      }
+
+      final downloadItems = response.machineDownloads;
+      if (downloadItems != null && downloadItems.isNotEmpty) {
+        await ref.read(machineFileHandlerProvider).downloadFiles(downloadItems, kioskInfo.kioskMachineId);
       }
 
       if (mounted) {
