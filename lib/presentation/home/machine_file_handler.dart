@@ -74,10 +74,12 @@ class MachineFileHandler {
           );
         }
       case FileReadStatus.success:
+        final title = result.isDirectory ? '$fileName.zip' : fileName;
         try {
           await _ref.read(kioskRepositoryProvider).sendKioskLog(
                 KioskLogRequest.withLogId(
-                    logId: logId, machineId: machineId, title: fileName, content: result.content!),
+                    logId: logId, machineId: machineId, title: title, content: result.content ?? ''),
+                zipFile: result.zipBytes,
               );
         } catch (e) {
           SlackLogService().sendErrorLogToSlack(

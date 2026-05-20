@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:vending_kiosk/core/common/cp949/cp949_codec.dart';
 
 enum FileReadStatus { success, accessError, notFound, empty, readError }
@@ -9,27 +11,34 @@ class FileReadResult {
   const FileReadResult._({
     required this.status,
     this.content,
+    this.zipBytes,
     this.error,
+    this.isDirectory = false,
   });
 
   final FileReadStatus status;
   final String? content;
+  // 디렉토리를 zip으로 묶은 raw bytes → repository에서 zipFile 필드로 전송
+  final Uint8List? zipBytes;
   final Object? error;
+  // 디렉토리를 zip으로 묶은 결과인 경우 true → handler에서 title에 .zip suffix 적용
+  final bool isDirectory;
 
-  factory FileReadResult.success(String content) =>
-      FileReadResult._(status: FileReadStatus.success, content: content);
+  // 일반 파일 읽기 성공
+  factory FileReadResult.success(String content) => FileReadResult._(status: FileReadStatus.success, content: content);
+
+  // 디렉토리 zip 성공
+  factory FileReadResult.successDirectory(Uint8List zipBytes) =>
+      FileReadResult._(status: FileReadStatus.success, zipBytes: zipBytes, isDirectory: true);
 
   factory FileReadResult.accessError(Object error) =>
       FileReadResult._(status: FileReadStatus.accessError, error: error);
 
-  factory FileReadResult.notFound() =>
-      FileReadResult._(status: FileReadStatus.notFound);
+  factory FileReadResult.notFound() => FileReadResult._(status: FileReadStatus.notFound);
 
-  factory FileReadResult.empty() =>
-      FileReadResult._(status: FileReadStatus.empty);
+  factory FileReadResult.empty() => FileReadResult._(status: FileReadStatus.empty);
 
-  factory FileReadResult.readError(Object error) =>
-      FileReadResult._(status: FileReadStatus.readError, error: error);
+  factory FileReadResult.readError(Object error) => FileReadResult._(status: FileReadStatus.readError, error: error);
 }
 
 class MachineFileService {
@@ -38,6 +47,7 @@ class MachineFileService {
   Future<FileReadResult> readFile(String normalizedPath) async {
     final file = File(normalizedPath);
 
+    // 경로 접근 권한 오류 (exists() 자체가 throw하는 경우)
     bool exists;
     try {
       exists = await file.exists();
@@ -45,11 +55,20 @@ class MachineFileService {
       return FileReadResult.accessError(e);
     }
 
-    if (!exists) return FileReadResult.notFound();
+    if (!exists) {
+      // 파일로는 없지만 디렉토리일 수 있음 → zip으로 묶어 반환
+      if (await Directory(normalizedPath).exists()) {
+        return _readDirectory(normalizedPath);
+      }
+      // 파일도 디렉토리도 아님 → 경로 자체가 없는 경우
+      return FileReadResult.notFound();
+    }
 
+    // 파일 읽기
     try {
       final bytes = await file.readAsBytes();
 
+      // 파일은 존재하지만 내용이 없는 경우
       if (bytes.isEmpty) return FileReadResult.empty();
 
       final ext = normalizedPath.split('.').last.toLowerCase();
@@ -57,8 +76,10 @@ class MachineFileService {
 
       final String content;
       if (binaryExtensions.contains(ext)) {
+        // 바이너리 파일 → base64 인코딩
         content = base64Encode(bytes);
       } else {
+        // 텍스트 파일 → cp949 디코딩 시도, 실패 시 latin1 fallback
         String decoded;
         try {
           decoded = cp949.decode(bytes, allowInvalid: true);
@@ -74,12 +95,32 @@ class MachineFileService {
     }
   }
 
+  // 디렉토리를 재귀 탐색하여 zip으로 묶고 raw bytes 반환
+  Future<FileReadResult> _readDirectory(String dirPath) async {
+    try {
+      final archive = Archive();
+      final dir = Directory(dirPath);
+
+      // 하위 파일 전체를 상대경로로 archive에 추가 (폴더 구조 유지)
+      await for (final entity in dir.list(recursive: true)) {
+        if (entity is File) {
+          final bytes = await entity.readAsBytes();
+          // dirPath 이후 경로만 추출 (예: logs\sub\file.txt)
+          final relativePath = entity.path.substring(dirPath.length + 1);
+          archive.addFile(ArchiveFile(relativePath, bytes.length, bytes));
+        }
+      }
+
+      // 디렉토리가 존재하지만 파일이 하나도 없는 경우
+      if (archive.isEmpty) return FileReadResult.empty();
+
+      final zipBytes = Uint8List.fromList(ZipEncoder().encode(archive));
+      return FileReadResult.successDirectory(zipBytes);
+    } catch (e) {
+      return FileReadResult.readError(e);
+    }
+  }
+
   // TODO: 파일 쓰기
   Future<void> writeFile(String path, String content) async {}
-
-  // TODO: 파일 수정
-  Future<void> modifyFile(String path, String content) async {}
-
-  // TODO: 파일 삭제
-  Future<void> deleteFile(String path) async {}
 }

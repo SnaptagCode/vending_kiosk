@@ -286,7 +286,7 @@ class _KioskRepository {
     }
   }
 
-  Future<void> sendKioskLog(KioskLogRequest request, {bool isError = false}) async {
+  Future<void> sendKioskLog(KioskLogRequest request, {bool isError = false, List<int>? zipFile}) async {
     final jsonBody = jsonEncode({
       if (request.logId != null) 'id': request.logId,
       'machineId': request.machineId,
@@ -299,6 +299,12 @@ class _KioskRepository {
         'request',
         MultipartFile.fromString(jsonBody, contentType: MediaType('application', 'json')),
       ));
+    if (zipFile != null) {
+      formData.files.add(MapEntry(
+        'file',
+        MultipartFile.fromBytes(zipFile, filename: request.title, contentType: MediaType('application', 'zip')),
+      ));
+    }
     try {
       await _apiClient.sendKioskLog(body: formData);
     } catch (e) {
