@@ -150,9 +150,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
       }
     } catch (e) {
-      ref.read(printJobIdProvider.notifier).state = null;
+      if (mounted) ref.read(printJobIdProvider.notifier).state = null;
     } finally {
-      _startPrintJobPolling();
+      if (mounted) _startPrintJobPolling();
     }
   }
 
