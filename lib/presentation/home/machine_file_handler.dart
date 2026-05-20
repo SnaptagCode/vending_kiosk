@@ -36,7 +36,7 @@ class MachineFileHandler {
           await _ref.read(kioskRepositoryProvider).sendKioskLog(
                 KioskLogRequest.withLogId(
                     logId: logId, machineId: machineId, title: fileName, content: '경로 접근 실패: ${result.error}'),
-                isError: true,
+                step: 'ERROR',
               );
         } catch (_) {
           SlackLogService().sendErrorLogToSlack(
@@ -48,7 +48,7 @@ class MachineFileHandler {
           await _ref.read(kioskRepositoryProvider).sendKioskLog(
                 KioskLogRequest.withLogId(
                     logId: logId, machineId: machineId, title: fileName, content: '파일 없음: $path'),
-                isError: true,
+                step: 'ERROR',
               );
         } catch (e) {
           SlackLogService().sendErrorLogToSlack(
@@ -59,14 +59,14 @@ class MachineFileHandler {
         await _ref.read(kioskRepositoryProvider).sendKioskLog(
               KioskLogRequest.withLogId(
                   logId: logId, machineId: machineId, title: fileName, content: '파일이 비어 있음: $path'),
-              isError: true,
+              step: 'ERROR',
             );
       case FileReadStatus.readError:
         try {
           await _ref.read(kioskRepositoryProvider).sendKioskLog(
                 KioskLogRequest.withLogId(
                     logId: logId, machineId: machineId, title: fileName, content: '파일 읽기 실패: ${result.error}'),
-                isError: true,
+                step: 'ERROR',
               );
         } catch (_) {
           SlackLogService().sendErrorLogToSlack(
@@ -74,18 +74,62 @@ class MachineFileHandler {
           );
         }
       case FileReadStatus.success:
-        final title = result.isDirectory ? '$fileName.zip' : fileName;
         try {
           await _ref.read(kioskRepositoryProvider).sendKioskLog(
                 KioskLogRequest.withLogId(
-                    logId: logId, machineId: machineId, title: title, content: result.content ?? ''),
-                zipFile: result.zipBytes,
+                    logId: logId, machineId: machineId, title: fileName, content: result.content!),
               );
         } catch (e) {
           SlackLogService().sendErrorLogToSlack(
             '*[MachineId: $machineId / LogId: $logId]* 로그 전송 실패 ($path): $e',
           );
         }
+      case FileReadStatus.directorySuccess:
+        try {
+          await _ref.read(kioskRepositoryProvider).sendKioskLog(
+                KioskLogRequest.withLogId(
+                    logId: logId, machineId: machineId, title: '$fileName.zip', content: ''),
+                zipFile: result.zipBytes,
+              );
+        } catch (e) {
+          SlackLogService().sendErrorLogToSlack(
+            '*[MachineId: $machineId / LogId: $logId]* 디렉토리 zip 전송 실패 ($path): $e',
+          );
+        }
+    }
+  }
+
+  Future<void> writeLogFile(String path, List<int> bytes, int logId, int machineId) async {
+    final normalizedPath = path.replaceAll('/', r'\');
+    final fileName = normalizedPath.split(r'\').last;
+
+    try {
+      await _fileService.writeFile(path, bytes);
+
+      // 저장 성공 → 서버에 알림
+      try {
+        await _ref.read(kioskRepositoryProvider).sendKioskLog(
+              KioskLogRequest.withLogId(
+                  logId: logId, machineId: machineId, title: fileName, content: '파일 저장 완료: $path'),
+            );
+      } catch (e) {
+        SlackLogService().sendErrorLogToSlack(
+          '*[MachineId: $machineId / LogId: $logId]* 파일 저장 완료 알림 전송 실패 ($path): $e',
+        );
+      }
+    } catch (e) {
+      // 저장 실패 → 서버에 알림
+      try {
+        await _ref.read(kioskRepositoryProvider).sendKioskLog(
+              KioskLogRequest.withLogId(
+                  logId: logId, machineId: machineId, title: fileName, content: '파일 저장 실패: $e'),
+              step: 'ERROR',
+            );
+      } catch (_) {
+        SlackLogService().sendErrorLogToSlack(
+          '*[MachineId: $machineId / LogId: $logId]* 파일 저장 실패 알림 전송 실패 ($path): $e',
+        );
+      }
     }
   }
 }

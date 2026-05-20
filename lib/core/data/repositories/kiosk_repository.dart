@@ -286,13 +286,13 @@ class _KioskRepository {
     }
   }
 
-  Future<void> sendKioskLog(KioskLogRequest request, {bool isError = false, List<int>? zipFile}) async {
+  Future<void> sendKioskLog(KioskLogRequest request, {String? step, List<int>? zipFile}) async {
     final jsonBody = jsonEncode({
       if (request.logId != null) 'id': request.logId,
       'machineId': request.machineId,
       'title': request.title,
       'content': request.content,
-      if (isError) 'step': 'ERROR',
+      if (step != null) 'step': step,
     });
     final formData = FormData()
       ..files.add(MapEntry(

@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:vending_kiosk/core/common/cp949/cp949_codec.dart';
 
-enum FileReadStatus { success, accessError, notFound, empty, readError }
+enum FileReadStatus { success, directorySuccess, accessError, notFound, empty, readError }
 
 class FileReadResult {
   const FileReadResult._({
@@ -13,23 +13,20 @@ class FileReadResult {
     this.content,
     this.zipBytes,
     this.error,
-    this.isDirectory = false,
   });
 
   final FileReadStatus status;
   final String? content;
-  // 디렉토리를 zip으로 묶은 raw bytes → repository에서 zipFile 필드로 전송
+  // 디렉토리를 zip으로 묶은 raw bytes → repository에서 file 필드로 전송
   final Uint8List? zipBytes;
   final Object? error;
-  // 디렉토리를 zip으로 묶은 결과인 경우 true → handler에서 title에 .zip suffix 적용
-  final bool isDirectory;
 
   // 일반 파일 읽기 성공
   factory FileReadResult.success(String content) => FileReadResult._(status: FileReadStatus.success, content: content);
 
   // 디렉토리 zip 성공
   factory FileReadResult.successDirectory(Uint8List zipBytes) =>
-      FileReadResult._(status: FileReadStatus.success, zipBytes: zipBytes, isDirectory: true);
+      FileReadResult._(status: FileReadStatus.directorySuccess, zipBytes: zipBytes);
 
   factory FileReadResult.accessError(Object error) =>
       FileReadResult._(status: FileReadStatus.accessError, error: error);
@@ -121,6 +118,12 @@ class MachineFileService {
     }
   }
 
-  // TODO: 파일 쓰기
-  Future<void> writeFile(String path, String content) async {}
+  // 받아온 경로에 바이트 스트림을 파일로 저장
+  // 중간 디렉토리가 없으면 자동 생성
+  Future<void> writeFile(String path, List<int> bytes) async {
+    final normalizedPath = path.replaceAll('/', r'\');
+    final file = File(normalizedPath);
+    await file.parent.create(recursive: true);
+    await file.writeAsBytes(bytes);
+  }
 }
