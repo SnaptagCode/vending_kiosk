@@ -190,6 +190,8 @@ class NetworkStatusNotifier extends _$NetworkStatusNotifier {
 
     logger.i('newStatus: $newStatus');
 
+    if (state.status == newStatus && state.hasInternet == hasInternet) return;
+
     state = state.copyWith(
       status: newStatus,
       hasInternet: hasInternet,

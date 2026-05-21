@@ -46,11 +46,12 @@ final dioProvider = Provider.family<Dio, String>((ref, baseUrl) {
     // 예를 들어, 상태 코드에 따라 오류 처리를 할 수 있습니다.
     onResponse: (Response response, ResponseInterceptorHandler handler) {
       if (response.statusCode != null && response.statusCode! ~/ 100 != 2) {
+        final data = response.data;
         final newError = DioException(
           requestOptions: response.requestOptions,
           response: response,
-          message: response.data!['message'], // 표시할 메시지
-          error: response.data!['code'], // 사용자 정의 오류 메시지
+          message: data is Map ? data['message'] as String? : null,
+          error: data is Map ? data['code'] : null,
         );
         // interceptor onError로 전달
         return handler.reject(newError, true);
@@ -103,7 +104,7 @@ final dioProvider = Provider.family<Dio, String>((ref, baseUrl) {
           logger.i('SeverError 파싱 실패: $e');
         }
       }
-      return handler.next(err); // 원래 에러 전달
+      return handler.reject(err); // 원래 에러 전달
     },
   ));
 
