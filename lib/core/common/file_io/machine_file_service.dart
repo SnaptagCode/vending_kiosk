@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:http/http.dart' as http;
 import 'package:vending_kiosk/core/common/cp949/cp949_codec.dart';
 
 enum FileReadStatus { success, directorySuccess, accessError, notFound, empty, readError }
@@ -116,6 +117,14 @@ class MachineFileService {
     } catch (e) {
       return FileReadResult.readError(e);
     }
+  }
+
+  Future<List<int>> downloadBytesFromUrl(String url) async {
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode != 200) {
+      throw Exception('URL 다운로드 실패: HTTP ${response.statusCode}');
+    }
+    return response.bodyBytes;
   }
 
   // 받아온 경로에 바이트 스트림을 파일로 저장

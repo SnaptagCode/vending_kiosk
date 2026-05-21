@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
-import 'package:vending_kiosk/core/common/machine_log/machine_file_service.dart';
+import 'package:vending_kiosk/core/common/file_io/machine_file_service.dart';
 import 'package:vending_kiosk/core/data/models/request/kiosk_log_request.dart';
 import 'package:vending_kiosk/core/data/models/response/machine_maintenance_response.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
@@ -105,6 +105,46 @@ class MachineFileHandler {
     for (final item in items) {
       final bytes = base64Decode(item.content);
       await downloadFile(item.path, bytes, item.id, machineId);
+    }
+  }
+
+  Future<void> downloadLogFiles(List<MachineLogItem> items, int machineId) async {
+    for (final item in items) {
+      if (item.urlPath == null) continue;
+      await downloadFileFromUrl(item.urlPath!, item.path, item.id, machineId);
+    }
+  }
+
+  Future<void> downloadFileFromUrl(String urlPath, String path, int logId, int machineId) async {
+    final normalizedPath = path.replaceAll('/', r'\');
+    final fileName = normalizedPath.split(r'\').last;
+
+    try {
+      final bytes = await _fileService.downloadBytesFromUrl(urlPath);
+      await _fileService.writeFile(path, bytes);
+
+      try {
+        await _ref.read(kioskRepositoryProvider).sendKioskLog(
+              KioskLogRequest.withLogId(
+                  logId: logId, machineId: machineId, title: fileName, content: '파일 저장 완료: $path'),
+            );
+      } catch (e) {
+        SlackLogService().sendErrorLogToSlack(
+          '*[MachineId: $machineId / LogId: $logId]* 파일 저장 완료 알림 전송 실패 ($path): $e',
+        );
+      }
+    } catch (e) {
+      try {
+        await _ref.read(kioskRepositoryProvider).sendKioskLog(
+              KioskLogRequest.withLogId(
+                  logId: logId, machineId: machineId, title: fileName, content: '파일 저장 실패: $e'),
+              step: 'ERROR',
+            );
+      } catch (_) {
+        SlackLogService().sendErrorLogToSlack(
+          '*[MachineId: $machineId / LogId: $logId]* 파일 저장 실패 알림 전송 실패 ($path): $e',
+        );
+      }
     }
   }
 

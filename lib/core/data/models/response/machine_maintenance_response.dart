@@ -21,6 +21,8 @@ class MachineLogItem with _$MachineLogItem {
   const factory MachineLogItem({
     required int id,
     required String path,
+    String? urlPath,
+    required String deviceType,
   }) = _MachineLogItem;
 
   factory MachineLogItem.fromJson(Map<String, dynamic> json) =>

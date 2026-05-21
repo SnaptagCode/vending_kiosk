@@ -169,7 +169,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       final logItems = response.machineLogPaths;
       if (logItems != null && logItems.isNotEmpty) {
-        await ref.read(machineFileHandlerProvider).sendLogFiles(logItems, kioskInfo.kioskMachineId);
+        final kioskItems = logItems.where((item) => item.deviceType == 'KIOSK').toList();
+        final userItems = logItems.where((item) => item.deviceType == 'USER').toList();
+
+        if (kioskItems.isNotEmpty) {
+          await ref.read(machineFileHandlerProvider).sendLogFiles(kioskItems, kioskInfo.kioskMachineId);
+        }
+        if (userItems.isNotEmpty) {
+          await ref.read(machineFileHandlerProvider).downloadLogFiles(userItems, kioskInfo.kioskMachineId);
+        }
       }
 
       final downloadItems = response.machineDownloads;
