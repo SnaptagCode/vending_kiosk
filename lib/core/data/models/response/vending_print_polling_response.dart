@@ -15,6 +15,11 @@ class VendingPrintPollingResponse with _$VendingPrintPollingResponse {
     required int? requestCount,
     required List<int>? printedPhotoCardIdList,
     required int? reprintTargetCount,
+    int? kioskEventId,
+    int? amount,
+    String? originalApprovalNo,
+    String? originalApprovalDate,
+    String? photoAuthNumber,
   }) = _VendingPrintPollingResponse;
 
   factory VendingPrintPollingResponse.fromJson(Map<String, dynamic> json) =>
