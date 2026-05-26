@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
@@ -31,17 +33,25 @@ final dioProvider = Provider.family<Dio, String>((ref, baseUrl) {
     // Request가 보내기 전에 실행됩니다.
     // 예를 들어, 헤더를 설정하거나 요청을 변환할 수 있습니다.
     onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+      if (options.data is FormData) {
+        final boundary = (options.data as FormData).boundary;
+        options.contentType = 'multipart/form-data; boundary=$boundary';
+      } else if (options.data is Map || options.data is List) {
+        options.data = jsonEncode(options.data);
+        options.contentType = 'application/json; charset=utf-8';
+      }
       return handler.next(options);
     },
     // Response를 받은 후에 실행됩니다.
     // 예를 들어, 상태 코드에 따라 오류 처리를 할 수 있습니다.
     onResponse: (Response response, ResponseInterceptorHandler handler) {
       if (response.statusCode != null && response.statusCode! ~/ 100 != 2) {
+        final data = response.data;
         final newError = DioException(
           requestOptions: response.requestOptions,
           response: response,
-          message: response.data!['message'], // 표시할 메시지
-          error: response.data!['code'], // 사용자 정의 오류 메시지
+          message: data is Map ? data['message'] as String? : null,
+          error: data is Map ? data['code'] : null,
         );
         // interceptor onError로 전달
         return handler.reject(newError, true);
@@ -94,7 +104,7 @@ final dioProvider = Provider.family<Dio, String>((ref, baseUrl) {
           logger.i('SeverError 파싱 실패: $e');
         }
       }
-      return handler.next(err); // 원래 에러 전달
+      return handler.reject(err); // 원래 에러 전달
     },
   ));
 

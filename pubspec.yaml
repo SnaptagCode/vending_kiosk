@@ -1,7 +1,7 @@
 name: vending_kiosk
 description: "A new Flutter project."
 publish_to: "none"
-version: 1.0.12
+version: 1.0.13
 
 
 environment:
@@ -13,6 +13,8 @@ dependencies:
 
   # Network
   dio: ^5.7.0
+  http_parser: ^4.1.2
+  archive: ^4.0.9
   retrofit: ">=4.4.1 <4.9.0"
   connectivity_plus: ^6.1.0
   internet_connection_checker: ^3.0.1

@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:developer';
 
 import 'package:dio/dio.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vending_kiosk/core/data/datasources/remote/kiosk_api_client.dart';
@@ -10,6 +12,7 @@ import 'package:vending_kiosk/core/data/models/request/create_order_request.dart
 import 'package:vending_kiosk/core/data/models/request/create_vending_order_request.dart';
 import 'package:vending_kiosk/core/data/models/request/get_back_photo_by_qr_request.dart';
 import 'package:vending_kiosk/core/data/models/request/get_orders_request.dart';
+import 'package:vending_kiosk/core/data/models/request/kiosk_log_request.dart';
 import 'package:vending_kiosk/core/data/models/request/unique_key_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_back_photo_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_maintenance_request.dart';
@@ -283,13 +286,27 @@ class _KioskRepository {
     }
   }
 
-  Future<void> sendKioskLog({required int machineId, required String title, required String content}) async {
+  Future<void> sendKioskLog(KioskLogRequest request, {String? step, List<int>? zipFile}) async {
+    final jsonBody = jsonEncode({
+      if (request.logId != null) 'id': request.logId,
+      'machineId': request.machineId,
+      'title': request.title,
+      'content': request.content,
+      if (step != null) 'step': step,
+    });
+    final formData = FormData()
+      ..files.add(MapEntry(
+        'request',
+        MultipartFile.fromString(jsonBody, contentType: MediaType('application', 'json')),
+      ));
+    if (zipFile != null) {
+      formData.files.add(MapEntry(
+        'file',
+        MultipartFile.fromBytes(zipFile, filename: request.title, contentType: MediaType('application', 'zip')),
+      ));
+    }
     try {
-      await _apiClient.sendKioskLog(body: {
-        'machineId': machineId,
-        'title': title,
-        'content': content,
-      });
+      await _apiClient.sendKioskLog(body: formData);
     } catch (e) {
       rethrow;
     }
