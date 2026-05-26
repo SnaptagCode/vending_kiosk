@@ -1,4 +1,4 @@
-import 'package:dio/dio.dart';
+import 'package:dio/dio.dart' hide Headers;
 import 'package:retrofit/retrofit.dart';
 import 'package:vending_kiosk/core/data/models/response/alert_definition_response.dart';
 import 'package:vending_kiosk/core/data/models/response/back_photo_card_response.dart';
@@ -116,7 +116,7 @@ abstract class KioskApiClient {
 
   @POST('/v1/internal/slack/kiosk-log')
   Future<void> sendKioskLog({
-    @Body() required Map<String, dynamic> body,
+    @Body() required FormData body,
   });
 
   @POST('/v1/internal/event/{kioskEventId}/machine/{machineId}/end')

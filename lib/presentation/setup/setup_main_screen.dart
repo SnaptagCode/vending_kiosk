@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -8,7 +7,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:vending_kiosk/core/common/constants/alert_key.dart';
 import 'package:vending_kiosk/core/common/constants/image_paths.dart';
-import 'package:vending_kiosk/core/common/cp949/cp949_codec.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
 import 'package:vending_kiosk/core/common/launcher/launcher_service.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
@@ -39,59 +37,12 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
   @override
   void initState() {
     super.initState();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkAndSendKsnetLog();
-    });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
     super.dispose();
-  }
-
-  Future<void> _checkAndSendKsnetLog() async {
-    final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId;
-    if (machineId != 110) return;
-
-    const dirPath = r'C:\KSCAT\ksnetcomm';
-    const fileNames = ['ksnetcomm.approval.20260508', 'ksnetcomm.reader.20260508'];
-
-    final missingFiles = <String>[];
-    for (final name in fileNames) {
-      final file = File('$dirPath\\$name');
-      if (!await file.exists()) {
-        missingFiles.add(name);
-      }
-    }
-
-    if (missingFiles.isNotEmpty) {
-      SlackLogService().sendErrorLogToSlack(
-        '*[MachineId : $machineId]* 해당 파일이 없습니다. - ${missingFiles.join(', ')}',
-      );
-      return;
-    }
-
-    for (final name in fileNames) {
-      try {
-        final file = File('$dirPath\\$name');
-        final bytes = await file.readAsBytes();
-        late String content;
-        try {
-          content = cp949.decode(bytes, allowInvalid: true);
-        } catch (_) {
-          content = latin1.decode(bytes);
-        }
-        await ref.read(kioskRepositoryProvider).sendKioskLog(
-              machineId: machineId!,
-              title: name,
-              content: content,
-            );
-      } catch (e) {
-        SlackLogService().sendErrorLogToSlack('*[MachineId : $machineId]* 파일 전송 실패 ($name): $e');
-      }
-    }
   }
 
   Future<void> _onRunEventTap(BuildContext context) async {

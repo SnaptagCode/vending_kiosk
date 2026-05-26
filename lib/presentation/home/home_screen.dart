@@ -14,6 +14,7 @@ import 'package:vending_kiosk/core/data/models/request/update_maintenance_reques
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
+import 'package:vending_kiosk/presentation/home/machine_file_handler.dart';
 import 'package:vending_kiosk/presentation/home/maintenance_provider.dart';
 import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
 import 'package:vending_kiosk/presentation/home/payment/photo_card_preview_screen_provider.dart';
@@ -149,9 +150,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
       }
     } catch (e) {
-      ref.read(printJobIdProvider.notifier).state = null;
+      if (mounted) ref.read(printJobIdProvider.notifier).state = null;
     } finally {
-      _startPrintJobPolling();
+      if (mounted) _startPrintJobPolling();
     }
   }
 
@@ -165,6 +166,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             machineId: kioskInfo.kioskMachineId,
             uniqueKey: uniqueKey,
           );
+
+      final logItems = response.machineLogPaths;
+      if (logItems != null && logItems.isNotEmpty) {
+        final kioskItems = logItems.where((item) => item.deviceType == 'KIOSK').toList();
+        final userItems = logItems.where((item) => item.deviceType == 'USER').toList();
+
+        if (kioskItems.isNotEmpty) {
+          await ref.read(machineFileHandlerProvider).sendLogFiles(kioskItems, kioskInfo.kioskMachineId);
+        }
+        if (userItems.isNotEmpty) {
+          await ref.read(machineFileHandlerProvider).downloadLogFiles(userItems, kioskInfo.kioskMachineId);
+        }
+      }
+
+      final downloadItems = response.machineDownloads;
+      if (downloadItems != null && downloadItems.isNotEmpty) {
+        await ref.read(machineFileHandlerProvider).downloadFiles(downloadItems, kioskInfo.kioskMachineId);
+      }
 
       if (mounted) {
         ref.read(maintenanceStateProvider.notifier).state = response.isUnderMaintenance;
