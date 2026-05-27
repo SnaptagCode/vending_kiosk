@@ -77,20 +77,46 @@ class MachineFileService {
         // 바이너리 파일 → base64 인코딩
         content = base64Encode(bytes);
       } else {
-        // 텍스트 파일 → cp949 디코딩 시도, 실패 시 latin1 fallback
-        String decoded;
-        try {
-          decoded = cp949.decode(bytes, allowInvalid: true);
-        } catch (_) {
-          decoded = latin1.decode(bytes);
-        }
-        content = decoded;
+        content = _decodeText(bytes);
       }
 
       return FileReadResult.success(content);
     } catch (e) {
       return FileReadResult.readError(e);
     }
+  }
+
+  String _decodeText(Uint8List bytes) {
+    // UTF-8 BOM (EF BB BF)
+    if (bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
+      return utf8.decode(bytes.sublist(3), allowMalformed: true);
+    }
+    // UTF-16 LE BOM (FF FE)
+    if (bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) {
+      final words = <int>[];
+      for (var i = 2; i + 1 < bytes.length; i += 2) {
+        words.add(bytes[i] | (bytes[i + 1] << 8));
+      }
+      return String.fromCharCodes(words);
+    }
+    // UTF-16 BE BOM (FE FF)
+    if (bytes.length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF) {
+      final words = <int>[];
+      for (var i = 2; i + 1 < bytes.length; i += 2) {
+        words.add((bytes[i] << 8) | bytes[i + 1]);
+      }
+      return String.fromCharCodes(words);
+    }
+    // BOM 없음: UTF-8 먼저 시도 (현대 파일의 대부분)
+    try {
+      return utf8.decode(bytes);
+    } catch (_) {}
+    // CP949 fallback (한국어 Windows ANSI 레거시 인코딩)
+    try {
+      return cp949.decode(bytes, allowInvalid: true);
+    } catch (_) {}
+    // 최후 수단: latin1 (바이트 보존, 한글은 깨질 수 있음)
+    return latin1.decode(bytes, allowInvalid: true);
   }
 
   // 디렉토리를 재귀 탐색하여 zip으로 묶고 raw bytes 반환
