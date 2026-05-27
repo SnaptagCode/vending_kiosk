@@ -41,6 +41,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   Timer? _maintenanceTimer;
   bool _isCheckingMaintenance = false;
+  bool _isHandlingFiles = false;
   Timer? _printJobPollingTimer;
   bool _isCheckingPrintJob = false;
   int _selectedQuantity = 1;
@@ -114,34 +115,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
       }
 
-      // TODO: mock — 서버 REFUND 구현 후 제거. 아래 주석 해제 후 실제 테스트 결제 값 기입
-      // response = VendingPrintPollingResponse(
-      //   exists: true,
-      //   printJobId: 999,
-      //   kioskMachineId: kioskInfo.kioskMachineId,
-      //   type: VendingPrintJobType.refund,
-      //   kioskOrderId: 0,          // 실제 주문 ID
-      //   requestCount: 1,
-      //   printedPhotoCardIdList: null,
-      //   reprintTargetCount: null,
-      //   kioskEventId: 0,          // 실제 이벤트 ID
-      //   amount: 0,                // 실제 결제 금액
-      //   originalApprovalNo: '',   // 실제 승인번호
-      //   originalApprovalDate: '', // 실제 승인일자 (yyMMdd)
-      //   photoAuthNumber: '',      // 실제 사진 인증번호
-      // );
-
       if (!response.exists) return;
 
       try {
         // 선점
         await ref.read(kioskRepositoryProvider).pickVendingPrintJob(response.printJobId!);
-
-        // 환불 처리 (polling 중단 없이 홈에서 loaderOverlay로 처리)
-        if (response.type == VendingPrintJobType.refund) {
-          await _processRefundJob(response);
-          return;
-        }
 
         // polling 중단 (이후 print screen으로 이동)
         _printJobPollingTimer?.cancel();
@@ -184,66 +162,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  Future<void> _processRefundJob(VendingPrintPollingResponse response) async {
-    if (!mounted) return;
-    context.loaderOverlay.show();
-    try {
-      final kioskInfo = ref.read(kioskInfoServiceProvider)!;
-
-      final paymentResponse = await ref.read(paymentRepositoryProvider).cancel(
-            totalAmount: response.amount!,
-            originalApprovalNo: response.originalApprovalNo!,
-            originalApprovalDate: response.originalApprovalDate!,
-          );
-
-      final isSuccess = paymentResponse.isSuccess;
-      final approvalNo = isSuccess ? (paymentResponse.approvalNo ?? '-') : '-';
-
-      const maxRetries = 3;
-      for (int attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          await ref.read(kioskRepositoryProvider).updateOrderStatus(
-                response.kioskOrderId!,
-                UpdateOrderRequest(
-                  kioskEventId: response.kioskEventId!,
-                  kioskMachineId: kioskInfo.kioskMachineId,
-                  photoAuthNumber: response.photoAuthNumber!,
-                  status: isSuccess ? OrderStatus.refunded : OrderStatus.refunded_failed,
-                  amount: response.amount!,
-                  purchaseAuthNumber: approvalNo,
-                  authSeqNumber: approvalNo,
-                  approvalNumber: approvalNo,
-                  description: isSuccess ? null : _refundFailDescription(paymentResponse),
-                  detail: paymentResponse.KSNET,
-                ),
-              );
-          break;
-        } catch (e) {
-          if (attempt == maxRetries) rethrow;
-          await Future.delayed(const Duration(milliseconds: 500));
-        }
-      }
-
-    } catch (e) {
-      rethrow;
-    } finally {
-      if (mounted && context.loaderOverlay.visible) {
-        context.loaderOverlay.hide();
-      }
-    }
-  }
-
-  String _refundFailDescription(PaymentResponse paymentResponse) {
-    switch (paymentResponse.res) {
-      case '1000':
-        return '고객취소';
-      case '1004':
-        return '시간초과';
-      default:
-        return '확인필요';
-    }
-  }
-
   Future<bool> _checkMaintenance() async {
     try {
       final kioskInfo = ref.read(kioskInfoServiceProvider);
@@ -255,27 +173,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             uniqueKey: uniqueKey,
           );
 
-      final logItems = response.machineLogPaths;
-      if (logItems != null && logItems.isNotEmpty) {
-        final kioskItems = logItems.where((item) => item.deviceType == 'KIOSK').toList();
-        final userItems = logItems.where((item) => item.deviceType == 'USER').toList();
-
-        if (kioskItems.isNotEmpty) {
-          await ref.read(machineFileHandlerProvider).sendLogFiles(kioskItems, kioskInfo.kioskMachineId);
-        }
-        if (userItems.isNotEmpty) {
-          await ref.read(machineFileHandlerProvider).downloadLogFiles(userItems, kioskInfo.kioskMachineId);
-        }
-      }
-
-      final downloadItems = response.machineDownloads;
-      if (downloadItems != null && downloadItems.isNotEmpty) {
-        await ref.read(machineFileHandlerProvider).downloadFiles(downloadItems, kioskInfo.kioskMachineId);
-      }
-
       if (mounted) {
         ref.read(maintenanceStateProvider.notifier).state = response.isUnderMaintenance;
       }
+
+      if (!_isHandlingFiles) {
+        _isHandlingFiles = true;
+        try {
+          final logItems = response.machineLogPaths;
+          if (logItems != null && logItems.isNotEmpty) {
+            final kioskItems = logItems.where((item) => item.deviceType == 'KIOSK').toList();
+            final userItems = logItems.where((item) => item.deviceType == 'USER').toList();
+
+            if (kioskItems.isNotEmpty) {
+              await ref.read(machineFileHandlerProvider).sendLogFiles(kioskItems, kioskInfo.kioskMachineId);
+            }
+            if (userItems.isNotEmpty) {
+              await ref.read(machineFileHandlerProvider).downloadLogFiles(userItems, kioskInfo.kioskMachineId);
+            }
+          }
+
+          final downloadItems = response.machineDownloads;
+          if (downloadItems != null && downloadItems.isNotEmpty) {
+            await ref.read(machineFileHandlerProvider).downloadFiles(downloadItems, kioskInfo.kioskMachineId);
+          }
+        } finally {
+          _isHandlingFiles = false;
+        }
+      }
+
       return response.isUnderMaintenance;
     } catch (_) {
       return false;
