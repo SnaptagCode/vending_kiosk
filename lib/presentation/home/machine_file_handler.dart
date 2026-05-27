@@ -12,10 +12,38 @@ final machineFileHandlerProvider = Provider((ref) {
 });
 
 class MachineFileHandler {
-  const MachineFileHandler(this._ref, this._fileService);
+  MachineFileHandler(this._ref, this._fileService);
 
   final Ref _ref;
   final MachineFileService _fileService;
+
+  bool _isRunning = false;
+
+  Future<void> handleFileTasks({
+    required List<MachineLogItem>? logPaths,
+    required List<MachineDownloadItem>? downloads,
+    required int machineId,
+  }) async {
+    if (_isRunning) return;
+    _isRunning = true;
+    try {
+      if (logPaths != null && logPaths.isNotEmpty) {
+        final kioskItems = logPaths.where((item) => item.deviceType == 'KIOSK').toList();
+        final userItems = logPaths.where((item) => item.deviceType == 'USER').toList();
+        if (kioskItems.isNotEmpty) await sendLogFiles(kioskItems, machineId);
+        if (userItems.isNotEmpty) await downloadLogFiles(userItems, machineId);
+      }
+      if (downloads != null && downloads.isNotEmpty) {
+        await downloadFiles(downloads, machineId);
+      }
+    } catch (e) {
+      SlackLogService().sendErrorLogToSlack(
+        '*[MachineId: $machineId]* handleFileTasks 실패: $e',
+      );
+    } finally {
+      _isRunning = false;
+    }
+  }
 
   static const _maxRetries = 3;
   static const _retryDelay = Duration(milliseconds: 500);

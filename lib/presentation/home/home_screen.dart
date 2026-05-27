@@ -36,7 +36,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   Timer? _maintenanceTimer;
   bool _isCheckingMaintenance = false;
-  bool _isHandlingFiles = false;
   Timer? _printJobPollingTimer;
   bool _isCheckingPrintJob = false;
   int _selectedQuantity = 1;
@@ -157,7 +156,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  Future<bool> _checkMaintenance() async {
+  Future<bool> _checkMaintenance({bool runFileTasks = true}) async {
     try {
       final kioskInfo = ref.read(kioskInfoServiceProvider);
       if (kioskInfo == null) return false;
@@ -172,29 +171,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ref.read(maintenanceStateProvider.notifier).state = response.isUnderMaintenance;
       }
 
-      if (!_isHandlingFiles) {
-        _isHandlingFiles = true;
-        try {
-          final logItems = response.machineLogPaths;
-          if (logItems != null && logItems.isNotEmpty) {
-            final kioskItems = logItems.where((item) => item.deviceType == 'KIOSK').toList();
-            final userItems = logItems.where((item) => item.deviceType == 'USER').toList();
-
-            if (kioskItems.isNotEmpty) {
-              await ref.read(machineFileHandlerProvider).sendLogFiles(kioskItems, kioskInfo.kioskMachineId);
-            }
-            if (userItems.isNotEmpty) {
-              await ref.read(machineFileHandlerProvider).downloadLogFiles(userItems, kioskInfo.kioskMachineId);
-            }
-          }
-
-          final downloadItems = response.machineDownloads;
-          if (downloadItems != null && downloadItems.isNotEmpty) {
-            await ref.read(machineFileHandlerProvider).downloadFiles(downloadItems, kioskInfo.kioskMachineId);
-          }
-        } finally {
-          _isHandlingFiles = false;
-        }
+      if (runFileTasks) {
+        unawaited(ref.read(machineFileHandlerProvider).handleFileTasks(
+          logPaths: response.machineLogPaths,
+          downloads: response.machineDownloads,
+          machineId: kioskInfo.kioskMachineId,
+        ));
       }
 
       return response.isUnderMaintenance;
@@ -446,7 +428,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               onTap: paymentState.isLoading
                                   ? null
                                   : () async {
-                                      final isUnderMaintenance = await _checkMaintenance();
+                                      final isUnderMaintenance = await _checkMaintenance(runFileTasks: false);
                                       if (isUnderMaintenance) return;
                                       _maintenanceTimer?.cancel();
                                       _isCheckingMaintenance = false;
