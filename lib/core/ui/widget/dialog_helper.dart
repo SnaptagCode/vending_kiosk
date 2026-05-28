@@ -236,18 +236,18 @@ class DialogHelper {
   static Future<void> showRefundSuccessDialog(BuildContext context, {required int amount}) async {
     await showKioskDialog(
       context,
-      title: '환불 완료',
-      contentText: '$amount원이 환불되었습니다.',
-      confirmButtonText: '확인',
+      title: LocaleKeys.alert_title_refund_complete.tr(),
+      contentText: LocaleKeys.alert_txt_refund_complete.tr(namedArgs: {'amount': amount.toString()}),
+      confirmButtonText: LocaleKeys.alert_btn_ok.tr(),
     );
   }
 
   static Future<void> showRefundFailedDialog(BuildContext context, {required String reason}) async {
     await showKioskDialog(
       context,
-      title: '환불 실패',
+      title: LocaleKeys.alert_title_refund_failed.tr(),
       contentText: reason,
-      confirmButtonText: '확인',
+      confirmButtonText: LocaleKeys.alert_btn_ok.tr(),
     );
   }
 
@@ -672,7 +672,7 @@ class _RefundCardInsertDialogWidgetState extends State<_RefundCardInsertDialogWi
               child: Padding(
                 padding: EdgeInsets.only(top: 60.h, left: 40.w, right: 40.w),
                 child: Text(
-                  '환불을 진행합니다',
+                  LocaleKeys.alert_title_refund_card_insert.tr(),
                   textAlign: TextAlign.center,
                   style: context.typography.kioskAlert1B.copyWith(
                     fontFamily: isHwe ? 'Hanwha' : 'Pretendard',
@@ -685,7 +685,7 @@ class _RefundCardInsertDialogWidgetState extends State<_RefundCardInsertDialogWi
             Padding(
               padding: EdgeInsets.only(top: 20.h, left: 40.w, right: 40.w),
               child: Text(
-                '카드를 삽입한 후 확인을 눌러주세요.\n($_remainingSeconds초 후 자동 취소)',
+                LocaleKeys.alert_txt_refund_card_insert.tr(namedArgs: {'seconds': _remainingSeconds.toString()}),
                 textAlign: TextAlign.center,
                 style: context.typography.kioskAlert2M.copyWith(
                   color: Colors.black,
@@ -704,7 +704,7 @@ class _RefundCardInsertDialogWidgetState extends State<_RefundCardInsertDialogWi
                         if (mounted) Navigator.of(context, rootNavigator: true).pop(false);
                       },
                       style: context.refundDialogCancelButtonStyle,
-                      child: const Text('취소', style: TextStyle(color: Color(0xFF999999))),
+                      child: Text(LocaleKeys.alert_btn_cancel.tr(), style: const TextStyle(color: Color(0xFF999999))),
                     ),
                   ),
                   SizedBox(width: 12.w),
@@ -715,7 +715,7 @@ class _RefundCardInsertDialogWidgetState extends State<_RefundCardInsertDialogWi
                         if (mounted) Navigator.of(context, rootNavigator: true).pop(true);
                       },
                       style: context.dialogKioskStyle,
-                      child: const Text('확인', style: TextStyle(color: Color(0xFFFFFFFF))),
+                      child: Text(LocaleKeys.alert_btn_ok.tr(), style: const TextStyle(color: Color(0xFFFFFFFF))),
                     ),
                   ),
                 ],
