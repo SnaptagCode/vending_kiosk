@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:vending_kiosk/core/data/models/enums/vending_print_job_type.dart';
+import 'package:vending_kiosk/core/data/models/response/refund_info.dart';
 
 part 'vending_print_polling_response.freezed.dart';
 part 'vending_print_polling_response.g.dart';
@@ -15,11 +16,7 @@ class VendingPrintPollingResponse with _$VendingPrintPollingResponse {
     required int? requestCount,
     required List<int>? printedPhotoCardIdList,
     required int? reprintTargetCount,
-    int? kioskEventId,
-    int? amount,
-    String? originalApprovalNo,
-    String? originalApprovalDate,
-    String? photoAuthNumber,
+    RefundInfo? refundInfo,
   }) = _VendingPrintPollingResponse;
 
   factory VendingPrintPollingResponse.fromJson(Map<String, dynamic> json) =>

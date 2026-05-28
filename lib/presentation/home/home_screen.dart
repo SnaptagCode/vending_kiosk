@@ -9,14 +9,10 @@ import 'package:loader_overlay/loader_overlay.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
 import 'package:vending_kiosk/core/common/extensions/color.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
-import 'package:vending_kiosk/core/data/models/enums/order_status.dart';
 import 'package:vending_kiosk/core/data/models/enums/vending_print_job_type.dart';
 import 'package:vending_kiosk/core/data/models/request/update_maintenance_request.dart';
-import 'package:vending_kiosk/core/data/models/request/update_order_request.dart';
-import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
-import 'package:vending_kiosk/core/data/models/response/vending_print_polling_response.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
+import 'package:vending_kiosk/presentation/home/refund_job_provider.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
 import 'package:vending_kiosk/presentation/home/machine_file_handler.dart';
@@ -123,7 +119,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         // polling 중단 (이후 print screen으로 이동)
         _printJobPollingTimer?.cancel();
 
-        // 임의출력 처리
+        // 환불 처리
+        if (response.type == VendingPrintJobType.refund) {
+          await ref.read(refundJobNotifierProvider.notifier).process(response);
+          return;
+        }
+
+        // 임의출력/재출력 처리
         ref.read(printJobIdProvider.notifier).state = response.printJobId;
         ref.read(printQuantityNotifierProvider.notifier).setQuantity(response.requestCount!);
 
@@ -178,10 +180,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       if (runFileTasks) {
         unawaited(ref.read(machineFileHandlerProvider).handleFileTasks(
-          logPaths: response.machineLogPaths,
-          downloads: response.machineDownloads,
-          machineId: kioskInfo.kioskMachineId,
-        ));
+              logPaths: response.machineLogPaths,
+              downloads: response.machineDownloads,
+              machineId: kioskInfo.kioskMachineId,
+            ));
       }
 
       return response.isUnderMaintenance;
@@ -267,6 +269,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             PrintProcessRouteData().go(context);
           },
         );
+      },
+    );
+
+    ref.listen<AsyncValue<void>>(
+      refundJobNotifierProvider,
+      (previous, next) {
+        if (next.isLoading) {
+          if (mounted) context.loaderOverlay.show();
+          return;
+        }
+        if (mounted && context.loaderOverlay.visible) {
+          context.loaderOverlay.hide();
+        }
       },
     );
 
