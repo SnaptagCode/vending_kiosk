@@ -121,6 +121,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
         // 환불 처리
         if (response.type == VendingPrintJobType.refund) {
+          if (mounted) {
+            final confirmed = await DialogHelper.showRefundCardInsertDialog(context);
+            if (!confirmed) {
+              if (response.printJobId != null) {
+                await ref.read(kioskRepositoryProvider).failVendingPrintJob(
+                  printJobId: response.printJobId!,
+                  failureReason: '사용자 취소',
+                );
+              }
+              _startPrintJobPolling();
+              return;
+            }
+          }
           await ref.read(refundJobNotifierProvider.notifier).process(response);
           return;
         }
@@ -272,15 +285,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
     );
 
-    ref.listen<AsyncValue<void>>(
+    ref.listen<AsyncValue<RefundResult?>>(
       refundJobNotifierProvider,
-      (previous, next) {
+      (previous, next) async {
         if (next.isLoading) {
           if (mounted) context.loaderOverlay.show();
           return;
         }
         if (mounted && context.loaderOverlay.visible) {
           context.loaderOverlay.hide();
+        }
+        if (!mounted) return;
+        final result = next.valueOrNull;
+        if (result is RefundSuccess) {
+          await DialogHelper.showRefundSuccessDialog(context, amount: result.amount);
+        } else if (result is RefundFailure) {
+          await DialogHelper.showRefundFailedDialog(context, reason: result.reason);
         }
       },
     );
@@ -531,20 +551,4 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // 에러 다이얼로그
-  void _showErrorDialog(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('결제 실패'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('확인'),
-          ),
-        ],
-      ),
-    );
-  }
 }

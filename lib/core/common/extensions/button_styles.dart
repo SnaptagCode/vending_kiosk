@@ -44,16 +44,16 @@ extension ButtonStyles on BuildContext {
       fixedSize: Size(double.infinity, 94.h),
       minimumSize: Size(283.w, 78.h),
       backgroundColor: Colors.white,
-      //foregroundColor: kioskColors.popupButtonColor,
       foregroundColor: Color(0xFF999999),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
       elevation: 10,
       shadowColor: Colors.black.withOpacity(0.4),
-      textStyle: locale.languageCode == 'ja'
-          ? typography.kioskAlertBtnB.copyWith(fontFamily: 'MPLUSRounded')
-          : typography.kioskAlertBtnB.copyWith(fontFamily: 'Cafe24Ssurround2'),
+      textStyle: isHwe
+          ? typography.kioskAlertBtnB.copyWith(fontFamily: 'Hanwha', fontSize: 34.sp)
+          : locale.languageCode == 'ja'
+              ? typography.kioskAlertBtnB.copyWith(fontFamily: 'MPLUSRounded', fontSize: 34.sp)
+              : typography.kioskAlertBtnB.copyWith(fontFamily: 'Cafe24Ssurround2', fontSize: 34.sp),
       side: BorderSide(
-        //color: kioskColors.popupButtonColor,
         color: Color(0xFF999999),
         width: 2.0,
       ));

@@ -23,10 +23,11 @@ class DialogHelper {
     required ButtonStyle confirmButtonStyle,
     TextStyle? cancelTextStyle,
     TextStyle? confirmTextStyle,
+    bool barrierDismissible = false,
   }) async {
     final result = await showDialog<bool>(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: barrierDismissible,
       builder: (BuildContext dialogContext) {
         final isHwe = context.isHwe;
 
@@ -223,6 +224,33 @@ class DialogHelper {
     );
   }
 
+  static Future<bool> showRefundCardInsertDialog(BuildContext context) async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const _RefundCardInsertDialogWidget(),
+        ) ??
+        false;
+  }
+
+  static Future<void> showRefundSuccessDialog(BuildContext context, {required int amount}) async {
+    await showKioskDialog(
+      context,
+      title: '환불 완료',
+      contentText: '$amount원이 환불되었습니다.',
+      confirmButtonText: '확인',
+    );
+  }
+
+  static Future<void> showRefundFailedDialog(BuildContext context, {required String reason}) async {
+    await showKioskDialog(
+      context,
+      title: '환불 실패',
+      contentText: reason,
+      confirmButtonText: '확인',
+    );
+  }
+
   static Future<bool> showSetupDialog(
     BuildContext context, {
     required String title,
@@ -250,6 +278,7 @@ class DialogHelper {
     String? cancelButtonText,
     required String confirmButtonText,
     ButtonStyle? confirmButtonStyle,
+    bool barrierDismissible = false,
   }) async {
     return await _showConfirmDialog(
       context,
@@ -262,6 +291,7 @@ class DialogHelper {
       confirmButtonStyle: confirmButtonStyle ?? context.dialogKioskStyle,
       cancelTextStyle: const TextStyle(color: Color(0xFF999999)),
       confirmTextStyle: const TextStyle(color: Color(0xFFFFFFFF)),
+      barrierDismissible: barrierDismissible,
     );
   }
 
@@ -420,6 +450,7 @@ class DialogHelper {
     required String confirmButtonText,
     required int countdownSeconds,
     required VoidCallback onAutoClose,
+    bool autoCloseResult = true,
   }) async {
     return await showDialog(
       context: context,
@@ -434,6 +465,7 @@ class DialogHelper {
           confirmButtonStyle: confirmButtonStyle,
           countdownSeconds: countdownSeconds,
           onAutoClose: onAutoClose,
+          autoCloseResult: autoCloseResult,
         );
       },
     );
@@ -450,6 +482,7 @@ class _TimeoutDialogWidget extends StatefulWidget {
   final ButtonStyle? confirmButtonStyle;
   final int countdownSeconds;
   final VoidCallback onAutoClose;
+  final bool autoCloseResult;
 
   const _TimeoutDialogWidget({
     required this.title,
@@ -460,6 +493,7 @@ class _TimeoutDialogWidget extends StatefulWidget {
     this.confirmButtonStyle,
     required this.countdownSeconds,
     required this.onAutoClose,
+    this.autoCloseResult = true,
   });
 
   @override
@@ -498,7 +532,7 @@ class _TimeoutDialogWidgetState extends State<_TimeoutDialogWidget> {
       final navigator = Navigator.of(context, rootNavigator: true);
 
       widget.onAutoClose();
-      navigator.pop(true);
+      navigator.pop(widget.autoCloseResult);
     });
   }
 
@@ -581,6 +615,114 @@ class _TimeoutDialogWidgetState extends State<_TimeoutDialogWidget> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RefundCardInsertDialogWidget extends StatefulWidget {
+  const _RefundCardInsertDialogWidget();
+
+  @override
+  State<_RefundCardInsertDialogWidget> createState() => _RefundCardInsertDialogWidgetState();
+}
+
+class _RefundCardInsertDialogWidgetState extends State<_RefundCardInsertDialogWidget> {
+  static const int _totalSeconds = 30;
+  late int _remainingSeconds;
+  Timer? _countdownTimer;
+  Timer? _autoCloseTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _remainingSeconds = _totalSeconds;
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _remainingSeconds = (_remainingSeconds - 1).clamp(0, _totalSeconds));
+    });
+    _autoCloseTimer = Timer(const Duration(seconds: _totalSeconds), () {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    _autoCloseTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isHwe = context.isHwe;
+    return DefaultTextStyle(
+      style: TextStyle(
+        fontFamily: context.locale.languageCode == 'ja' ? 'MPLUSRounded' : 'Cafe24Ssurround2',
+      ),
+      child: Dialog(
+        backgroundColor: Colors.white,
+        insetPadding: EdgeInsets.symmetric(horizontal: 211.w),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Padding(
+                padding: EdgeInsets.only(top: 60.h, left: 40.w, right: 40.w),
+                child: Text(
+                  '환불을 진행합니다',
+                  textAlign: TextAlign.center,
+                  style: context.typography.kioskAlert1B.copyWith(
+                    fontFamily: isHwe ? 'Hanwha' : 'Pretendard',
+                    color: Colors.black,
+                    fontSize: isHwe ? 52.sp : 42.sp,
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(top: 20.h, left: 40.w, right: 40.w),
+              child: Text(
+                '카드를 삽입한 후 확인을 눌러주세요.\n($_remainingSeconds초 후 자동 취소)',
+                textAlign: TextAlign.center,
+                style: context.typography.kioskAlert2M.copyWith(
+                  color: Colors.black,
+                  fontFamily: 'Pretendard',
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(top: 36.h, bottom: 40.h, left: 40.w, right: 40.w),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        await SoundManager().playSound();
+                        if (mounted) Navigator.of(context, rootNavigator: true).pop(false);
+                      },
+                      style: context.refundDialogCancelButtonStyle,
+                      child: const Text('취소', style: TextStyle(color: Color(0xFF999999))),
+                    ),
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        await SoundManager().playSound();
+                        if (mounted) Navigator.of(context, rootNavigator: true).pop(true);
+                      },
+                      style: context.dialogKioskStyle,
+                      child: const Text('확인', style: TextStyle(color: Color(0xFFFFFFFF))),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
