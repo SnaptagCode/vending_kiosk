@@ -121,18 +121,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
         // 환불 처리
         if (response.type == VendingPrintJobType.refund) {
-          if (mounted) {
-            final confirmed = await DialogHelper.showRefundCardInsertDialog(context);
-            if (!confirmed) {
-              if (response.printJobId != null) {
-                await ref.read(kioskRepositoryProvider).failVendingPrintJob(
-                  printJobId: response.printJobId!,
-                  failureReason: '사용자 취소',
-                );
-              }
-              _startPrintJobPolling();
-              return;
+          final confirmed = mounted && await DialogHelper.showRefundCardInsertDialog(context);
+          if (!confirmed) {
+            if (response.printJobId != null) {
+              await ref.read(kioskRepositoryProvider).failVendingPrintJob(
+                printJobId: response.printJobId!,
+                failureReason: '사용자 취소',
+              );
             }
+            _startPrintJobPolling();
+            return;
           }
           await ref.read(refundJobNotifierProvider.notifier).process(response);
           return;

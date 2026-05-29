@@ -32,6 +32,7 @@ class RefundJobNotifier extends _$RefundJobNotifier {
 
   Future<void> process(VendingPrintPollingResponse response) async {
     if (state.isLoading) return;
+    final keepAlive = ref.keepAlive();
     state = const AsyncValue.loading();
     try {
       final result = await _processRefund(response);
@@ -51,6 +52,8 @@ class RefundJobNotifier extends _$RefundJobNotifier {
         }
       }
       state = AsyncValue.data(RefundFailure(e is PaymentFailedException ? e.message : '환불을 완료하지 못했어요.'));
+    } finally {
+      keepAlive.close();
     }
   }
 
