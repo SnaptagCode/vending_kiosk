@@ -23,11 +23,22 @@ class DialogHelper {
     required ButtonStyle confirmButtonStyle,
     TextStyle? cancelTextStyle,
     TextStyle? confirmTextStyle,
+    bool barrierDismissible = false,
+    Duration? autoCloseDuration,
   }) async {
+    Timer? autoCloseTimer;
     final result = await showDialog<bool>(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: barrierDismissible,
       builder: (BuildContext dialogContext) {
+        // dialogContext 기준으로 타이머 설정 — 외부 context 미사용
+        if (autoCloseDuration != null && autoCloseTimer == null) {
+          autoCloseTimer = Timer(autoCloseDuration, () {
+            if (dialogContext.mounted) {
+              Navigator.of(dialogContext, rootNavigator: true).pop(false);
+            }
+          });
+        }
         final isHwe = context.isHwe;
 
         return DefaultTextStyle(
@@ -105,6 +116,7 @@ class DialogHelper {
         );
       },
     );
+    autoCloseTimer?.cancel();
     return result ?? false;
   }
 
@@ -223,6 +235,35 @@ class DialogHelper {
     );
   }
 
+  static Future<bool> showRefundCardInsertDialog(BuildContext context) async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const _RefundCardInsertDialogWidget(),
+        ) ??
+        false;
+  }
+
+  static Future<void> showRefundSuccessDialog(BuildContext context, {required int amount}) async {
+    await showKioskDialog(
+      context,
+      title: LocaleKeys.alert_title_refund_complete.tr(),
+      contentText: LocaleKeys.alert_txt_refund_complete.tr(namedArgs: {'amount': amount.toString()}),
+      confirmButtonText: LocaleKeys.alert_btn_ok.tr(),
+      autoCloseDuration: const Duration(seconds: 5),
+    );
+  }
+
+  static Future<void> showRefundFailedDialog(BuildContext context, {required String reason}) async {
+    await showKioskDialog(
+      context,
+      title: LocaleKeys.alert_title_refund_failed.tr(),
+      contentText: reason,
+      confirmButtonText: LocaleKeys.alert_btn_ok.tr(),
+      autoCloseDuration: const Duration(seconds: 5),
+    );
+  }
+
   static Future<bool> showSetupDialog(
     BuildContext context, {
     required String title,
@@ -250,6 +291,8 @@ class DialogHelper {
     String? cancelButtonText,
     required String confirmButtonText,
     ButtonStyle? confirmButtonStyle,
+    bool barrierDismissible = false,
+    Duration? autoCloseDuration,
   }) async {
     return await _showConfirmDialog(
       context,
@@ -262,6 +305,8 @@ class DialogHelper {
       confirmButtonStyle: confirmButtonStyle ?? context.dialogKioskStyle,
       cancelTextStyle: const TextStyle(color: Color(0xFF999999)),
       confirmTextStyle: const TextStyle(color: Color(0xFFFFFFFF)),
+      barrierDismissible: barrierDismissible,
+      autoCloseDuration: autoCloseDuration,
     );
   }
 
@@ -280,15 +325,12 @@ class DialogHelper {
           builder: (context, setState) {
             return DefaultTextStyle(
               style: TextStyle(
-                fontFamily: context.locale.languageCode == 'ja'
-                    ? 'MPLUSRounded'
-                    : 'Cafe24Ssurround2',
+                fontFamily: context.locale.languageCode == 'ja' ? 'MPLUSRounded' : 'Cafe24Ssurround2',
               ),
               child: Dialog(
                 backgroundColor: Colors.white,
                 insetPadding: EdgeInsets.symmetric(horizontal: 211.w),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20.r)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(40.w, 60.h, 40.w, 40.h),
                   child: Column(
@@ -298,21 +340,18 @@ class DialogHelper {
                       Text(
                         '카드 추가',
                         textAlign: TextAlign.center,
-                        style: context.typography.kioskAlert1B.copyWith(
-                            fontFamily: 'Pretendard', color: Colors.black),
+                        style: context.typography.kioskAlert1B.copyWith(fontFamily: 'Pretendard', color: Colors.black),
                       ),
                       SizedBox(height: 20.h),
                       Text(
                         '추가 카드 수량 (최대 $cardCapacity장까지 추가 가능)',
                         textAlign: TextAlign.center,
-                        style: context.typography.kioskAlert2M.copyWith(
-                            fontFamily: 'Pretendard', color: Colors.black),
+                        style: context.typography.kioskAlert2M.copyWith(fontFamily: 'Pretendard', color: Colors.black),
                       ),
                       SizedBox(height: 20.h),
                       InkWell(
                         onTap: () async {
-                          final value = await DialogHelper.showKeypadDialog(
-                              context, mode: ModeType.card);
+                          final value = await DialogHelper.showKeypadDialog(context, mode: ModeType.card);
                           if (value == null || value.isEmpty) return;
                           setState(() => enteredValue = int.tryParse(value));
                         },
@@ -328,8 +367,7 @@ class DialogHelper {
                           padding: EdgeInsets.symmetric(horizontal: 20.w),
                           child: Text(
                             enteredValue != null ? '$enteredValue 장' : '',
-                            style: context.typography.kioskBody2B
-                                .copyWith(color: Colors.black),
+                            style: context.typography.kioskBody2B.copyWith(color: Colors.black),
                           ),
                         ),
                       ),
@@ -338,8 +376,7 @@ class DialogHelper {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () =>
-                                  Navigator.of(dialogContext).pop(null),
+                              onPressed: () => Navigator.of(dialogContext).pop(null),
                               style: context.setupDialogCancelButtonStyle,
                               child: const Text('취소'),
                             ),
@@ -352,8 +389,7 @@ class DialogHelper {
                                   : () async {
                                       await SoundManager().playSound();
                                       if (!dialogContext.mounted) return;
-                                      Navigator.of(dialogContext)
-                                          .pop(enteredValue);
+                                      Navigator.of(dialogContext).pop(enteredValue);
                                     },
                               style: context.setupDialogConfirmButtonStyle,
                               child: const Text('확인'),
@@ -420,6 +456,7 @@ class DialogHelper {
     required String confirmButtonText,
     required int countdownSeconds,
     required VoidCallback onAutoClose,
+    bool autoCloseResult = true,
   }) async {
     return await showDialog(
       context: context,
@@ -434,6 +471,7 @@ class DialogHelper {
           confirmButtonStyle: confirmButtonStyle,
           countdownSeconds: countdownSeconds,
           onAutoClose: onAutoClose,
+          autoCloseResult: autoCloseResult,
         );
       },
     );
@@ -450,6 +488,7 @@ class _TimeoutDialogWidget extends StatefulWidget {
   final ButtonStyle? confirmButtonStyle;
   final int countdownSeconds;
   final VoidCallback onAutoClose;
+  final bool autoCloseResult;
 
   const _TimeoutDialogWidget({
     required this.title,
@@ -460,6 +499,7 @@ class _TimeoutDialogWidget extends StatefulWidget {
     this.confirmButtonStyle,
     required this.countdownSeconds,
     required this.onAutoClose,
+    this.autoCloseResult = true,
   });
 
   @override
@@ -498,7 +538,7 @@ class _TimeoutDialogWidgetState extends State<_TimeoutDialogWidget> {
       final navigator = Navigator.of(context, rootNavigator: true);
 
       widget.onAutoClose();
-      navigator.pop(true);
+      navigator.pop(widget.autoCloseResult);
     });
   }
 
@@ -581,6 +621,114 @@ class _TimeoutDialogWidgetState extends State<_TimeoutDialogWidget> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RefundCardInsertDialogWidget extends StatefulWidget {
+  const _RefundCardInsertDialogWidget();
+
+  @override
+  State<_RefundCardInsertDialogWidget> createState() => _RefundCardInsertDialogWidgetState();
+}
+
+class _RefundCardInsertDialogWidgetState extends State<_RefundCardInsertDialogWidget> {
+  static const int _totalSeconds = 30;
+  late int _remainingSeconds;
+  Timer? _countdownTimer;
+  Timer? _autoCloseTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _remainingSeconds = _totalSeconds;
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _remainingSeconds = (_remainingSeconds - 1).clamp(0, _totalSeconds));
+    });
+    _autoCloseTimer = Timer(const Duration(seconds: _totalSeconds), () {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    _autoCloseTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isHwe = context.isHwe;
+    return DefaultTextStyle(
+      style: TextStyle(
+        fontFamily: context.locale.languageCode == 'ja' ? 'MPLUSRounded' : 'Cafe24Ssurround2',
+      ),
+      child: Dialog(
+        backgroundColor: Colors.white,
+        insetPadding: EdgeInsets.symmetric(horizontal: 211.w),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Padding(
+                padding: EdgeInsets.only(top: 60.h, left: 40.w, right: 40.w),
+                child: Text(
+                  LocaleKeys.alert_title_refund_card_insert.tr(),
+                  textAlign: TextAlign.center,
+                  style: context.typography.kioskAlert1B.copyWith(
+                    fontFamily: isHwe ? 'Hanwha' : 'Pretendard',
+                    color: Colors.black,
+                    fontSize: isHwe ? 52.sp : 42.sp,
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(top: 20.h, left: 40.w, right: 40.w),
+              child: Text(
+                LocaleKeys.alert_txt_refund_card_insert.tr(namedArgs: {'seconds': _remainingSeconds.toString()}),
+                textAlign: TextAlign.center,
+                style: context.typography.kioskAlert2M.copyWith(
+                  color: Colors.black,
+                  fontFamily: 'Pretendard',
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(top: 36.h, bottom: 40.h, left: 40.w, right: 40.w),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        await SoundManager().playSound();
+                        if (mounted) Navigator.of(context, rootNavigator: true).pop(false);
+                      },
+                      style: context.refundDialogCancelButtonStyle,
+                      child: Text(LocaleKeys.alert_btn_cancel.tr(), style: const TextStyle(color: Color(0xFF999999))),
+                    ),
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        await SoundManager().playSound();
+                        if (mounted) Navigator.of(context, rootNavigator: true).pop(true);
+                      },
+                      style: context.dialogKioskStyle,
+                      child: Text(LocaleKeys.alert_btn_ok.tr(), style: const TextStyle(color: Color(0xFFFFFFFF))),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
