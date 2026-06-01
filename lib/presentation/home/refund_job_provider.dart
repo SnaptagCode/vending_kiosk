@@ -161,16 +161,20 @@ class RefundJobNotifier extends _$RefundJobNotifier {
       return isSuccess ? RefundSuccess(refundInfo.amount) : null;
     }
 
-    // updateVendingOrderStatus 3회 재시도 (기존 payment_service.dart 패턴 동일)
+    // updateVendingOrderStatus 3회 재시도, 실패마다 500ms 씩 지연
+    var orderUpdated = false;
     for (int attempt = 1; attempt <= 3; attempt++) {
       try {
         await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(kioskOrderId, statusRequest);
+        orderUpdated = true;
         break;
       } catch (e) {
         if (attempt >= 3) {
           SlackLogService().sendErrorLogToSlack(
             '[MachineId: $machineId] 환불 job($printJobId) updateVendingOrderStatus 3회 실패 — 수동 정산 필요: $e',
           );
+        } else {
+          await Future.delayed(Duration(milliseconds: 500 * attempt));
         }
       }
     }
@@ -182,8 +186,15 @@ class RefundJobNotifier extends _$RefundJobNotifier {
       } catch (e) {
         SlackLogService().sendErrorLogToSlack('환불 job($printJobId) succeedVendingPrintJob 실패: $e');
       }
-      SlackLogService().sendLogToSlack(
-          '[MachineId: $machineId] polling 환불 성공 | job=$printJobId | ${refundInfo.amount}원');
+      if (orderUpdated) {
+        SlackLogService().sendLogToSlack(
+            '[MachineId: $machineId] polling 환불 성공 | job=$printJobId | ${refundInfo.amount}원');
+      } else {
+        SlackLogService().sendErrorLogToSlack(
+          '[MachineId: $machineId] ⚠️ polling 환불 성공했으나 주문 상태 갱신 실패 — 수동 정산 필요 '
+          '| job=$printJobId | orderId=$kioskOrderId | ${refundInfo.amount}원',
+        );
+      }
       return RefundSuccess(refundInfo.amount);
     } else {
       final failReason =

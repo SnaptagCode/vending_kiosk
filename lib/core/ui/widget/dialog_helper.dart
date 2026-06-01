@@ -24,11 +24,21 @@ class DialogHelper {
     TextStyle? cancelTextStyle,
     TextStyle? confirmTextStyle,
     bool barrierDismissible = false,
+    Duration? autoCloseDuration,
   }) async {
+    Timer? autoCloseTimer;
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: barrierDismissible,
       builder: (BuildContext dialogContext) {
+        // dialogContext 기준으로 타이머 설정 — 외부 context 미사용
+        if (autoCloseDuration != null && autoCloseTimer == null) {
+          autoCloseTimer = Timer(autoCloseDuration, () {
+            if (dialogContext.mounted) {
+              Navigator.of(dialogContext, rootNavigator: true).pop(false);
+            }
+          });
+        }
         final isHwe = context.isHwe;
 
         return DefaultTextStyle(
@@ -106,6 +116,7 @@ class DialogHelper {
         );
       },
     );
+    autoCloseTimer?.cancel();
     return result ?? false;
   }
 
@@ -239,6 +250,7 @@ class DialogHelper {
       title: LocaleKeys.alert_title_refund_complete.tr(),
       contentText: LocaleKeys.alert_txt_refund_complete.tr(namedArgs: {'amount': amount.toString()}),
       confirmButtonText: LocaleKeys.alert_btn_ok.tr(),
+      autoCloseDuration: const Duration(seconds: 5),
     );
   }
 
@@ -248,6 +260,7 @@ class DialogHelper {
       title: LocaleKeys.alert_title_refund_failed.tr(),
       contentText: reason,
       confirmButtonText: LocaleKeys.alert_btn_ok.tr(),
+      autoCloseDuration: const Duration(seconds: 5),
     );
   }
 
@@ -279,6 +292,7 @@ class DialogHelper {
     required String confirmButtonText,
     ButtonStyle? confirmButtonStyle,
     bool barrierDismissible = false,
+    Duration? autoCloseDuration,
   }) async {
     return await _showConfirmDialog(
       context,
@@ -292,6 +306,7 @@ class DialogHelper {
       cancelTextStyle: const TextStyle(color: Color(0xFF999999)),
       confirmTextStyle: const TextStyle(color: Color(0xFFFFFFFF)),
       barrierDismissible: barrierDismissible,
+      autoCloseDuration: autoCloseDuration,
     );
   }
 
@@ -310,15 +325,12 @@ class DialogHelper {
           builder: (context, setState) {
             return DefaultTextStyle(
               style: TextStyle(
-                fontFamily: context.locale.languageCode == 'ja'
-                    ? 'MPLUSRounded'
-                    : 'Cafe24Ssurround2',
+                fontFamily: context.locale.languageCode == 'ja' ? 'MPLUSRounded' : 'Cafe24Ssurround2',
               ),
               child: Dialog(
                 backgroundColor: Colors.white,
                 insetPadding: EdgeInsets.symmetric(horizontal: 211.w),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20.r)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(40.w, 60.h, 40.w, 40.h),
                   child: Column(
@@ -328,21 +340,18 @@ class DialogHelper {
                       Text(
                         '카드 추가',
                         textAlign: TextAlign.center,
-                        style: context.typography.kioskAlert1B.copyWith(
-                            fontFamily: 'Pretendard', color: Colors.black),
+                        style: context.typography.kioskAlert1B.copyWith(fontFamily: 'Pretendard', color: Colors.black),
                       ),
                       SizedBox(height: 20.h),
                       Text(
                         '추가 카드 수량 (최대 $cardCapacity장까지 추가 가능)',
                         textAlign: TextAlign.center,
-                        style: context.typography.kioskAlert2M.copyWith(
-                            fontFamily: 'Pretendard', color: Colors.black),
+                        style: context.typography.kioskAlert2M.copyWith(fontFamily: 'Pretendard', color: Colors.black),
                       ),
                       SizedBox(height: 20.h),
                       InkWell(
                         onTap: () async {
-                          final value = await DialogHelper.showKeypadDialog(
-                              context, mode: ModeType.card);
+                          final value = await DialogHelper.showKeypadDialog(context, mode: ModeType.card);
                           if (value == null || value.isEmpty) return;
                           setState(() => enteredValue = int.tryParse(value));
                         },
@@ -358,8 +367,7 @@ class DialogHelper {
                           padding: EdgeInsets.symmetric(horizontal: 20.w),
                           child: Text(
                             enteredValue != null ? '$enteredValue 장' : '',
-                            style: context.typography.kioskBody2B
-                                .copyWith(color: Colors.black),
+                            style: context.typography.kioskBody2B.copyWith(color: Colors.black),
                           ),
                         ),
                       ),
@@ -368,8 +376,7 @@ class DialogHelper {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () =>
-                                  Navigator.of(dialogContext).pop(null),
+                              onPressed: () => Navigator.of(dialogContext).pop(null),
                               style: context.setupDialogCancelButtonStyle,
                               child: const Text('취소'),
                             ),
@@ -382,8 +389,7 @@ class DialogHelper {
                                   : () async {
                                       await SoundManager().playSound();
                                       if (!dialogContext.mounted) return;
-                                      Navigator.of(dialogContext)
-                                          .pop(enteredValue);
+                                      Navigator.of(dialogContext).pop(enteredValue);
                                     },
                               style: context.setupDialogConfirmButtonStyle,
                               child: const Text('확인'),

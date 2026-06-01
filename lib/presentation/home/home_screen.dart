@@ -39,6 +39,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isCheckingMaintenance = false;
   Timer? _printJobPollingTimer;
   bool _isCheckingPrintJob = false;
+  bool _awaitingRefundDialog = false;
   int _selectedQuantity = 1;
 
   @override
@@ -55,6 +56,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _isCheckingMaintenance = false;
     _printJobPollingTimer?.cancel();
     _isCheckingPrintJob = false;
+    _awaitingRefundDialog = false;
     super.dispose();
   }
 
@@ -73,6 +75,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _startPrintJobPolling() {
     _printJobPollingTimer?.cancel();
+    _isCheckingPrintJob = false;
     _printJobPollingTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
       if (_isCheckingPrintJob) return;
       _isCheckingPrintJob = true;
@@ -132,6 +135,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             _startPrintJobPolling();
             return;
           }
+          _awaitingRefundDialog = true;
           await ref.read(refundJobNotifierProvider.notifier).process(response);
           return;
         }
@@ -170,7 +174,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     } catch (e) {
       if (mounted) ref.read(printJobIdProvider.notifier).state = null;
     } finally {
-      if (mounted) _startPrintJobPolling();
+      if (mounted && !_awaitingRefundDialog) _startPrintJobPolling();
     }
   }
 
@@ -300,6 +304,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         } else if (result is RefundFailure) {
           await DialogHelper.showRefundFailedDialog(context, reason: result.reason);
         }
+        if (!mounted) return;
+        _awaitingRefundDialog = false;
+        _startPrintJobPolling();
       },
     );
 
