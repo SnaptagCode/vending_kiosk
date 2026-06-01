@@ -164,9 +164,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ref.read(printJobIdProvider.notifier).state = null;
         if (response.printJobId != null) {
           try {
+            final reason = response.type == VendingPrintJobType.refund ? '환불 선점 실패' : '임의출력 실패';
             await ref.read(kioskRepositoryProvider).failVendingPrintJob(
                   printJobId: response.printJobId!,
-                  failureReason: '임의출력 실패',
+                  failureReason: reason,
                 );
           } catch (_) {}
         }
