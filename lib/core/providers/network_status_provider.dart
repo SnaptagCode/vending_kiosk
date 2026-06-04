@@ -149,6 +149,9 @@ class NetworkStatusNotifier extends _$NetworkStatusNotifier {
       type = NetworkType.mobile;
     } else if (results.contains(ConnectivityResult.ethernet)) {
       type = NetworkType.ethernet;
+    } else if (results.any((r) => r != ConnectivityResult.none)) {
+      // macOS에서 other/vpn 등 비표준 연결 타입도 유선으로 처리
+      type = NetworkType.ethernet;
     }
 
     state = state.copyWith(
