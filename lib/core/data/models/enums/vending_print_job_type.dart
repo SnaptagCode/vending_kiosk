@@ -5,4 +5,6 @@ enum VendingPrintJobType {
   arbitrary,
   @JsonValue('REPRINT')
   reprint,
+  @JsonValue('REFUND')
+  refund,
 }

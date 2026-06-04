@@ -59,6 +59,11 @@ abstract class LocaleKeys {
 
   static const alert_title_auto_refund_alert = 'alert_title_auto_refund_alert';
   static const alert_txt_auto_refund_alert = 'alert_txt_auto_refund_alert';
+  static const alert_title_refund_complete = 'alert_title_refund_complete';
+  static const alert_txt_refund_complete = 'alert_txt_refund_complete';
+  static const alert_title_refund_failed = 'alert_title_refund_failed';
+  static const alert_title_refund_card_insert = 'alert_title_refund_card_insert';
+  static const alert_txt_refund_card_insert = 'alert_txt_refund_card_insert';
   static const choice_recommended_images = 'choice_recommended_images';
   static const choice_select_recommended_image = 'choice_select_recommended_image';
   static const choice_upload_my_photo = 'choice_upload_my_photo';

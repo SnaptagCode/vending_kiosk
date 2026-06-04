@@ -12,6 +12,7 @@ import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/enums/vending_print_job_type.dart';
 import 'package:vending_kiosk/core/data/models/request/update_maintenance_request.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
+import 'package:vending_kiosk/presentation/home/refund_job_provider.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
 import 'package:vending_kiosk/presentation/home/machine_file_handler.dart';
@@ -38,6 +39,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isCheckingMaintenance = false;
   Timer? _printJobPollingTimer;
   bool _isCheckingPrintJob = false;
+  bool _awaitingRefundDialog = false;
   int _selectedQuantity = 1;
 
   @override
@@ -54,6 +56,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _isCheckingMaintenance = false;
     _printJobPollingTimer?.cancel();
     _isCheckingPrintJob = false;
+    _awaitingRefundDialog = false;
     super.dispose();
   }
 
@@ -72,6 +75,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _startPrintJobPolling() {
     _printJobPollingTimer?.cancel();
+    _isCheckingPrintJob = false;
     _printJobPollingTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
       if (_isCheckingPrintJob) return;
       _isCheckingPrintJob = true;
@@ -118,7 +122,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         // polling 중단 (이후 print screen으로 이동)
         _printJobPollingTimer?.cancel();
 
-        // 임의출력 처리
+        // 환불 처리
+        if (response.type == VendingPrintJobType.refund) {
+          final confirmed = mounted && await DialogHelper.showRefundCardInsertDialog(context);
+          if (!confirmed) {
+            if (response.printJobId != null) {
+              await ref.read(kioskRepositoryProvider).failVendingPrintJob(
+                printJobId: response.printJobId!,
+                failureReason: '사용자 취소',
+              );
+            }
+            _startPrintJobPolling();
+            return;
+          }
+          _awaitingRefundDialog = true;
+          await ref.read(refundJobNotifierProvider.notifier).process(response);
+          return;
+        }
+
+        // 임의출력/재출력 처리
         ref.read(printJobIdProvider.notifier).state = response.printJobId;
         ref.read(printQuantityNotifierProvider.notifier).setQuantity(response.requestCount!);
 
@@ -142,9 +164,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ref.read(printJobIdProvider.notifier).state = null;
         if (response.printJobId != null) {
           try {
+            final reason = response.type == VendingPrintJobType.refund ? '환불 선점 실패' : '임의출력 실패';
             await ref.read(kioskRepositoryProvider).failVendingPrintJob(
                   printJobId: response.printJobId!,
-                  failureReason: '임의출력 실패',
+                  failureReason: reason,
                 );
           } catch (_) {}
         }
@@ -152,7 +175,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     } catch (e) {
       if (mounted) ref.read(printJobIdProvider.notifier).state = null;
     } finally {
-      if (mounted) _startPrintJobPolling();
+      if (mounted && !_awaitingRefundDialog) _startPrintJobPolling();
     }
   }
 
@@ -173,10 +196,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       if (runFileTasks) {
         unawaited(ref.read(machineFileHandlerProvider).handleFileTasks(
-          logPaths: response.machineLogPaths,
-          downloads: response.machineDownloads,
-          machineId: kioskInfo.kioskMachineId,
-        ));
+              logPaths: response.machineLogPaths,
+              downloads: response.machineDownloads,
+              machineId: kioskInfo.kioskMachineId,
+            ));
       }
 
       return response.isUnderMaintenance;
@@ -262,6 +285,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             PrintProcessRouteData().go(context);
           },
         );
+      },
+    );
+
+    ref.listen<AsyncValue<RefundResult?>>(
+      refundJobNotifierProvider,
+      (previous, next) async {
+        if (next.isLoading) {
+          if (mounted) context.loaderOverlay.show();
+          return;
+        }
+        if (mounted && context.loaderOverlay.visible) {
+          context.loaderOverlay.hide();
+        }
+        if (!mounted) return;
+        final result = next.valueOrNull;
+        if (result is RefundSuccess) {
+          await DialogHelper.showRefundSuccessDialog(context, amount: result.amount);
+        } else if (result is RefundFailure) {
+          await DialogHelper.showRefundFailedDialog(context, reason: result.reason);
+        }
+        if (!mounted) return;
+        _awaitingRefundDialog = false;
+        _startPrintJobPolling();
       },
     );
 
@@ -511,20 +557,4 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // 에러 다이얼로그
-  void _showErrorDialog(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('결제 실패'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('확인'),
-          ),
-        ],
-      ),
-    );
-  }
 }
