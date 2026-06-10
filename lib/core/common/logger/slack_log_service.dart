@@ -252,6 +252,29 @@ Kiosk: ${kioskInfo?.kioskMachineName.isNotEmpty == true ? '${kioskInfo?.kioskMac
     await _sendVendingToSlack(message);
   }
 
+  /// 요청한 카드 장수보다 적게 배출되었을 때 브로드캐스트 알림
+  Future<void> sendCardDispenseShortfallLogToSlack({
+    required int requestedCount,
+    required int dispensedCount,
+  }) async {
+    final kioskInfo = _container.read(kioskInfoServiceProvider);
+    final version = _container.read(versionStateProvider).currentVersion;
+    final shortage = requestedCount - dispensedCount;
+
+    final message = '''🔴  *카드 배출 수량 부족*
+───────────────────
+Kiosk: ${kioskInfo?.kioskMachineName.isNotEmpty == true ? '${kioskInfo?.kioskMachineName} (${kioskInfo?.kioskMachineId})' : kioskInfo?.kioskMachineId ?? 0}  /  $version
+───────────────────
+요청한 카드 수량보다 적게 배출되었습니다.
+
+- 요청 수량 : $requestedCount장
+- 배출 수량 : $dispensedCount장
+- 부족 수량 : *$shortage장*
+''';
+
+    await _sendVendingToSlack(message);
+  }
+
   Future<void> sendCardDispenserErrorLogToSlack(String msg) async {
     final kioskInfo = _container.read(kioskInfoServiceProvider);
     final version = _container.read(versionStateProvider).currentVersion;
