@@ -50,6 +50,15 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
 
       state = AsyncError(e, st);
 
+      // 요청 장수보다 적게 배출된 경우 브로드캐스트 알림
+      final quantity = ref.read(printQuantityNotifierProvider);
+      if (quantity.current < quantity.total) {
+        SlackLogService().sendCardDispenseShortfallLogToSlack(
+          requestedCount: quantity.total,
+          dispensedCount: quantity.current,
+        );
+      }
+
       if (printJobId != null) {
         if (ref.read(reprintIdsProvider) == null) {
           SlackLogService().sendArbitraryPrintFailLogToSlack();
