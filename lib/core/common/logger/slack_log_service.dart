@@ -272,7 +272,7 @@ Kiosk: ${kioskInfo?.kioskMachineName.isNotEmpty == true ? '${kioskInfo?.kioskMac
 - 부족 수량 : *$shortage장*
 ''';
 
-    await _sendVendingToSlack(message);
+    await _sendServiceAlarmToSlack(message);
   }
 
   Future<void> sendCardDispenserErrorLogToSlack(String msg) async {
