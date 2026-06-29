@@ -56,6 +56,7 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
         SlackLogService().sendCardDispenseShortfallLogToSlack(
           requestedCount: quantity.total,
           dispensedCount: quantity.current,
+          reason: e.toString(),
         );
       }
 
