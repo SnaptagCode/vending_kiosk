@@ -12,6 +12,7 @@ import 'package:vending_kiosk/core/ui/theme/kiosk_colors.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
 import 'package:vending_kiosk/presentation/home/maintenance_provider.dart';
+import 'package:vending_kiosk/presentation/home/payment/create_order_info_state.dart';
 import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
 import 'package:vending_kiosk/presentation/home/payment_response_state.dart';
 import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
@@ -78,6 +79,7 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
           }
 
           ref.read(paymentResponseStateProvider.notifier).reset();
+          ref.read(createOrderInfoProvider.notifier).reset();
 
           final isReprint = ref.read(reprintIdsProvider.notifier).state != null;
           ref.read(reprintIdsProvider.notifier).state = null;
@@ -164,6 +166,7 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
   Future<void> _resetAndGoHome(BuildContext context) async {
     ref.read(paymentResponseStateProvider.notifier).reset();
     ref.read(printQuantityNotifierProvider.notifier).reset();
+    ref.read(createOrderInfoProvider.notifier).reset();
 
     final printJobId = ref.read(printJobIdProvider);
     ref.read(printJobIdProvider.notifier).state = null;

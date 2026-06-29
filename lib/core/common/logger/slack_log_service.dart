@@ -256,10 +256,13 @@ Kiosk: ${kioskInfo?.kioskMachineName.isNotEmpty == true ? '${kioskInfo?.kioskMac
   Future<void> sendCardDispenseShortfallLogToSlack({
     required int requestedCount,
     required int dispensedCount,
+    String? reason,
   }) async {
     final kioskInfo = _container.read(kioskInfoServiceProvider);
     final version = _container.read(versionStateProvider).currentVersion;
     final shortage = requestedCount - dispensedCount;
+    final cleanedReason = reason?.replaceFirst(RegExp(r'^Exception:\s*'), '').trim();
+    final reasonLine = cleanedReason?.isNotEmpty == true ? '\n- 사유 : $cleanedReason' : '';
 
     final message = '''🔴  *카드 배출 수량 부족*
 ───────────────────
@@ -269,7 +272,7 @@ Kiosk: ${kioskInfo?.kioskMachineName.isNotEmpty == true ? '${kioskInfo?.kioskMac
 
 - 요청 수량 : $requestedCount장
 - 배출 수량 : $dispensedCount장
-- 부족 수량 : *$shortage장*
+- 부족 수량 : *$shortage장*$reasonLine
 ''';
 
     await _sendServiceAlarmToSlack(message);
