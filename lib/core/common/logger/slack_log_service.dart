@@ -4,6 +4,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vending_kiosk/core/common/constants/alert_key.dart';
 import 'package:vending_kiosk/core/data/models/entities/slack_log_template.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/providers/version_notifier.dart';
@@ -157,7 +158,12 @@ ${slackLogTemplate.description}
 
   Future<void> sendPaymentBroadcastLogToSlak(String errorKey, {required String paymentDescription}) async {
     if (await _isPaymentDescriptionExcluded(paymentDescription)) return;
-    final slackLogTemplate = await createSlackLogTemplate(errorKey);
+    var slackLogTemplate = await createSlackLogTemplate(errorKey);
+
+    // 환불 실패 알림은 서버 category 설정과 무관하게 항상 warning(🟡)으로 강제
+    if (errorKey == InfoKey.paymentRefundFail.key) {
+      slackLogTemplate = slackLogTemplate.copyWith(category: 'warning');
+    }
 
     if (slackLogTemplate.category.isNotEmpty) {
       String description;
