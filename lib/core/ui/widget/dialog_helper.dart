@@ -458,11 +458,12 @@ class DialogHelper {
     required VoidCallback onAutoClose,
     bool autoCloseResult = true,
   }) async {
-    return await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return _TimeoutDialogWidget(
+    // showDialog가 null 반환 시 Future<bool> 캐스팅 크래시 방어
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext dialogContext) {
+            return _TimeoutDialogWidget(
           title: title,
           message: message,
           messageKey: messageKey,
@@ -474,7 +475,8 @@ class DialogHelper {
           autoCloseResult: autoCloseResult,
         );
       },
-    );
+    ) ??
+        false;
   }
 }
 
