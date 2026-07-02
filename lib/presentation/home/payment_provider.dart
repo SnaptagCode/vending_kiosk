@@ -1,5 +1,5 @@
 import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
-import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
+import 'package:vending_kiosk/core/services/payment/payment_gateway_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'payment_provider.g.dart';
@@ -14,7 +14,7 @@ class PaymentNotifier extends _$PaymentNotifier {
   Future<void> processPayment(int totalAmount) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      final repository = ref.read(paymentRepositoryProvider);
+      final repository = ref.read(paymentGatewayProvider);
       return await repository.approve(totalAmount: totalAmount);
     });
   }

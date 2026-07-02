@@ -9,7 +9,7 @@ import 'package:vending_kiosk/core/data/models/enums/order_status.dart';
 import 'package:vending_kiosk/core/data/models/request/update_vending_order_status_request.dart';
 import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
+import 'package:vending_kiosk/core/services/payment/payment_gateway_provider.dart';
 import 'package:vending_kiosk/core/domain/entities/invoice.dart';
 import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
@@ -117,7 +117,7 @@ class PaymentHistoryNotifier extends _$PaymentHistoryNotifier {
       final Invoice invoice = Invoice.calculate(order.amount);
       state = state.copyWith(refundState: const AsyncValue.loading());
 
-      final response = await ref.read(paymentRepositoryProvider).cancel(
+      final response = await ref.read(paymentGatewayProvider).cancel(
             totalAmount: invoice.total,
             originalApprovalNo: order.purchaseAuthNumber,
             originalApprovalDate: DateFormat('yyMMdd').format(DateTime.parse(order.completedAt!)),

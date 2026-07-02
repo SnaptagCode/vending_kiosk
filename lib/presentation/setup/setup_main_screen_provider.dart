@@ -8,7 +8,6 @@ import 'package:vending_kiosk/core/data/datasources/local/id_writer.dart';
 import 'package:vending_kiosk/core/data/models/request/card_stock_recharge_request.dart';
 import 'package:vending_kiosk/core/data/models/response/card_stock_recharge_response.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
 import 'package:vending_kiosk/core/providers/version_notifier.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
