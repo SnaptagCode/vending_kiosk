@@ -16,6 +16,5 @@ KscatPaymentGateway kscatPaymentGateway(Ref ref) {
 
 @riverpod
 PaymentGateway paymentGateway(Ref ref) {
-  // P0: 항상 KSCAT. P1에서 paymentModeProvider 기준으로 Disabled 구현체 스왑 예정.
   return ref.watch(kscatPaymentGatewayProvider);
 }
