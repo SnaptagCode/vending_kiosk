@@ -7,7 +7,7 @@ import 'package:vending_kiosk/core/data/models/request/update_vending_order_stat
 import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_print_polling_response.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
+import 'package:vending_kiosk/core/services/payment/payment_gateway_provider.dart';
 import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 
@@ -86,7 +86,7 @@ class RefundJobNotifier extends _$RefundJobNotifier {
     // 이 단계가 throw되면 실제 환불이 미완료이므로 failVendingPrintJob 가능
     final PaymentResponse paymentResponse;
     try {
-      paymentResponse = await ref.read(paymentRepositoryProvider).cancel(
+      paymentResponse = await ref.read(paymentGatewayProvider).cancel(
             totalAmount: refundInfo.amount,
             originalApprovalNo: refundInfo.originalApprovalNo,
             originalApprovalDate: refundInfo.originalApprovalDate,

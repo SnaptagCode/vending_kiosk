@@ -11,7 +11,7 @@ import 'package:vending_kiosk/core/data/models/response/create_vending_order_res
 import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_order_status_response.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
+import 'package:vending_kiosk/core/services/payment/payment_gateway_provider.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
 import 'package:vending_kiosk/presentation/home/payment/create_order_info_state.dart';
 import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
@@ -70,7 +70,7 @@ class PaymentService extends _$PaymentService {
   Future<PaymentResponse> _approvePayment() async {
     final price = ref.read(kioskInfoServiceProvider)!.photoCardPrice;
     final printCount = ref.read(printQuantityNotifierProvider).total;
-    final paymentResponse = await ref.read(paymentRepositoryProvider).approve(
+    final paymentResponse = await ref.read(paymentGatewayProvider).approve(
           totalAmount: price.toInt() * printCount,
         );
     ref.read(paymentResponseStateProvider.notifier).update(paymentResponse);
@@ -210,7 +210,7 @@ class PaymentService extends _$PaymentService {
       }
 
       final price = ref.read(kioskInfoServiceProvider)!.photoCardPrice;
-      final paymentResponse = await ref.read(paymentRepositoryProvider).cancel(
+      final paymentResponse = await ref.read(paymentGatewayProvider).cancel(
             totalAmount: price.toInt(),
             originalApprovalNo: approvalInfo.approvalNo ?? '',
             originalApprovalDate: approvalInfo.tradeTime?.substring(0, 6) ?? '',
@@ -273,7 +273,7 @@ class PaymentService extends _$PaymentService {
       }
 
       final price = ref.read(kioskInfoServiceProvider)!.photoCardPrice;
-      final paymentResponse = await ref.read(paymentRepositoryProvider).cancel(
+      final paymentResponse = await ref.read(paymentGatewayProvider).cancel(
             totalAmount: price.toInt(),
             originalApprovalNo: approvalInfo.authSeqNumber ?? '',
             originalApprovalDate: DateFormat('yyMMdd').format(approvalInfo.completedAt!),
