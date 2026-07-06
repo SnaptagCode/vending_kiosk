@@ -1,11 +1,13 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:vending_kiosk/core/common/constants/alert_key.dart';
+import 'package:vending_kiosk/core/common/constants/refund_reason.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/enums/order_status.dart';
 import 'package:vending_kiosk/core/data/models/request/update_vending_order_status_request.dart';
 import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_print_polling_response.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
+import 'package:vending_kiosk/core/services/payment/payment_gateway_provider.dart';
 import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 
@@ -84,7 +86,7 @@ class RefundJobNotifier extends _$RefundJobNotifier {
     // 이 단계가 throw되면 실제 환불이 미완료이므로 failVendingPrintJob 가능
     final PaymentResponse paymentResponse;
     try {
-      paymentResponse = await ref.read(paymentRepositoryProvider).cancel(
+      paymentResponse = await ref.read(paymentGatewayProvider).cancel(
             totalAmount: refundInfo.amount,
             originalApprovalNo: refundInfo.originalApprovalNo,
             originalApprovalDate: refundInfo.originalApprovalDate,
@@ -186,10 +188,14 @@ class RefundJobNotifier extends _$RefundJobNotifier {
       } catch (e) {
         SlackLogService().sendErrorLogToSlack('환불 job($printJobId) succeedVendingPrintJob 실패: $e');
       }
-      if (orderUpdated) {
-        SlackLogService().sendLogToSlack(
-            '[MachineId: $machineId] polling 환불 성공 | job=$printJobId | ${refundInfo.amount}원');
-      } else {
+      SlackLogService().sendPaymentBroadcastLogToSlak(
+        InfoKey.paymentRefund.key,
+        paymentDescription: '동작로직: 포토코드web환불\n'
+            '- 승인번호: ${paymentResponse.approvalNo ?? '-'}\n'
+            '- 금액: ${refundInfo.amount}원',
+      );
+      if (!orderUpdated) {
+        // 카드 취소는 됐으나 주문 상태 갱신 실패 — 수동 정산 필요
         SlackLogService().sendErrorLogToSlack(
           '[MachineId: $machineId] ⚠️ polling 환불 성공했으나 주문 상태 갱신 실패 — 수동 정산 필요 '
           '| job=$printJobId | orderId=$kioskOrderId | ${refundInfo.amount}원',
@@ -197,18 +203,21 @@ class RefundJobNotifier extends _$RefundJobNotifier {
       }
       return RefundSuccess(refundInfo.amount);
     } else {
-      final failReason =
-          (paymentResponse.msg?.isNotEmpty == true ? paymentResponse.msg : paymentResponse.message1) ?? '환불 실패';
+      final reason = refundReasonFor(paymentResponse);
       try {
         await ref.read(kioskRepositoryProvider).failVendingPrintJob(
               printJobId: printJobId,
-              failureReason: failReason,
+              failureReason: reason,
             );
       } catch (e) {
         SlackLogService().sendErrorLogToSlack('환불 job($printJobId) failVendingPrintJob 실패: $e');
       }
-      SlackLogService().sendErrorLogToSlack(
-        '[MachineId: $machineId] polling 환불 실패 | job=$printJobId | $failReason',
+      SlackLogService().sendPaymentBroadcastLogToSlak(
+        InfoKey.paymentRefundFail.key,
+        paymentDescription: '동작로직: 포토코드web환불\n'
+            '- 사유: $reason\n'
+            '- 승인번호: ${paymentResponse.approvalNo ?? '-'}\n'
+            '- 금액: ${refundInfo.amount}원',
       );
       return RefundFailure('환불을 완료하지 못했어요.');
     }

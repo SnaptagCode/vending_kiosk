@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vending_kiosk/core/common/constants/alert_key.dart';
+import 'package:vending_kiosk/core/common/constants/refund_reason.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/entities/vending_print_item_entity.dart';
@@ -8,7 +9,7 @@ import 'package:vending_kiosk/core/data/models/enums/order_status.dart';
 import 'package:vending_kiosk/core/data/models/request/update_vending_order_status_request.dart';
 import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
+import 'package:vending_kiosk/core/services/payment/payment_gateway_provider.dart';
 import 'package:vending_kiosk/core/domain/entities/invoice.dart';
 import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
@@ -116,7 +117,7 @@ class PaymentHistoryNotifier extends _$PaymentHistoryNotifier {
       final Invoice invoice = Invoice.calculate(order.amount);
       state = state.copyWith(refundState: const AsyncValue.loading());
 
-      final response = await ref.read(paymentRepositoryProvider).cancel(
+      final response = await ref.read(paymentGatewayProvider).cancel(
             totalAmount: invoice.total,
             originalApprovalNo: order.purchaseAuthNumber,
             originalApprovalDate: DateFormat('yyMMdd').format(DateTime.parse(order.completedAt!)),
@@ -140,48 +141,37 @@ class PaymentHistoryNotifier extends _$PaymentHistoryNotifier {
     final settings = ref.read(kioskInfoServiceProvider);
     if (settings == null) throw Exception('No settings available');
 
+    // 성공/실패 판정은 res 단독이 아니라 orderState(=refunded) 기준으로 한다.
+    final success = payment.orderState == OrderStatus.refunded;
+    final reason = success ? null : refundReasonFor(payment);
+
     final request = UpdateVendingOrderStatusRequest(
       kioskEventId: settings.kioskEventId,
       kioskMachineId: settings.kioskMachineId,
-      status: payment.orderState,
+      status: success ? OrderStatus.refunded : OrderStatus.refunded_failed,
       amount: order.amount.toInt(),
       authSeqNumber: order.purchaseAuthNumber,
       detail: payment.KSNET,
       approvalNumber: order.purchaseAuthNumber,
+      description: reason,
     );
-
-    final (status, description, slackReason) = _resolveRefundOutcome(payment);
 
     await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(
           order.kioskOrderId,
-          request.copyWith(status: status, description: description),
+          request,
         );
 
-    if (slackReason != null) {
+    final authInfo = '- 승인번호: ${order.purchaseAuthNumber}';
+    if (success) {
+      SlackLogService().sendPaymentBroadcastLogToSlak(
+        InfoKey.paymentRefund.key,
+        paymentDescription: '동작로직: 관리자 환불\n- 결과: 환불 성공\n$authInfo',
+      );
+    } else {
       SlackLogService().sendPaymentBroadcastLogToSlak(
         InfoKey.paymentRefundFail.key,
-        paymentDescription:
-            '동작로직: 관리자 환불\n- 사유: $slackReason\n- 인증번호: ${order.purchaseAuthNumber}\n- 승인번호: ${order.purchaseAuthNumber}',
+        paymentDescription: '동작로직: 관리자 환불\n- 사유: $reason\n$authInfo',
       );
     }
-  }
-
-  /// respCode / res 조합으로 (주문상태, 설명, 슬랙사유) 결정
-  /// slackReason == null → 슬랙 미전송 (정상 환불)
-  (OrderStatus, String?, String?) _resolveRefundOutcome(PaymentResponse payment) {
-    if (payment.respCode != '0000') {
-      return switch (payment.respCode) {
-        '7001' => (OrderStatus.refunded_failed, '기취소된 거래', '기취소된 거래'),
-        '7003' => (OrderStatus.refunded_failed, '단말번호 상이', '환불 실패'),
-        _ => (OrderStatus.refunded_failed, '확인필요', '확인필요'),
-      };
-    }
-
-    return switch (payment.res) {
-      '0000' => (OrderStatus.refunded, null, null),
-      '1000' => (OrderStatus.refunded_failed, '고객취소', '사용자가 환불취소 누름'),
-      '1004' => (OrderStatus.refunded_failed, '시간초과', '시간초과'),
-      _ => (OrderStatus.refunded_failed, '확인필요', '확인필요'),
-    };
   }
 }

@@ -14,7 +14,7 @@ import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/common/sound/sound_manager.dart';
 import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
-import 'package:vending_kiosk/core/data/repositories/payment_repository.dart';
+import 'package:vending_kiosk/core/services/payment/payment_gateway_provider.dart';
 import 'package:vending_kiosk/core/providers/version_notifier.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
@@ -83,7 +83,7 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
   Future<bool> _checkPaymentDevice() async {
     final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId.toString() ?? 'unknown';
     try {
-      final response = await ref.read(paymentRepositoryProvider).check();
+      final response = await ref.read(paymentGatewayProvider).check();
       SlackLogService().sendLogToSlack("*[MachineId: $machineId]*\nPayment Device check: $response");
 
       return true;

@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/datasources/remote/payment_api_client.dart';
 import 'package:vending_kiosk/core/data/models/request/kscat_device_request.dart';
@@ -7,20 +6,11 @@ import 'package:vending_kiosk/core/data/models/request/payment_request.dart';
 import 'package:vending_kiosk/core/data/models/response/kscat_device_response.dart';
 import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
 import 'package:vending_kiosk/core/domain/entities/invoice.dart';
+import 'package:vending_kiosk/core/services/payment/payment_gateway.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 
-part 'payment_repository.g.dart';
-
-@riverpod
-PaymentRepository paymentRepository(Ref ref) {
-  return PaymentRepository(
-    PaymentApiClient(),
-    ref,
-  );
-}
-
-class PaymentRepository {
-  PaymentRepository(this._client, this.ref);
+class KscatPaymentGateway implements PaymentGateway {
+  KscatPaymentGateway(this._client, this.ref);
 
   final PaymentApiClient _client;
   final Ref ref;
@@ -31,6 +21,7 @@ class PaymentRepository {
     return 'jsonp200911MI$formattedMachineId';
   }
 
+  @override
   Future<PaymentResponse> approve({
     required int totalAmount,
   }) async {
@@ -49,6 +40,7 @@ class PaymentRepository {
     return _request(request);
   }
 
+  @override
   Future<KscatDeviceResponse> check() async {
     final request = KscatDeviceRequest(
       req: 'C0',
@@ -57,6 +49,7 @@ class PaymentRepository {
     return _deviceRequest(request);
   }
 
+  @override
   Future<PaymentResponse> cancel({
     required int totalAmount,
     required String originalApprovalNo,
