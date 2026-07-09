@@ -9,6 +9,7 @@ import 'package:vending_kiosk/core/data/models/enums/order_status.dart';
 import 'package:vending_kiosk/presentation/setup/payment_history_provider.dart';
 import 'package:vending_kiosk/presentation/setup/payment_history_screen_provider.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
+import 'package:vending_kiosk/locale_keys.dart';
 import 'package:vending_kiosk/core/ui/widget/general_error_widget.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
 import 'package:flutter_svg/svg.dart';
@@ -325,6 +326,13 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   }
 
   Widget _getRefundWidget(BuildContext context, VendingPrintItemEntity order) {
+    // 무료 주문(0원)은 환불 대상이 아님 — 버튼 대신 라벨만 표시
+    if (order.amount <= 0) {
+      return TextButton(
+        onPressed: null,
+        child: Text(LocaleKeys.price_free.tr()),
+      );
+    }
     switch (order.orderStatus) {
       case OrderStatus.refunded:
         return TextButton(

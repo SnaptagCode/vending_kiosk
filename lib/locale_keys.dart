@@ -17,6 +17,8 @@ abstract class LocaleKeys {
   static const alert_btn_verification_code_expried = 'alert_btn_verification_code_expried';
   static const sub02_txt_01 = 'sub02_txt_01';
   static const sub02_btn_pay = 'sub02_btn_pay';
+  static const sub02_btn_free_print = 'sub02_btn_free_print';
+  static const price_free = 'price_free';
   static const sub03_txt_01 = 'sub03_txt_01';
   static const sub03_txt_02 = 'sub03_txt_02';
   static const sub03_txt_03 = 'sub03_txt_03';

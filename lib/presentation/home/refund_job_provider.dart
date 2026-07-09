@@ -82,6 +82,21 @@ class RefundJobNotifier extends _$RefundJobNotifier {
       return null;
     }
 
+    // 무료 주문(0원)은 환불 대상이 아님 — 단말 취소 호출 없이 job 종결
+    if (refundInfo.amount <= 0) {
+      const reason = '무료 주문(0원)은 환불 대상이 아닙니다';
+      SlackLogService().sendErrorLogToSlack('환불 job($printJobId) $reason (orderId=$kioskOrderId)');
+      try {
+        await ref.read(kioskRepositoryProvider).failVendingPrintJob(
+              printJobId: printJobId,
+              failureReason: reason,
+            );
+      } catch (e) {
+        SlackLogService().sendErrorLogToSlack('환불 job($printJobId) failVendingPrintJob 실패: $e');
+      }
+      return const RefundFailure('무료 주문은 환불 대상이 아니에요.');
+    }
+
     // Phase 1: 결제사 취소 요청
     // 이 단계가 throw되면 실제 환불이 미완료이므로 failVendingPrintJob 가능
     final PaymentResponse paymentResponse;

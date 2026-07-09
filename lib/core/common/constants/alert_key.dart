@@ -29,6 +29,8 @@ enum InfoKey {
   paymentFail("Payment_Fail"),
   paymentRefund("Payment_Refund"),
   paymentRefundFail("Payment_Refund_Fail"),
+  paymentModeOn("Payment_Mode_On"),
+  paymentModeOff("Payment_Mode_Off"),
   inspectionStart("Inspection_Start"),
   inspectionEnd("Inspection_End"),
   serviceMaintenanceEnter("Service_Maintenance_Enter"),

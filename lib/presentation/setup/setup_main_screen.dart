@@ -15,6 +15,7 @@ import 'package:vending_kiosk/core/common/sound/sound_manager.dart';
 import 'package:vending_kiosk/core/data/models/enums/keypad_mode.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/services/payment/payment_gateway_provider.dart';
+import 'package:vending_kiosk/core/services/payment/payment_mode_provider.dart';
 import 'package:vending_kiosk/core/providers/version_notifier.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
@@ -50,8 +51,15 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
 
     final kioskInfo = ref.read(kioskInfoServiceProvider);
 
-    final isPaymentDeviceReady = await _checkPaymentDevice();
-    if (!isPaymentDeviceReady) return;
+    // 결제 OFF(무료 모드)면 결제 단말 점검 생략 → 리더기 없이도 이벤트 시작 가능
+    final isPaymentEnabled = ref.read(paymentModeNotifierProvider);
+    if (isPaymentEnabled) {
+      final isPaymentDeviceReady = await _checkPaymentDevice();
+      if (!isPaymentDeviceReady) return;
+    } else {
+      final machineId = kioskInfo?.kioskMachineId.toString() ?? 'unknown';
+      SlackLogService().sendLogToSlack('*[MachineId: $machineId]*\n결제 OFF(무료 모드) — 이벤트 시작 시 결제 단말 점검 생략');
+    }
 
     logger.d(
         'kioskInfo: $kioskInfo kioskEventId: ${kioskInfo?.kioskEventId} kioskMachineId: ${kioskInfo?.kioskMachineId}');
@@ -124,6 +132,7 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
   @override
   Widget build(BuildContext context) {
     ref.read(alertDefinitionProvider);
+    final isPaymentEnabled = ref.watch(paymentModeNotifierProvider);
     final setupMainViewModel = ref.watch(setupMainScreenNotifierProvider);
     final currentVersion = setupMainViewModel.currentVersion;
     final isUpdateAvailable = setupMainViewModel.isUpdateAvailable;
@@ -520,6 +529,44 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                     ),
                   ),
                 ],
+              ),
+              Padding(
+                padding: EdgeInsets.only(top: 20.h),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  splashColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                  onTap: () async {
+                    await SoundManager().playSound();
+                    final turningOff = isPaymentEnabled;
+                    final confirmed = await DialogHelper.showSetupDialog(
+                      context,
+                      title: turningOff ? '결제 기능을 끄시겠습니까?' : '결제 기능을 켜시겠습니까?',
+                      content: turningOff ? '무료 모드로 전환되어 결제 없이 출력됩니다.' : '유료 결제 모드로 전환됩니다.',
+                      showCancelButton: true,
+                    );
+                    if (!confirmed) return;
+                    await ref
+                        .read(paymentModeNotifierProvider.notifier)
+                        .setEnabled(!turningOff, source: PaymentModeSource.localAdmin);
+                  },
+                  child: Container(
+                    width: 820.w,
+                    height: 88.h,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isPaymentEnabled ? Colors.white : Color(0xFF1C1C1C),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Color(0xFFE6E8EB), width: 2),
+                    ),
+                    child: Text(
+                      isPaymentEnabled ? '결제 기능 ON — 유료 결제 모드' : '결제 기능 OFF — 무료 모드',
+                      style: context.typography.kioskBody1B.copyWith(
+                        color: isPaymentEnabled ? Color(0xFF1C1C1C) : Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
               ),
               SizedBox(
                 height: 40.h,

@@ -100,6 +100,13 @@ class PaymentHistoryNotifier extends _$PaymentHistoryNotifier {
   // ─────────────────────────────────────────────
 
   Future<void> startRefund(VendingPrintItemEntity order) async {
+    // 무료 주문(0원)은 환불 대상이 아님 — UI에서 버튼을 숨기지만 이중 방어
+    if (order.amount <= 0) {
+      state = state.copyWith(
+        refundState: AsyncValue.error(Exception('Free order cannot be refunded'), StackTrace.current),
+      );
+      throw Exception('Free order cannot be refunded');
+    }
     if (order.purchaseAuthNumber.isEmpty) {
       state = state.copyWith(
         refundState: AsyncValue.error(Exception('No payment auth number available'), StackTrace.current),

@@ -12,6 +12,7 @@ import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/enums/vending_print_job_type.dart';
 import 'package:vending_kiosk/core/data/models/request/update_maintenance_request.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
+import 'package:vending_kiosk/core/services/payment/payment_mode_provider.dart';
 import 'package:vending_kiosk/presentation/home/refund_job_provider.dart';
 import 'package:vending_kiosk/core/ui/widget/dialog_helper.dart';
 import 'package:vending_kiosk/locale_keys.dart';
@@ -212,6 +213,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final kiosk = ref.watch(kioskInfoServiceProvider);
     final paymentState = ref.watch(paymentNotifierProvider);
+    final isPaymentEnabled = ref.watch(paymentModeNotifierProvider);
 
     // 가격 계산
     final unitPrice = kiosk?.photoCardPrice ?? 1000;
@@ -459,7 +461,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           style: context.typography.vendingBody2B.copyWith(color: mainTextColor),
                                         ),
                                         Text(
-                                          '$formattedPrice ${LocaleKeys.currency_won.tr()}',
+                                          isPaymentEnabled
+                                              ? '$formattedPrice ${LocaleKeys.currency_won.tr()}'
+                                              : LocaleKeys.price_free.tr(),
                                           style: context.typography.vendingBody1B.copyWith(color: buttonColor),
                                         )
                                       ],
@@ -501,7 +505,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           ),
                                         )
                                       : Text(
-                                          LocaleKeys.sub02_btn_pay.tr(),
+                                          isPaymentEnabled
+                                              ? LocaleKeys.sub02_btn_pay.tr()
+                                              : LocaleKeys.sub02_btn_free_print.tr(),
                                           style: context.typography.vendingBtn2B.copyWith(color: buttonTextColor),
                                         ),
                                 ),

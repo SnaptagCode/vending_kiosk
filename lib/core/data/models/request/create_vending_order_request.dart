@@ -11,6 +11,7 @@ class CreateVendingOrderRequest with _$CreateVendingOrderRequest {
     required int printCount,
     required int amount,
     required bool isSingleSided,
+    @Default(false) bool isFreeOrder,
   }) = _CreateVendingOrderRequest;
 
   factory CreateVendingOrderRequest.fromJson(Map<String, dynamic> json) =>

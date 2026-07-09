@@ -12,6 +12,7 @@ import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_order_status_response.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/services/payment/payment_gateway_provider.dart';
+import 'package:vending_kiosk/core/services/payment/payment_mode_provider.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
 import 'package:vending_kiosk/presentation/home/payment/create_order_info_state.dart';
 import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
@@ -32,13 +33,28 @@ class PaymentService extends _$PaymentService {
     // 1. 사전 검증
     _validatePreconditions();
 
+    // 결제 모드는 진입 시점에 1회만 캡처 — 진행 중 전환돼도 주문·승인 불일치가 생기지 않도록
+    final isPaymentEnabled = ref.read(paymentModeNotifierProvider);
+
     // 2. 주문 생성
-    final orderResponse = await _createOrder().catchError((e) {
+    final orderResponse = await _createOrder(isFree: !isPaymentEnabled).catchError((e) {
       final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId.toString() ?? 'unknown';
       SlackLogService().sendLogToSlack('*[MachineId: $machineId]*\nCreate order fail: $e');
       throw OrderCreationException('Create order fail: $e');
     });
     ref.read(createOrderInfoProvider.notifier).update(orderResponse);
+
+    // 3. 무료 모드: KSCAT 승인 생략, 곧바로 완료 처리
+    if (!isPaymentEnabled) {
+      try {
+        await _completeFreeOrder();
+      } catch (e) {
+        logger.e('Free order process failed', error: e);
+        await _failFreeOrder();
+        throw PaymentProcessingException("무료 주문 처리 중 오류가 발생했습니다.");
+      }
+      return;
+    }
 
     try {
       // 3. 결제 승인 및 처리
@@ -325,7 +341,7 @@ class PaymentService extends _$PaymentService {
     return isSuccess;
   }
 
-  Future<CreateVendingOrderResponse> _createOrder() async {
+  Future<CreateVendingOrderResponse> _createOrder({required bool isFree}) async {
     final settings = ref.read(kioskInfoServiceProvider);
     final isSingleSided = ref.read(pagePrintProvider) == PagePrintType.single;
     final printCount = ref.read(printQuantityNotifierProvider).total;
@@ -334,11 +350,82 @@ class PaymentService extends _$PaymentService {
       kioskEventId: settings!.kioskEventId,
       kioskMachineId: settings.kioskMachineId,
       printCount: printCount,
-      amount: settings.photoCardPrice.toInt() * printCount,
+      amount: isFree ? 0 : settings.photoCardPrice.toInt() * printCount,
       isSingleSided: isSingleSided,
+      isFreeOrder: isFree,
     );
 
     return await ref.read(kioskRepositoryProvider).createVendingOrder(request);
+  }
+
+  /// 무료 모드 주문 완료 처리 — 승인 없이 곧바로 COMPLETED.
+  /// [_updateOrder]는 paymentResponseState 기반으로 상태를 유도하므로
+  /// (무료 플로우에선 null → FAILED로 떨어짐) 재사용하지 않고 요청을 직접 구성한다.
+  Future<void> _completeFreeOrder() async {
+    final settings = ref.read(kioskInfoServiceProvider);
+    final orderId = ref.read(createOrderInfoProvider)?.order.id;
+    final machineId = settings?.kioskMachineId.toString() ?? 'unknown';
+    if (orderId == null) {
+      throw Exception('No order id available');
+    }
+
+    final request = UpdateVendingOrderStatusRequest(
+      kioskEventId: settings!.kioskEventId,
+      kioskMachineId: settings.kioskMachineId,
+      status: OrderStatus.completed,
+      description: "무료 모드",
+      amount: 0,
+      authSeqNumber: 'FREE',
+      detail: '{}',
+      approvalNumber: 'FREE',
+    );
+
+    VendingOrderStatusResponse? response;
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        response = await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(orderId.toInt(), request);
+        break;
+      } catch (e) {
+        if (attempt >= 3) {
+          SlackLogService()
+              .sendErrorLogToSlack('*[MachineId: $machineId]*\nupdate free order error after 3 retries: $e');
+          rethrow;
+        }
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+    }
+
+    await ref.read(cardCountProvider.notifier).decrease();
+    final printCount = ref.read(printQuantityNotifierProvider).total;
+    SlackLogService()
+        .sendLogToSlack('*[MachineId: $machineId]*\n무료 주문 완료 (orderId: $orderId, 수량: $printCount) : $response');
+  }
+
+  /// 무료 주문 완료 처리 실패 시 주문을 FAILED로 갱신 — best-effort, 실패해도 원래 예외 흐름은 유지
+  /// (_updateFailOrder는 paymentResponseStateProvider의 이전 유료 결제 데이터를 참조하므로 무료 플로우에서 사용 금지)
+  Future<void> _failFreeOrder() async {
+    final settings = ref.read(kioskInfoServiceProvider);
+    final orderId = ref.read(createOrderInfoProvider)?.order.id;
+    final machineId = settings?.kioskMachineId.toString() ?? 'unknown';
+    if (settings == null || orderId == null) return;
+
+    final request = UpdateVendingOrderStatusRequest(
+      kioskEventId: settings.kioskEventId,
+      kioskMachineId: settings.kioskMachineId,
+      status: OrderStatus.failed,
+      description: "무료 주문 처리 실패",
+      amount: 0,
+      authSeqNumber: 'FREE',
+      detail: '{}',
+      approvalNumber: 'FREE',
+    );
+
+    try {
+      await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(orderId.toInt(), request);
+    } catch (e) {
+      SlackLogService().sendErrorLogToSlack(
+          '*[MachineId: $machineId]*\n무료 주문($orderId) FAILED 갱신 실패 — 수동 확인 필요: $e');
+    }
   }
 
   Future<VendingOrderStatusResponse> _updateOrder(

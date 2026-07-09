@@ -15,6 +15,8 @@
   "alert_btn_verification_code_expried": "OK",
   "sub02_txt_01": "Please check your photocard image.",
   "sub02_btn_pay": "Pay",
+  "sub02_btn_free_print": "Free Print",
+  "price_free": "Free",
   "sub03_txt_01": "Printing your photocard.",
   "please_wait": "Please wait",
   "purchase_title_before": "Please select the ",
