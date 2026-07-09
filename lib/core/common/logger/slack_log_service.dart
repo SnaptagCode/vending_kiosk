@@ -268,7 +268,14 @@ Kiosk: ${kioskInfo?.kioskMachineName.isNotEmpty == true ? '${kioskInfo?.kioskMac
     final version = _container.read(versionStateProvider).currentVersion;
     final shortage = requestedCount - dispensedCount;
     final cleanedReason = reason?.replaceFirst(RegExp(r'^Exception:\s*'), '').trim();
-    final reasonLine = cleanedReason?.isNotEmpty == true ? '\n- 사유 : $cleanedReason' : '';
+    // 한글 도메인 메시지는 그대로 공지 — raw 예외 원문(영문 등)은 관리자용 사유로 매핑하고 원문은 error_log 채널로 발송
+    String? displayReason = cleanedReason;
+    if (cleanedReason != null && cleanedReason.isNotEmpty && !RegExp(r'[가-힣]').hasMatch(cleanedReason)) {
+      displayReason = _dispenseShortfallReasonFor(cleanedReason);
+      sendErrorLogToSlack(
+          '[MachineId: ${kioskInfo?.kioskMachineId ?? 0}] 카드 배출 수량 부족(요청 $requestedCount장/배출 $dispensedCount장) 사유 원문: $cleanedReason');
+    }
+    final reasonLine = displayReason?.isNotEmpty == true ? '\n- 사유 : $displayReason' : '';
 
     final message = '''🔴  *카드 배출 수량 부족*
 ───────────────────
@@ -282,6 +289,24 @@ Kiosk: ${kioskInfo?.kioskMachineName.isNotEmpty == true ? '${kioskInfo?.kioskMac
 ''';
 
     await _sendServiceAlarmToSlack(message);
+  }
+
+  /// raw 예외 원문을 관리자가 이해할 수 있는 배출 실패 사유로 매핑
+  String _dispenseShortfallReasonFor(String rawReason) {
+    final lower = rawReason.toLowerCase();
+    if (lower.contains('dioexception')) {
+      return '서버 통신 오류 (배출기 고장 아님)';
+    }
+    if (lower.contains('printed photo card ids length')) {
+      return '주문 정보 불일치 (주문 카드 수 ≠ 요청 수량)';
+    }
+    if (lower.contains('serial port') || lower.contains('failed to write') || lower.contains('withtech')) {
+      return '배출기 통신 오류 (연결 상태 확인 필요)';
+    }
+    if (lower.contains('timeout')) {
+      return '배출기 응답 시간 초과';
+    }
+    return '확인 필요 (개발자 문의)';
   }
 
   Future<void> sendCardDispenserErrorLogToSlack(String msg) async {
