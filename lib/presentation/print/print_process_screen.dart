@@ -53,8 +53,7 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
 
           final printJobId = ref.read(printJobIdProvider);
           if (printJobId != null) {
-            ref.read(printJobIdProvider.notifier).state = null;
-            return;
+            return await _resetAndGoHome(context);
           }
 
           if (error is InsufficientCardStockException) {
