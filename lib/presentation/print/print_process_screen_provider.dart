@@ -79,6 +79,17 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
     }
   }
 
+  /// 서버 잔량 재동기화. 호출부 흐름을 막지 않도록 실패해도 예외를 던지지 않는다.
+  Future<void> _refreshCardStock() async {
+    try {
+      final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId;
+      if (machineId == null) return;
+      await ref.read(kioskRepositoryProvider).getMachineCardStock(machineId);
+    } catch (e) {
+      logger.e('PrintProcessScreenProvider._refreshCardStock failure', error: e);
+    }
+  }
+
   Future<void> disconnectCardDispenser() async {
     await ref.read(cardDispenserServiceProvider.notifier).disconnect();
   }
@@ -141,6 +152,8 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
           SlackLogService().sendErrorLogToSlack(
               '[MACHINE_NAME: $machineName (MACHINE_ID: $machineId)] PrintService._updatePrintStatus failure after $maxRetries retries: $e');
           logger.e('PrintService._updatePrintStatus failure', error: e);
+          // 응답만 유실되고 서버는 COMPLETED를 커밋했을 수 있어 잔량을 다시 맞춘다
+          await _refreshCardStock();
           rethrow;
         }
         await Future.delayed(const Duration(milliseconds: 300));

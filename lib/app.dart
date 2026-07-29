@@ -11,6 +11,7 @@ import 'package:vending_kiosk/core/common/extensions/button_styles.dart';
 import 'package:vending_kiosk/core/common/launcher/launcher_service.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
+import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/providers/network_status_provider.dart';
 import 'package:vending_kiosk/core/providers/theme_provider.dart';
 import 'package:vending_kiosk/core/services/card_dispenser_manager.dart';
@@ -477,6 +478,21 @@ class _NetworkStatusAlertWrapperState extends ConsumerState<_NetworkStatusAlertW
   void _handleNetworkStatusChange(NetworkState? previous, NetworkState next) {
     logger.i('🔄 NetworkStatusAlert: Status changed from ${previous?.status} to ${next.status}');
     _checkAndShowAlert(next);
+
+    // 네트워크 복구 시 서버 잔량 재동기화 (끊긴 동안의 차감을 반영)
+    if (previous?.status != NetworkStatus.connected && next.status == NetworkStatus.connected) {
+      _resyncCardStock();
+    }
+  }
+
+  Future<void> _resyncCardStock() async {
+    try {
+      final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId;
+      if (machineId == null || machineId == 0) return;
+      await ref.read(kioskRepositoryProvider).getMachineCardStock(machineId);
+    } catch (e) {
+      logger.e('Card stock resync failed', error: e);
+    }
   }
 }
 

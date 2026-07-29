@@ -84,6 +84,7 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
           final isReprint = ref.read(reprintIdsProvider.notifier).state != null;
           ref.read(reprintIdsProvider.notifier).state = null;
 
+          // null(잔량 미수신)은 0과 달라 전환하지 않는다
           final current = ref.read(dispenseProgressNotifierProvider).current;
           if (current == 0) {
             await ref.read(kioskRepositoryProvider).updateMaintenance(
