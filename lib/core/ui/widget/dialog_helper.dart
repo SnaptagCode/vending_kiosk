@@ -208,12 +208,16 @@ class DialogHelper {
   }
 
   // 담당자 문의 알럿
-  static Future<bool> showContactManagerDialog(BuildContext context) async {
+  static Future<bool> showContactManagerDialog(
+    BuildContext context, {
+    Duration? autoCloseDuration,
+  }) async {
     return await showKioskDialog(
       context,
       title: LocaleKeys.alert_title_contact_manager.tr(),
       contentText: LocaleKeys.alert_txt_contact_manager.tr(),
       confirmButtonText: LocaleKeys.alert_btn_ok.tr(),
+      autoCloseDuration: autoCloseDuration,
     );
   }
 

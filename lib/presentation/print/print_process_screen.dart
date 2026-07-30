@@ -53,6 +53,10 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
 
           final printJobId = ref.read(printJobIdProvider);
           if (printJobId != null) {
+            await DialogHelper.showContactManagerDialog(
+              context,
+              autoCloseDuration: const Duration(seconds: 5),
+            );
             return await _resetAndGoHome(context);
           }
 
