@@ -381,9 +381,8 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                         child: SetupMainCard(
                           label: '이벤트\n미리보기',
                           assetName: SnaptagSvg.eventPreview,
-                          onTap: () async {
-                            await SoundManager().playSound();
-
+                          onTap: () {
+                            unawaited(SoundManager().playSound());
                             KioskInfoRouteData().go(context);
                           },
                         ),
@@ -413,8 +412,8 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                         child: SetupMainCard(
                           label: '출력 내역',
                           assetName: SnaptagSvg.payment,
-                          onTap: () async {
-                            await SoundManager().playSound();
+                          onTap: () {
+                            unawaited(SoundManager().playSound());
                             PaymentHistoryRouteData().go(context);
                           },
                         ),
@@ -429,8 +428,8 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                         child: SetupMainCard(
                           label: '출력 내역',
                           assetName: SnaptagSvg.payment,
-                          onTap: () async {
-                            await SoundManager().playSound();
+                          onTap: () {
+                            unawaited(SoundManager().playSound());
                             PaymentHistoryRouteData().go(context);
                           },
                         ),
@@ -526,9 +525,9 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                       child: SetupMainCard(
                         label: '서비스 점검',
                         assetName: SnaptagSvg.maintenance,
-                        onTap: () async {
+                        onTap: () {
                           SlackLogService().sendBroadcastLogToSlack(InfoKey.serviceMaintenanceEnter.key);
-                          await SoundManager().playSound();
+                          unawaited(SoundManager().playSound());
                           MaintenanceRouteData().go(context);
                         },
                       ),

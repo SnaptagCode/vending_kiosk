@@ -88,8 +88,8 @@ class DialogHelper {
                       if (showCancelButton)
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () async {
-                              await SoundManager().playSound();
+                            onPressed: () {
+                              unawaited(SoundManager().playSound());
                               Navigator.of(dialogContext).pop(false);
                             },
                             style: cancelButtonStyle,
@@ -99,8 +99,8 @@ class DialogHelper {
                       if (showCancelButton) SizedBox(width: 12.w),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () async {
-                            await SoundManager().playSound();
+                          onPressed: () {
+                            unawaited(SoundManager().playSound());
                             Navigator.of(dialogContext).pop(true);
                           },
                           style: confirmButtonStyle,
@@ -604,8 +604,8 @@ class _TimeoutDialogWidgetState extends State<_TimeoutDialogWidget> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () async {
-                      await SoundManager().playSound();
+                    onPressed: () {
+                      unawaited(SoundManager().playSound());
                       Navigator.of(context).pop(false);
                     },
                     style: context.refundDialogCancelButtonStyle,
@@ -615,8 +615,8 @@ class _TimeoutDialogWidgetState extends State<_TimeoutDialogWidget> {
                 SizedBox(width: 12.w),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () async {
-                      await SoundManager().playSound();
+                    onPressed: () {
+                      unawaited(SoundManager().playSound());
                       Navigator.of(context).pop(true);
                     },
                     style: widget.confirmButtonStyle ?? context.refundDialogConfirmButtonStyle,
@@ -711,8 +711,8 @@ class _RefundCardInsertDialogWidgetState extends State<_RefundCardInsertDialogWi
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () async {
-                        await SoundManager().playSound();
+                      onPressed: () {
+                        unawaited(SoundManager().playSound());
                         if (mounted) Navigator.of(context, rootNavigator: true).pop(false);
                       },
                       style: context.refundDialogCancelButtonStyle,
@@ -722,8 +722,8 @@ class _RefundCardInsertDialogWidgetState extends State<_RefundCardInsertDialogWi
                   SizedBox(width: 12.w),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () async {
-                        await SoundManager().playSound();
+                      onPressed: () {
+                        unawaited(SoundManager().playSound());
                         if (mounted) Navigator.of(context, rootNavigator: true).pop(true);
                       },
                       style: context.dialogKioskStyle,
