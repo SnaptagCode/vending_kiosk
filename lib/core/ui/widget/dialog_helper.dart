@@ -39,11 +39,11 @@ class DialogHelper {
             }
           });
         }
-        final isHwe = context.isHwe;
+        final isHwe = dialogContext.isHwe;
 
         return DefaultTextStyle(
           style: TextStyle(
-            fontFamily: context.locale.languageCode == 'ja' ? 'MPLUSRounded' : 'Cafe24Ssurround2',
+            fontFamily: dialogContext.locale.languageCode == 'ja' ? 'MPLUSRounded' : 'Cafe24Ssurround2',
           ),
           child: Dialog(
             backgroundColor: Colors.white,
@@ -61,7 +61,7 @@ class DialogHelper {
                     child: Text(
                       title,
                       textAlign: TextAlign.center,
-                      style: context.typography.kioskAlert1B.copyWith(
+                      style: dialogContext.typography.kioskAlert1B.copyWith(
                         fontFamily: isHwe ? 'Hanwha' : 'Pretendard',
                         color: Colors.black,
                         fontSize: isHwe ? 52.sp : 42.sp,
@@ -75,7 +75,7 @@ class DialogHelper {
                     child: Text(
                       content,
                       textAlign: TextAlign.center,
-                      style: context.typography.kioskAlert2M.copyWith(
+                      style: dialogContext.typography.kioskAlert2M.copyWith(
                         color: Colors.black,
                         fontFamily: 'Pretendard',
                       ),
