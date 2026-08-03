@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// State for tracking card dispensing progress
+/// 서버가 알려준 카드 재고 스냅샷.
+/// [current]는 재고 미관리 머신이거나 아직 응답을 받지 못했으면 null — 0(카드 소진)과 구분해야 한다.
 class DispenseProgress {
-  final int current;
+  final int? current;
   final int total;
 
   const DispenseProgress({
@@ -20,23 +21,26 @@ class DispenseProgress {
     );
   }
 
-  double get percentage => total > 0 ? current / total : 0.0;
-  bool get isCompleted => current >= total && total > 0;
+  double get percentage {
+    final current = this.current;
+    return (current != null && total > 0) ? current / total : 0.0;
+  }
+
+  bool get isCompleted {
+    final current = this.current;
+    return current != null && total > 0 && current >= total;
+  }
 }
 
 class DispenseProgressNotifier extends StateNotifier<DispenseProgress> {
-  DispenseProgressNotifier() : super(const DispenseProgress(current: 0, total: 0));
-
-  void initialize(int total) {
-    state = DispenseProgress(current: 0, total: total);
-  }
+  DispenseProgressNotifier() : super(const DispenseProgress(current: null, total: 0));
 
   void updateCurrent(int current, int total) {
     state = state.copyWith(current: current, total: total);
   }
 
   void reset() {
-    state = const DispenseProgress(current: 0, total: 0);
+    state = const DispenseProgress(current: null, total: 0);
   }
 
   void setProgress(int current, int total) {

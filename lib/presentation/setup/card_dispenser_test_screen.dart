@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -50,8 +52,8 @@ class _CardDispenserTestScreenState extends ConsumerState<CardDispenserTestScree
               SnaptagSvg.arrowBack,
               width: 44.w,
             ),
-            onPressed: () async {
-              await SoundManager().playSound();
+            onPressed: () {
+              unawaited(SoundManager().playSound());
               Navigator.of(context).pop();
             },
           ),
