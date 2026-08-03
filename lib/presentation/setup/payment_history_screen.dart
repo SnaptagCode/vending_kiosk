@@ -478,8 +478,9 @@ class PaginationControls extends StatelessWidget {
   Widget build(BuildContext context) {
     List<Widget> pageButtons() {
       List<Widget> buttons = [];
-      int startPage = (currentPage - 5).clamp(1, totalPages > 10 ? totalPages - 9 : 1);
-      int endPage = (startPage + 9).clamp(startPage, totalPages);
+      final safeTotalPages = totalPages < 1 ? 1 : totalPages;
+      int startPage = (currentPage - 5).clamp(1, safeTotalPages > 10 ? safeTotalPages - 9 : 1);
+      int endPage = (startPage + 9).clamp(startPage, safeTotalPages);
 
       for (int i = startPage; i <= endPage; i++) {
         buttons.add(
