@@ -2,7 +2,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/enums/printed_status.dart';
-import 'package:vending_kiosk/core/data/models/request/card_stock_consume_request.dart';
 import 'package:vending_kiosk/core/data/models/request/update_vending_print_status_request.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/core/services/card_dispenser_manager.dart';
@@ -11,7 +10,6 @@ import 'package:vending_kiosk/presentation/home/payment/create_order_info_state.
 import 'package:vending_kiosk/presentation/home/payment/payment_failed_type.dart';
 import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
-import 'package:vending_kiosk/presentation/setup/uuid_provider.dart';
 
 part 'print_process_screen_provider.g.dart';
 
@@ -31,16 +29,9 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
         await _executePrintJob();
         await ref.read(kioskRepositoryProvider).succeedVendingPrintJob(printJobId);
       } else if (printJobId != null) {
-        // ARBITRARY: 배출기 동작만
+        // ARBITRARY: 배출기 동작만 — 재고 차감은 서버가 job success 시점에 수행
         await _executeDispenserOnlyJob();
         await ref.read(kioskRepositoryProvider).succeedVendingPrintJob(printJobId);
-        await ref.read(kioskRepositoryProvider).consumeCardStock(
-              CardStockConsumeRequest(
-                machineId: ref.read(kioskInfoServiceProvider)!.kioskMachineId,
-                uniqueKey: await ref.read(deviceUuidProvider.future),
-                requestCount: 1,
-              ),
-            );
       } else {
         await _executePrintJob();
       }
@@ -85,6 +76,17 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
 
       await ref.read(cardDispenserServiceProvider.notifier).dispenseAndWait(count: 1, index: i);
       ref.read(printQuantityNotifierProvider.notifier).increment();
+    }
+  }
+
+  /// 서버 잔량 재동기화. 호출부 흐름을 막지 않도록 실패해도 예외를 던지지 않는다.
+  Future<void> _refreshCardStock() async {
+    try {
+      final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId;
+      if (machineId == null) return;
+      await ref.read(kioskRepositoryProvider).getMachineCardStock(machineId);
+    } catch (e) {
+      logger.e('PrintProcessScreenProvider._refreshCardStock failure', error: e);
     }
   }
 
@@ -150,6 +152,8 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
           SlackLogService().sendErrorLogToSlack(
               '[MACHINE_NAME: $machineName (MACHINE_ID: $machineId)] PrintService._updatePrintStatus failure after $maxRetries retries: $e');
           logger.e('PrintService._updatePrintStatus failure', error: e);
+          // 응답만 유실되고 서버는 COMPLETED를 커밋했을 수 있어 잔량을 다시 맞춘다
+          await _refreshCardStock();
           rethrow;
         }
         await Future.delayed(const Duration(milliseconds: 300));
@@ -180,30 +184,14 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
       rethrow;
     }
 
-    try {
-      logger.i('=====================================================');
-      logger.i('3. Print process consumeCardStock');
-      logger.i('=====================================================');
-
-      await ref.read(kioskRepositoryProvider).consumeCardStock(
-            CardStockConsumeRequest(
-              machineId: ref.read(kioskInfoServiceProvider)!.kioskMachineId,
-              uniqueKey: await ref.read(deviceUuidProvider.future),
-              requestCount: 1,
-            ),
-          );
-    } catch (e) {
-      SlackLogService().sendErrorLogToSlack('PrintService._executePrint consumeCardStock failure: $e');
-    }
-
     logger.i('=====================================================');
-    logger.i('4. Print process increment');
+    logger.i('3. Print process increment');
     logger.i('=====================================================');
 
     ref.read(printQuantityNotifierProvider.notifier).increment();
 
     logger.i('=====================================================');
-    logger.i('5. Print process waitUntilStandby');
+    logger.i('4. Print process waitUntilStandby');
     logger.i('=====================================================');
     // 다음 배출 전에 장치가 standby로 바뀔 때까지 폴링 (가능한 한 짧은 대기)
     // await Future.delayed(const Duration(seconds: 1));

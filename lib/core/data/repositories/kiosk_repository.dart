@@ -125,6 +125,13 @@ class _KioskRepository {
     }
   }
 
+  /// 서버가 내려준 잔량을 로컬 재고 스냅샷에 반영.
+  /// null(머신 레코드 못 찾음)이면 마지막 확인값을 유지한다.
+  void _syncCardStock(int? cardCurrentCount, int? cardCapacity) {
+    if (cardCurrentCount == null || cardCapacity == null) return;
+    _ref.read(dispenseProgressNotifierProvider.notifier).updateCurrent(cardCurrentCount, cardCapacity);
+  }
+
   Future<MachineCardStockResponse> getMachineCardStock(int machineId, {String? uniqueKey}) async {
     try {
       final response = await _apiClient.getMachineCardStock(
@@ -164,7 +171,9 @@ class _KioskRepository {
         body: request.toJson(),
       );
 
-      _ref.read(dispenseProgressNotifierProvider.notifier).initialize(response.cardCurrentCount);
+      _ref
+          .read(dispenseProgressNotifierProvider.notifier)
+          .updateCurrent(response.cardCurrentCount, response.cardCapacity);
 
       return response;
     } catch (e) {
@@ -358,10 +367,13 @@ class _KioskRepository {
     UpdateVendingPrintStatusRequest request,
   ) async {
     try {
-      return await _apiClient.updateVendingPrintStatus(
+      final response = await _apiClient.updateVendingPrintStatus(
         printedPhotoCardId: printedPhotoCardId,
         body: request.toJson(),
       );
+
+      _syncCardStock(response.cardCurrentCount, response.cardCapacity);
+      return response;
     } catch (e) {
       rethrow;
     }
@@ -423,7 +435,9 @@ class _KioskRepository {
 
   Future<VendingPrintJobOkResponse> succeedVendingPrintJob(int printJobId) async {
     try {
-      return await _apiClient.succeedVendingPrintJob(printJobId: printJobId);
+      final response = await _apiClient.succeedVendingPrintJob(printJobId: printJobId);
+      _syncCardStock(response.cardCurrentCount, response.cardCapacity);
+      return response;
     } catch (e) {
       rethrow;
     }

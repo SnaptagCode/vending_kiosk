@@ -192,7 +192,7 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
               SizedBox(height: 50.h),
               Center(
                 child: Text(
-                  '*카드 수량 입력 후 이벤트를 실행 해주세요. (최대 ${setupMainViewModel.cardCapacity}장)',
+                  '*카드 수량 입력 후 이벤트를 실행 해주세요. (최대 ${setupMainViewModel.cardCapacity ?? '-'}장)',
                   style: context.typography.kioskBody1B.copyWith(color: Colors.red),
                 ),
               ),
@@ -228,6 +228,15 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                     child: InkWell(
                       borderRadius: const BorderRadius.all(Radius.circular(12)),
                       onTap: () async {
+                        if (setupMainViewModel.cardStockLoadFailed) {
+                          await ref.read(setupMainScreenNotifierProvider.notifier).retryCardStockFetch();
+                          return;
+                        }
+
+                        final currentCount = setupMainViewModel.cardCurrentCount;
+                        final capacity = setupMainViewModel.cardCapacity;
+                        if (currentCount == null || capacity == null) return;
+
                         String? value =
                             await DialogHelper.showKeypadDialog(context, mode: ModeType.card, initialValue: '250');
 
@@ -235,9 +244,9 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
 
                         int cardNumber = int.parse(value);
 
-                        if (setupMainViewModel.cardCurrentCount + cardNumber > setupMainViewModel.cardCapacity) {
+                        if (currentCount + cardNumber > capacity) {
                           await DialogHelper.showSetupDialog(context,
-                              title: '입력 수량 초과', content: '최대 ${setupMainViewModel.cardCapacity}장까지 입력 가능합니다.');
+                              title: '입력 수량 초과', content: '최대 $capacity장까지 입력 가능합니다.');
                           return;
                         }
 
@@ -248,7 +257,9 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                       child: Align(
                         alignment: Alignment.center,
                         child: Text(
-                          (setupMainViewModel.cardCurrentCount).toString(),
+                          setupMainViewModel.cardStockLoadFailed
+                              ? '재시도'
+                              : setupMainViewModel.cardCurrentCount?.toString() ?? '-',
                           textAlign: TextAlign.center,
                           style: context.typography.kioskBody2B.copyWith(color: Colors.black),
                         ),
@@ -297,6 +308,10 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                   // 추가 버튼
                   InkWell(
                     onTap: () async {
+                      final currentCount = setupMainViewModel.cardCurrentCount;
+                      final capacity = setupMainViewModel.cardCapacity;
+                      if (currentCount == null || capacity == null) return;
+
                       final value = await DialogHelper.showKeypadDialog(
                         context,
                         mode: ModeType.card,
@@ -306,11 +321,11 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                       if (!context.mounted) return;
 
                       final addCount = int.parse(value);
-                      final total = setupMainViewModel.cardCurrentCount + addCount;
+                      final total = currentCount + addCount;
 
-                      if (total > setupMainViewModel.cardCapacity) {
+                      if (total > capacity) {
                         await DialogHelper.showSetupDialog(context,
-                            title: '입력 수량 초과', content: '최대 ${setupMainViewModel.cardCapacity}장까지 입력 가능합니다.');
+                            title: '입력 수량 초과', content: '최대 $capacity장까지 입력 가능합니다.');
                         return;
                       }
 
@@ -366,9 +381,8 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                         child: SetupMainCard(
                           label: '이벤트\n미리보기',
                           assetName: SnaptagSvg.eventPreview,
-                          onTap: () async {
-                            await SoundManager().playSound();
-
+                          onTap: () {
+                            unawaited(SoundManager().playSound());
                             KioskInfoRouteData().go(context);
                           },
                         ),
@@ -398,8 +412,8 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                         child: SetupMainCard(
                           label: '출력 내역',
                           assetName: SnaptagSvg.payment,
-                          onTap: () async {
-                            await SoundManager().playSound();
+                          onTap: () {
+                            unawaited(SoundManager().playSound());
                             PaymentHistoryRouteData().go(context);
                           },
                         ),
@@ -414,8 +428,8 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                         child: SetupMainCard(
                           label: '출력 내역',
                           assetName: SnaptagSvg.payment,
-                          onTap: () async {
-                            await SoundManager().playSound();
+                          onTap: () {
+                            unawaited(SoundManager().playSound());
                             PaymentHistoryRouteData().go(context);
                           },
                         ),
@@ -511,9 +525,9 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                       child: SetupMainCard(
                         label: '서비스 점검',
                         assetName: SnaptagSvg.maintenance,
-                        onTap: () async {
+                        onTap: () {
                           SlackLogService().sendBroadcastLogToSlack(InfoKey.serviceMaintenanceEnter.key);
-                          await SoundManager().playSound();
+                          unawaited(SoundManager().playSound());
                           MaintenanceRouteData().go(context);
                         },
                       ),

@@ -53,8 +53,11 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
 
           final printJobId = ref.read(printJobIdProvider);
           if (printJobId != null) {
-            ref.read(printJobIdProvider.notifier).state = null;
-            return;
+            await DialogHelper.showContactManagerDialog(
+              context,
+              autoCloseDuration: const Duration(seconds: 5),
+            );
+            return await _resetAndGoHome(context);
           }
 
           if (error is InsufficientCardStockException) {
@@ -84,6 +87,7 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
           final isReprint = ref.read(reprintIdsProvider.notifier).state != null;
           ref.read(reprintIdsProvider.notifier).state = null;
 
+          // null(잔량 미수신)은 0과 달라 전환하지 않는다
           final current = ref.read(dispenseProgressNotifierProvider).current;
           if (current == 0) {
             await ref.read(kioskRepositoryProvider).updateMaintenance(
