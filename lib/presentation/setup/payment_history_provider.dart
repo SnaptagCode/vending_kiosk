@@ -21,9 +21,10 @@ class OrdersPage extends _$OrdersPage {
     // savedHistoryPageProvider에 저장된 페이지로 fetch → 재진입 시 Race Condition 방지
     final savedPage = ref.read(savedHistoryPageProvider);
     final pageToFetch = savedPage > 0 ? savedPage : page;
+    final info = ref.watch(kioskInfoServiceProvider);
     final VendingPrintListResponse response = await ref.read(kioskRepositoryProvider).getVendingPrintList(
-          kioskEventId: kioskEventId,
-          kioskMachineId: kioskMachineId,
+          kioskEventId: info?.kioskEventId ?? 0,
+          kioskMachineId: info?.kioskMachineId ?? 0,
           pageSize: _pageSize,
           currentPage: pageToFetch,
         );

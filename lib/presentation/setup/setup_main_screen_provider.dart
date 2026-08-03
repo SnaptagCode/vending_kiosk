@@ -29,8 +29,9 @@ class SetupMainState {
   final String currentVersion;
   final String latestVersion;
   final bool isUpdateAvailable;
-  final int cardCurrentCount;
-  final int cardCapacity;
+  final int? cardCurrentCount;
+  final int? cardCapacity;
+  final bool cardStockLoadFailed;
   final bool getInfoByKey;
 
   SetupMainState({
@@ -42,8 +43,9 @@ class SetupMainState {
     this.currentVersion = '',
     this.latestVersion = '',
     this.isUpdateAvailable = false,
-    this.cardCurrentCount = 0,
-    this.cardCapacity = 0,
+    this.cardCurrentCount,
+    this.cardCapacity,
+    this.cardStockLoadFailed = false,
     this.getInfoByKey = true,
   });
 
@@ -58,6 +60,7 @@ class SetupMainState {
     bool? isUpdateAvailable,
     int? cardCurrentCount,
     int? cardCapacity,
+    bool? cardStockLoadFailed,
     bool? getInfoByKey,
   }) {
     return SetupMainState(
@@ -71,6 +74,7 @@ class SetupMainState {
       isUpdateAvailable: isUpdateAvailable ?? this.isUpdateAvailable,
       cardCurrentCount: cardCurrentCount ?? this.cardCurrentCount,
       cardCapacity: cardCapacity ?? this.cardCapacity,
+      cardStockLoadFailed: cardStockLoadFailed ?? this.cardStockLoadFailed,
       getInfoByKey: getInfoByKey ?? this.getInfoByKey,
     );
   }
@@ -79,7 +83,13 @@ class SetupMainState {
 @riverpod
 class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
   bool _isDisposed = false;
-  bool _hasFetchedStock = false;
+  bool _isFetchingStock = false;
+
+  // build() 재실행 시 초기화되지 않도록 notifier에 보관
+  int? _stockMachineId;
+  int? _serverCardCurrentCount;
+  int? _serverCardCapacity;
+  bool _cardStockLoadFailed = false;
 
   @override
   SetupMainState build() {
@@ -95,9 +105,14 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
     // keepAlive provider watch: 체크 완료 시 UI 자동 갱신
     final cardDispenserState = ref.watch(cardDispenserConnectProvider);
 
-    // 카드 재고는 화면 진입 시 1회만 조회
-    if (!_hasFetchedStock) {
-      _hasFetchedStock = true;
+    final machineId = kioskInfo?.kioskMachineId ?? 0;
+
+    // 카드 재고는 기기 단위로 1회 조회 (기기번호가 바뀌면 재조회)
+    if (machineId != 0 && _stockMachineId != machineId) {
+      _stockMachineId = machineId;
+      _serverCardCurrentCount = null;
+      _serverCardCapacity = null;
+      _cardStockLoadFailed = false;
       Future.microtask(() => _fetchCardStock());
     }
 
@@ -106,12 +121,13 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
       isCheckingDispenser: cardDispenserState == CardDispenserConnectState.checking ||
           cardDispenserState == CardDispenserConnectState.pending,
       cardDispenserState: cardDispenserState,
-      machineId: kioskInfo?.kioskMachineId ?? 0,
+      machineId: machineId,
       currentVersion: versionState.currentVersion,
       latestVersion: versionState.latestVersion,
       isUpdateAvailable: versionState.currentVersion != versionState.latestVersion,
-      cardCurrentCount: kioskInfo?.cardCurrentCount ?? 0,
-      cardCapacity: kioskInfo?.cardCapacity ?? 0,
+      cardCurrentCount: _serverCardCurrentCount,
+      cardCapacity: _serverCardCapacity,
+      cardStockLoadFailed: _cardStockLoadFailed,
       getInfoByKey: getInfoByKey,
     );
   }
@@ -119,20 +135,37 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
   /// 외부에서 재시도 호출용 (UI 버튼)
   Future<void> retryCardDispenserConnection() => ref.read(cardDispenserConnectProvider.notifier).runCheck();
 
+  /// 카드 재고 조회 재시도 (UI 버튼)
+  Future<void> retryCardStockFetch() => _fetchCardStock();
+
   /// 서버에서 최신 카드 재고 조회
   Future<void> _fetchCardStock() async {
-    if (_isDisposed) return;
+    if (_isDisposed || _isFetchingStock) return;
     final kioskInfo = ref.read(kioskInfoServiceProvider);
     if (kioskInfo == null) return;
+    final machineId = kioskInfo.kioskMachineId;
+    _isFetchingStock = true;
     try {
-      final stockResponse = await ref.read(kioskRepositoryProvider).getMachineCardStock(kioskInfo.kioskMachineId);
-      if (_isDisposed) return;
+      final stockResponse = await ref.read(kioskRepositoryProvider).getMachineCardStock(machineId);
+      if (_isDisposed || _stockMachineId != machineId) return;
+      _serverCardCurrentCount = stockResponse.cardCurrentCount;
+      _serverCardCapacity = stockResponse.cardCapacity;
+      _cardStockLoadFailed = false;
       state = state.copyWith(
         cardCurrentCount: stockResponse.cardCurrentCount,
         cardCapacity: stockResponse.cardCapacity,
+        cardStockLoadFailed: false,
       );
     } catch (e) {
       logger.e('Failed to fetch card stock', error: e);
+      if (_isDisposed || _stockMachineId != machineId) return;
+      _cardStockLoadFailed = true;
+      state = state.copyWith(cardStockLoadFailed: true);
+    } finally {
+      _isFetchingStock = false;
+      if (!_isDisposed && _stockMachineId != machineId) {
+        Future.microtask(() => _fetchCardStock());
+      }
     }
   }
 
@@ -219,7 +252,13 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
 
       logger.d('rechargeCardStock response: $response');
 
-      state = state.copyWith(isLoading: false, cardCurrentCount: response.cardCurrentCount);
+      _serverCardCurrentCount = response.cardCurrentCount;
+      _serverCardCapacity = response.cardCapacity;
+      state = state.copyWith(
+        isLoading: false,
+        cardCurrentCount: response.cardCurrentCount,
+        cardCapacity: response.cardCapacity,
+      );
       return response;
     } catch (e) {
       if (e is DioException) {
