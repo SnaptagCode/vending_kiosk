@@ -3,6 +3,7 @@ import 'dart:ffi';
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
+import 'package:vending_kiosk/core/data/datasources/local/heartbeat_writer.dart';
 
 /// dart:io exit()의 대안. Windows에서 Win32 TerminateProcess를 FFI로 직접 호출.
 ///
@@ -11,6 +12,9 @@ import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 /// Flutter Windows 창이 "응답없음" 상태로 굳어버리는 문제가 있음.
 /// TerminateProcess는 해당 정리 단계를 건너뛰고 OS가 즉시 프로세스를 종료함.
 void terminateProcess([int exitCode = 0]) {
+  // TerminateProcess 는 즉시 죽인다. 쪽지는 여기서 동기로 남겨야 한다.
+  heartbeatShutdownHook?.call();
+
   if (Platform.isWindows) {
     logger.d('terminateProcess');
     try {
