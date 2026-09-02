@@ -156,6 +156,34 @@ ${slackLogTemplate.description}
     }
   }
 
+  Future<void> sendCrashRecoveryBroadcastLogToSlack(
+    String errorKey, {
+    required DateTime lastBeat,
+    required Duration downtime,
+  }) async {
+    final slackLogTemplate = await createSlackLogTemplate(errorKey);
+    if (slackLogTemplate.category.isEmpty) return;
+
+    final cardCount = _container.read(cardCountProvider);
+    final eventName = slackLogTemplate.kioskMachineInfo?.printedEventName ?? "-";
+
+    final description = '''
+${slackLogTemplate.description}
+
+- 마지막 신호 : ${lastBeat.toString().split('.').first}
+- 멈춘 시간 : ${downtime.inSeconds}초
+- 불러온 이벤트 : $eventName
+- 결제 단말기 연결 상태 : 정상
+''';
+
+    final message = buildSlackAlertMessage(
+      slackLogTemplate: slackLogTemplate.copyWith(description: description),
+      cardCount: cardCount.currentCount,
+    );
+
+    await _sendServiceAlarmToSlack(message);
+  }
+
   Future<void> sendPaymentBroadcastLogToSlak(String errorKey, {required String paymentDescription}) async {
     if (await _isPaymentDescriptionExcluded(paymentDescription)) return;
     var slackLogTemplate = await createSlackLogTemplate(errorKey);
