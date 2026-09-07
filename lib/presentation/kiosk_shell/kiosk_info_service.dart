@@ -9,6 +9,7 @@ import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/response/kiosk_machine_info.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
+import 'package:vending_kiosk/presentation/kiosk_shell/event_image_cache.dart';
 import 'package:vending_kiosk/presentation/setup/front_photo_list.dart';
 import 'package:vending_kiosk/presentation/setup/uuid_provider.dart';
 
@@ -61,6 +62,7 @@ class KioskInfoService extends _$KioskInfoService {
         _cachedMachineId = cached.kioskMachineId;
         _cachedKioskEventId = cached.kioskEventId;
         ref.read(frontPhotoListProvider.notifier).fetch();
+        ref.read(eventImageCacheProvider.notifier).fetch();
         await _startPeriodicTimer();
         _getInfoByKey = true;
         _isLoading = false;
@@ -78,6 +80,7 @@ class KioskInfoService extends _$KioskInfoService {
       state = response;
 
       ref.read(frontPhotoListProvider.notifier).fetch();
+      ref.read(eventImageCacheProvider.notifier).fetch();
 
       // 캐시된 값들 업데이트
       _cachedMachineId = response.kioskMachineId;
@@ -130,6 +133,7 @@ class KioskInfoService extends _$KioskInfoService {
       state = response;
 
       ref.read(frontPhotoListProvider.notifier).fetch();
+      ref.read(eventImageCacheProvider.notifier).fetch();
 
       // 캐시된 값들 업데이트
       _cachedMachineId = machineId;
