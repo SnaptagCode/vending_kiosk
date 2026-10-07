@@ -136,16 +136,32 @@ class PaymentApiClient {
     return map;
   }
 
-  Future<PaymentResponse> requestPayment(String callback, String request) async {
+  Future<http.Response> _get(String url, {http.Client? client, Duration? timeout}) async {
+    final owned = client == null;
+    final c = client ?? http.Client();
+    try {
+      final request = c.get(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json; charset=euc-kr'},
+      );
+      return timeout == null ? await request : await request.timeout(timeout);
+    } finally {
+      if (owned) c.close();
+    }
+  }
+
+  Future<PaymentResponse> requestPayment(
+    String callback,
+    String request, {
+    http.Client? client,
+    Duration? timeout,
+  }) async {
     // URL을 직접 구성 - 인코딩 없이
     final baseUrl = await _resolveBaseUrl();
     final url = '$baseUrl?callback=$callback&REQ=$request';
     logger.i('\n=== Raw Payment Request URL ===\n$url');
 
-    final response = await http.get(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json; charset=euc-kr'},
-    );
+    final response = await _get(url, client: client, timeout: timeout);
 
     final body = response.body;
     final broken = body.substring(
@@ -163,16 +179,13 @@ class PaymentApiClient {
     return PaymentResponse.fromJson(paymentResponse);
   }
 
-  Future<KscatDeviceResponse> requestDeivce(String callback, String request) async {
+  Future<KscatDeviceResponse> requestDeivce(String callback, String request, {Duration? timeout}) async {
     // URL을 직접 구성 - 인코딩 없이
     final baseUrl = await _resolveBaseUrl();
     final url = '$baseUrl?callback=$callback&REQ=$request';
     logger.i('\n=== Raw KscatDevice Request URL ===\n$url');
 
-    final response = await http.get(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json; charset=euc-kr'},
-    );
+    final response = await _get(url, timeout: timeout);
 
     final body = response.body;
     final broken = body.substring(

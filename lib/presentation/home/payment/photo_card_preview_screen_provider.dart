@@ -1,4 +1,7 @@
+import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/services/card_dispenser_manager.dart';
+import 'package:vending_kiosk/core/services/payment/payment_gateway.dart';
+import 'package:vending_kiosk/core/services/payment/payment_gateway_provider.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
 import 'package:vending_kiosk/presentation/home/print_quantity_provider.dart';
 import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
@@ -51,6 +54,8 @@ class PhotoCardPreviewScreenProvider extends _$PhotoCardPreviewScreenProvider {
         );
       }
 
+      await _checkPaymentTerminal(kioskInfo.kioskMachineId);
+
       // Step 2: 재고가 충분하면 결제 진행 (processPayment 내부에서 approve 1회 호출)
       await ref.read(paymentServiceProvider.notifier).processPayment();
 
@@ -63,5 +68,20 @@ class PhotoCardPreviewScreenProvider extends _$PhotoCardPreviewScreenProvider {
       }
       state = AsyncValue.error(e, stack);
     }
+  }
+
+  Future<void> _checkPaymentTerminal(int machineId) async {
+    String reason;
+    try {
+      final response = await ref.read(paymentGatewayProvider).check();
+      if (response.res != '1003') return;
+      reason = '이전 거래 미완료 (RES=1003)';
+    } on PaymentDisabledException {
+      return;
+    } catch (e) {
+      reason = '응답 없음 ($e)';
+    }
+    SlackLogService().sendErrorLogToSlack('*[MachineId: $machineId]*\n결제 단말기 응답 없음 - 결제 전 확인 실패\n- 사유: $reason');
+    throw TerminalNoResponseException(description: reason);
   }
 }
