@@ -9,6 +9,8 @@ import 'package:vending_kiosk/core/common/constants/alert_key.dart';
 import 'package:vending_kiosk/core/common/constants/image_paths.dart';
 import 'package:vending_kiosk/core/common/extensions/build_context.dart';
 import 'package:vending_kiosk/core/common/launcher/launcher_service.dart';
+import 'package:vending_kiosk/core/data/datasources/local/heartbeat_note.dart';
+import 'package:vending_kiosk/core/providers/heartbeat_service.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/common/sound/sound_manager.dart';
@@ -22,6 +24,8 @@ import 'package:vending_kiosk/presentation/kiosk_shell/kiosk_info_service.dart';
 import 'package:vending_kiosk/presentation/routers/router.dart';
 import 'package:vending_kiosk/presentation/setup/alert_definition_provider.dart';
 import 'package:vending_kiosk/presentation/setup/card_dispenser_connect_state.dart';
+import 'package:vending_kiosk/presentation/setup/crash_recovery_dialog.dart';
+import 'package:vending_kiosk/presentation/setup/page_print_provider.dart';
 import 'package:vending_kiosk/presentation/setup/setup_main_screen_provider.dart';
 
 class SetupMainScreen extends ConsumerStatefulWidget {
@@ -33,10 +37,115 @@ class SetupMainScreen extends ConsumerStatefulWidget {
 
 class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
   Timer? _timer;
+  bool _recovering = false;
 
   @override
   void initState() {
     super.initState();
+
+    _timer = Timer.periodic(const Duration(seconds: 2), (_) => unawaited(_startRecoveryIfPending()));
+  }
+
+  void _reportRecoveryStopped(String reason, {DateTime? lastBeat}) {
+    final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 0;
+    final beat = lastBeat == null ? '-' : lastBeat.toString().split('.').first;
+
+    SlackLogService().sendErrorLogToSlack(
+      '*[MachineId: $machineId]*\n이벤트 자동 복귀 중단 — $reason (마지막 신호 $beat)',
+    );
+  }
+
+  Future<void> _startRecoveryIfPending() async {
+    if (_recovering) return;
+
+    final heartbeat = ref.read(heartbeatServiceProvider.notifier);
+    await heartbeat.ensureStarted();
+
+    final note = heartbeat.pendingRecovery;
+    if (note == null) return;
+
+    if (!canRecoverEvent(note, now: DateTime.now())) {
+      await heartbeat.markRecoveryDone();
+      if (note.restartOnCrash == true &&
+          note.eventRunning == true &&
+          note.screen == kHeartbeatScreenCustomer) {
+        _reportRecoveryStopped('쪽지가 너무 낡음', lastBeat: note.at);
+      }
+      return;
+    }
+
+    final kioskInfo = ref.read(kioskInfoServiceProvider);
+    if (kioskInfo == null || kioskInfo.kioskEventId == 0 || kioskInfo.kioskMachineId == 0) {
+      return;
+    }
+
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+
+    await heartbeat.markRecoveryDone();
+
+    if (note.eventId != null && note.eventId != '${kioskInfo.kioskEventId}') {
+      _reportRecoveryStopped(
+        '이벤트가 바뀜 (${note.eventId} → ${kioskInfo.kioskEventId})',
+        lastBeat: note.at,
+      );
+      return;
+    }
+
+    _recovering = true;
+    if (!mounted) {
+      _recovering = false;
+      return;
+    }
+
+    final noteMode = switch (note.printMode) {
+      'single' => PagePrintType.single,
+      'double' => PagePrintType.double,
+      _ => PagePrintType.none,
+    };
+    ref.read(pagePrintProvider.notifier).restore(noteMode);
+
+    final result = await showDialog<CrashRecoveryResult>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const CrashRecoveryDialog(),
+        ) ??
+        const CrashRecoveryResult.stopped('화면이 닫힘');
+
+    if (!result.proceed) {
+      _reportRecoveryStopped(result.reason ?? '알 수 없음', lastBeat: note.at);
+      _recovering = false;
+      return;
+    }
+    await _resumeEvent(note);
+  }
+
+  Future<void> _resumeEvent(HeartbeatNote note) async {
+    if (!mounted || !await _checkPaymentDevice()) {
+      _reportRecoveryStopped('리더기 점검 실패', lastBeat: note.at);
+      _recovering = false;
+      return;
+    }
+
+    final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 0;
+    final lastBeat = note.at!;
+
+    SlackLogService().sendErrorLogToSlack(
+      '*[MachineId: $machineId]*\n이벤트 실행 중 비정상 종료 → 자동 복귀 (마지막 신호 $lastBeat)',
+    );
+    unawaited(
+      SlackLogService().sendCrashRecoveryBroadcastLogToSlack(
+        InfoKey.eventAutoRecovered.key,
+        lastBeat: lastBeat,
+        downtime: DateTime.now().difference(lastBeat),
+      ),
+    );
+
+    if (!mounted) {
+      _recovering = false;
+      return;
+    }
+    Navigator.of(context, rootNavigator: true).popUntil((route) => route is! PopupRoute);
+    HomeRouteData().go(context);
   }
 
   @override
