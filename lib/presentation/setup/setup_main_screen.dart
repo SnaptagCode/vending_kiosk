@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -176,8 +175,6 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
         return;
       }
     }
-
-    ref.read(setupMainScreenNotifierProvider.notifier).writePhotocodeMeta();
 
     final confirmed = await DialogHelper.showSetupDialog(
       context,
@@ -607,19 +604,10 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
                               confirmButtonText: '완료');
                           if (result) {
                             try {
-                              final launcherPath = await LauncherPathUtil.getLauncherPath();
                               await ForceUpdateWriter.writeForceUpdateTrue();
-                              print("Process.start");
-                              await Process.start(
-                                launcherPath,
-                                ['f'],
-                                runInShell: true,
-                                mode: ProcessStartMode.detached,
-                              );
-                              print("Process.start(launcherPath, ['f'])");
                               terminateProcess();
                             } catch (e) {
-                              print("런처 실행 실패: $e");
+                              print("업데이트 요청 실패: $e");
                             }
                           } else {}
                         },
