@@ -7,6 +7,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vending_kiosk/core/providers/heartbeat_service.dart';
 import 'package:vending_kiosk/core/common/extensions/button_styles.dart';
 import 'package:vending_kiosk/core/common/launcher/launcher_service.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
@@ -60,6 +61,8 @@ class _AppState extends ConsumerState<App> with WindowListener {
 
     // // 앱 실행과 동시에 KioskInfo 미리 로드
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      unawaited(ref.read(heartbeatServiceProvider.notifier).ensureStarted());
+
       // 첫 프레임 이후 디스플레이 정보가 확정된 시점에 창 크기 적용
       if (Platform.isWindows) {
         await _applyWindowSize();

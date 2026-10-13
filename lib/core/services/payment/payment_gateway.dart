@@ -15,6 +15,15 @@ abstract class PaymentGateway {
   });
 }
 
+class TerminalResultUnknownException implements Exception {
+  const TerminalResultUnknownException(this.reason);
+
+  final String reason;
+
+  @override
+  String toString() => 'TerminalResultUnknownException: $reason';
+}
+
 class PaymentDisabledException implements Exception {
   const PaymentDisabledException([this.message = '결제 기능이 비활성화되어 있습니다.']);
 

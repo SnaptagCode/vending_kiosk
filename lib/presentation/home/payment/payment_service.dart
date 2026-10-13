@@ -11,6 +11,7 @@ import 'package:vending_kiosk/core/data/models/response/create_vending_order_res
 import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
 import 'package:vending_kiosk/core/data/models/response/vending_order_status_response.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
+import 'package:vending_kiosk/core/services/payment/payment_gateway.dart';
 import 'package:vending_kiosk/core/services/payment/payment_gateway_provider.dart';
 import 'package:vending_kiosk/presentation/core/card_count_provider.dart';
 import 'package:vending_kiosk/presentation/home/payment/create_order_info_state.dart';
@@ -49,6 +50,11 @@ class PaymentService extends _$PaymentService {
       if (e is PaymentFailedException) {
         logger.e('Payment process failed', error: e);
         rethrow;
+      }
+      if (e is TerminalResultUnknownException) {
+        _reportResultUnknown(e.reason);
+        await _markOrderResultUnknown(e.reason);
+        throw TerminalNoResponseException(description: e.reason);
       }
       // 그 외 예외(네트워크 오류, API 오류 등)는 주문 업데이트 후 PaymentProcessingException으로 변환
       await _handlePaymentError();
@@ -191,6 +197,49 @@ class PaymentService extends _$PaymentService {
 
     // 결제 실패 Exception throw
     throw UnknownPaymentException(description: "확인필요");
+  }
+
+  void _reportResultUnknown(String reason) {
+    final settings = ref.read(kioskInfoServiceProvider);
+    final orderId = ref.read(createOrderInfoProvider)?.order.id;
+    final amount = (settings?.photoCardPrice.toInt() ?? 0) * ref.read(printQuantityNotifierProvider).total;
+    SlackLogService().sendErrorLogToSlack('*[MachineId: ${settings?.kioskMachineId ?? 'unknown'}]*\n'
+        '결제 단말기 응답 없음 - 결제 여부 확인필요 (주문 PENDING 유지)\n'
+        '- 사유: $reason\n'
+        '- 주문번호: ${orderId ?? '없음'}\n'
+        '- 금액: $amount\n'
+        '- 단말기ID: ${settings?.cardTerminalId ?? '없음'}');
+  }
+
+  Future<void> _markOrderResultUnknown(String reason) async {
+    final settings = ref.read(kioskInfoServiceProvider);
+    final orderId = ref.read(createOrderInfoProvider)?.order.id;
+    if (settings == null || orderId == null) return;
+
+    final request = UpdateVendingOrderStatusRequest(
+      kioskEventId: settings.kioskEventId,
+      kioskMachineId: settings.kioskMachineId,
+      status: OrderStatus.pending,
+      description: '결제확인필요 - $reason',
+      amount: settings.photoCardPrice.toInt() * ref.read(printQuantityNotifierProvider).total,
+      authSeqNumber: '-',
+      detail: '{}',
+      approvalNumber: '-',
+    );
+
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await ref.read(kioskRepositoryProvider).updateVendingOrderStatus(orderId.toInt(), request);
+        return;
+      } catch (e) {
+        if (attempt >= 3) {
+          SlackLogService().sendErrorLogToSlack(
+              '*[MachineId: ${settings.kioskMachineId}]*\n주문 $orderId 확인필요 사유 기록 실패 (3회): $e');
+          return;
+        }
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+    }
   }
 
   /// 결제 오류 처리 (주문 상태만 업데이트, Exception은 throw하지 않음)
