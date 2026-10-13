@@ -34,6 +34,10 @@ class CancelledPaymentException extends PaymentFailedException {
   CancelledPaymentException({String? description}) : super('취소된 결제 실패', description: description);
 }
 
+class TerminalNoResponseException extends PaymentFailedException {
+  TerminalNoResponseException({String? description}) : super('결제 단말기 응답 없음', description: description);
+}
+
 // 카드 재고 부족으로 인한 결제 실패
 class InsufficientCardStockException extends PaymentFailedException {
   InsufficientCardStockException({
