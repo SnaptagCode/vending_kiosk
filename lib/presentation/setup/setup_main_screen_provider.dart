@@ -1,10 +1,7 @@
-import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:vending_kiosk/core/common/launcher/launcher_service.dart';
 import 'package:vending_kiosk/core/common/logger/logger_service.dart';
 import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
-import 'package:vending_kiosk/core/data/datasources/local/id_writer.dart';
 import 'package:vending_kiosk/core/data/models/request/card_stock_recharge_request.dart';
 import 'package:vending_kiosk/core/data/models/response/card_stock_recharge_response.dart';
 import 'package:vending_kiosk/core/data/repositories/kiosk_repository.dart';
@@ -169,35 +166,6 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
     }
   }
 
-  /// Photocode 메타 정보 작성
-  Future<void> writePhotocodeMeta() async {
-    final kioskInfo = ref.read(kioskInfoServiceProvider);
-    final cardCountState = ref.read(cardCountProvider);
-    final versionState = ref.read(versionStateProvider);
-
-    final machineId = kioskInfo?.kioskMachineId ?? 0;
-    final eventId = kioskInfo?.kioskEventId ?? 0;
-    final cardCountInfo = "${cardCountState.initialCount} / ${cardCountState.currentCount}";
-    final currentVersion = versionState.currentVersion;
-
-    final serviceNameMap = {
-      "SUF": "수원FC",
-      "SEF": "서울 이랜드 FC",
-      "KEEFO": "성수 B'Day",
-      "AGFC": "안산그리너스FC",
-    };
-    final eventType = kioskInfo?.eventType ?? '-';
-    final serviceName = serviceNameMap[eventType] ?? '-';
-
-    await writePhotocodeId(
-      machineId.toString(),
-      eventId.toString(),
-      cardCountInfo.toString(),
-      serviceName.toString(),
-      currentVersion.toString(),
-    );
-  }
-
   /// 이벤트 실행 플로우 시작
   Future<void> startEventFlow() async {
     try {
@@ -269,32 +237,6 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
       state = state.copyWith(
         isLoading: false,
         errorMessage: '카드 재고 충전 중 오류가 발생했습니다.',
-      );
-      rethrow;
-    }
-  }
-
-  /// 앱 강제 업데이트 및 재시작
-  Future<void> forceUpdateAndRestart() async {
-    try {
-      final launcherPath = await LauncherPathUtil.getLauncherPath();
-      await ForceUpdateWriter.writeForceUpdateTrue();
-
-      logger.d("Starting launcher for update");
-
-      await Process.start(
-        launcherPath,
-        ['f'],
-        runInShell: true,
-        mode: ProcessStartMode.detached,
-      );
-
-      logger.d("Launcher started, exiting app");
-      terminateProcess();
-    } catch (e) {
-      logger.e('Failed to start launcher', error: e);
-      state = state.copyWith(
-        errorMessage: '업데이트 실행 중 오류가 발생했습니다.',
       );
       rethrow;
     }

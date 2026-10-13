@@ -14,7 +14,7 @@ Future<File?> writeHeartbeat({
   final home = Platform.environment['USERPROFILE'];
   if (home == null) return null;
 
-  final dir = Directory(p.join(home, 'Snaptag', 'runtime'));
+  final dir = Directory(p.join(home, 'Photocode', 'runtime'));
   if (!dir.existsSync()) dir.createSync(recursive: true);
 
   final file = File(p.join(dir.path, 'heartbeat.json'));
@@ -51,7 +51,7 @@ void writeHeartbeatSync({
     final home = Platform.environment['USERPROFILE'];
     if (home == null) return;
 
-    final dir = Directory(p.join(home, 'Snaptag', 'runtime'));
+    final dir = Directory(p.join(home, 'Photocode', 'runtime'));
     if (!dir.existsSync()) dir.createSync(recursive: true);
 
     File(p.join(dir.path, 'heartbeat.json')).writeAsStringSync(
@@ -73,7 +73,7 @@ Future<HeartbeatNote?> readHeartbeat() async {
     final home = Platform.environment['USERPROFILE'];
     if (home == null) return null;
 
-    final file = File(p.join(home, 'Snaptag', 'runtime', 'heartbeat.json'));
+    final file = File(p.join(home, 'Photocode', 'runtime', 'heartbeat.json'));
     if (!await file.exists()) return null;
 
     final decoded = jsonDecode(await file.readAsString());

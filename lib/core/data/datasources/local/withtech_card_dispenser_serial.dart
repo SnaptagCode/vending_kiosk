@@ -254,12 +254,12 @@ class WithTechCardDispenserSerial {
     ]);
   }
 
-  /// 시리얼 통신 로그를 파일에 기록 (%USERPROFILE%\Snaptag\Log\YYYY-MM-DD.txt)
+  /// 시리얼 통신 로그를 파일에 기록 (%USERPROFILE%\Photocode\logs\vending\serial\YYYY-MM-DD.txt)
   static Future<void> _logSerial(String direction, Uint8List data) async {
     try {
       final home = Platform.environment['USERPROFILE'];
       if (home == null) return;
-      final dir = Directory(p.join(home, 'Snaptag', 'Log'));
+      final dir = Directory(p.join(home, 'Photocode', 'logs', 'vending', 'serial'));
       if (!dir.existsSync()) dir.createSync(recursive: true);
       final now = DateTime.now().toLocal();
       final fileName = '${now.year.toString().padLeft(4, '0')}-'
