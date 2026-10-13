@@ -81,6 +81,14 @@ jobs:
           
           echo "Debug Build:"
           Get-ChildItem -Path build/windows/x64/runner/Debug -Name
+      - name: 디버그 런타임 DLL 넣기
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $crt = Get-ChildItem "$vs\VC\Redist\MSVC\*\debug_nonredist\x64\Microsoft.VC*.DebugCRT" -Directory | Sort-Object FullName | Select-Object -Last 1
+          $ucrt = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\ucrt\ucrtbased.dll" | Sort-Object FullName | Select-Object -Last 1
+          if (-not $crt -or -not $ucrt) { throw '디버그 런타임 DLL 을 찾지 못했습니다' }
+          Copy-Item "$($crt.FullName)\msvcp140d.dll", "$($crt.FullName)\vcruntime140d.dll", "$($crt.FullName)\vcruntime140_1d.dll", $ucrt.FullName build/windows/x64/runner/Debug
+          Write-Host "디버그 런타임: $($crt.FullName), $($ucrt.FullName)"
       - name: Archive Release and Debug Build
         run: |
           Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath Release.zip
