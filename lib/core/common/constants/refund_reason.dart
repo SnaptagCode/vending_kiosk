@@ -53,9 +53,14 @@ void reportRefundResultUnknown({
 }) {
   SlackLogService().sendErrorLogToSlack('*[MachineId: $machineId]*\n'
       '환불 결과 확인필요 - 단말 응답 없음 ($source)\n'
-      '- 사유: ${refundUnknownReason(error)} ($error)\n'
+      '- 사유: ${refundUnknownReason(error)} (${_briefError(error)})\n'
       '- 주문번호: ${orderId ?? '없음'}\n'
       '- 원 승인번호: $approvalNo\n'
       '- 금액: $amount\n'
       '- 단말기ID: ${terminalId ?? '없음'}');
+}
+
+String _briefError(Object error) {
+  final text = '$error'.split(', uri=').first.split('\n').first;
+  return text.length > 120 ? '${text.substring(0, 120)}...' : text;
 }
