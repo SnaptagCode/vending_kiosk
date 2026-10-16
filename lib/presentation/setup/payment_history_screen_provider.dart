@@ -100,6 +100,15 @@ class PaymentHistoryNotifier extends _$PaymentHistoryNotifier {
   // ─────────────────────────────────────────────
 
   Future<void> startRefund(VendingPrintItemEntity order) async {
+    final missing = order.purchaseAuthNumber.isEmpty
+        ? '승인번호 없음'
+        : (order.completedAt == null ? '결제 완료 일시 없음' : null);
+    if (missing != null) {
+      SlackLogService().sendErrorLogToSlack(
+        '*[MachineId: ${ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 'unknown'}]*\n'
+        '관리자 환불 시작 불가 - $missing (주문 ${order.kioskOrderId})',
+      );
+    }
     if (order.purchaseAuthNumber.isEmpty) {
       state = state.copyWith(
         refundState: AsyncValue.error(Exception('No payment auth number available'), StackTrace.current),
