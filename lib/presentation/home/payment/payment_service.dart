@@ -56,6 +56,10 @@ class PaymentService extends _$PaymentService {
         await _markOrderResultUnknown(e.reason);
         throw TerminalNoResponseException(description: e.reason);
       }
+      if (e is OrderSaveFailedException) {
+        _reportPaidButNotSaved(e);
+        throw PaymentProcessingException("결제 처리 중 오류가 발생했습니다.");
+      }
       // 그 외 예외(네트워크 오류, API 오류 등)는 주문 업데이트 후 PaymentProcessingException으로 변환
       await _handlePaymentError();
       logger.e('Payment process failed', error: e);
@@ -166,9 +170,31 @@ class PaymentService extends _$PaymentService {
     SlackLogService().sendLogToSlack("*[MachineId: $machineId]*\npaymentResponse0000 : $response");
   }
 
+  Future<VendingOrderStatusResponse?> _saveFailedResult(String description) async {
+    try {
+      return await _updateOrder(isRefund: false, description: description);
+    } on OrderSaveFailedException {
+      return null;
+    }
+  }
+
+  void _reportPaidButNotSaved(OrderSaveFailedException e) {
+    final settings = ref.read(kioskInfoServiceProvider);
+    final approval = ref.read(paymentResponseStateProvider);
+    final orderId = ref.read(createOrderInfoProvider)?.order.id;
+    final amount = (settings?.photoCardPrice.toInt() ?? 0) * ref.read(printQuantityNotifierProvider).total;
+    SlackLogService().sendErrorLogToSlack('*[MachineId: ${settings?.kioskMachineId ?? 'unknown'}]*\n'
+        '결제 승인됐는데 주문 저장 실패 - 환불 필요 (출력 안 함)\n'
+        '- 주문번호: ${orderId ?? '없음'}\n'
+        '- 승인번호: ${approval?.approvalNo ?? '없음'}\n'
+        '- 금액: $amount\n'
+        '- 단말기ID: ${settings?.cardTerminalId ?? '없음'}\n'
+        '- 원인: ${e.cause}');
+  }
+
   /// 시간 초과 결제 처리
   Future<void> _handleTimeoutPayment(PaymentResponse paymentResponse) async {
-    final response = await _updateOrder(isRefund: false, description: "시간초과");
+    final response = await _saveFailedResult("시간초과");
     final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId.toString() ?? 'unknown';
     SlackLogService().sendLogToSlack("*[MachineId: $machineId]*\npaymentResponse1004 : $response");
 
@@ -181,7 +207,7 @@ class PaymentService extends _$PaymentService {
 
   /// 취소된 결제 처리
   Future<void> _handleCancelledPayment(PaymentResponse paymentResponse) async {
-    await _updateOrder(isRefund: false, description: "고객취소");
+    await _saveFailedResult("고객취소");
     // SlackLogService().sendLogToSlack("paymentResponse1000 : $response");
 
     // SlackLogService().sendPaymentBroadcastLogToSlak(InfoKey.paymentFail.key,
@@ -193,7 +219,7 @@ class PaymentService extends _$PaymentService {
 
   /// 알 수 없는 결제 상태 처리
   Future<void> _handleUnknownPayment() async {
-    await _updateOrder(isRefund: false, description: "확인필요");
+    await _saveFailedResult("확인필요");
 
     // 결제 실패 Exception throw
     throw UnknownPaymentException(description: "확인필요");
@@ -204,7 +230,7 @@ class PaymentService extends _$PaymentService {
     final orderId = ref.read(createOrderInfoProvider)?.order.id;
     final amount = (settings?.photoCardPrice.toInt() ?? 0) * ref.read(printQuantityNotifierProvider).total;
     SlackLogService().sendErrorLogToSlack('*[MachineId: ${settings?.kioskMachineId ?? 'unknown'}]*\n'
-        '결제 단말기 응답 없음 - 결제 여부 확인필요 (주문 PENDING 유지)\n'
+        '결제 단말기 응답 없음 - 결제 여부 확인필요 (주문 결제 실패 처리)\n'
         '- 사유: $reason\n'
         '- 주문번호: ${orderId ?? '없음'}\n'
         '- 금액: $amount\n'
@@ -219,7 +245,7 @@ class PaymentService extends _$PaymentService {
     final request = UpdateVendingOrderStatusRequest(
       kioskEventId: settings.kioskEventId,
       kioskMachineId: settings.kioskMachineId,
-      status: OrderStatus.pending,
+      status: OrderStatus.failed,
       description: '결제확인필요 - $reason',
       amount: settings.photoCardPrice.toInt() * ref.read(printQuantityNotifierProvider).total,
       authSeqNumber: '-',
@@ -423,7 +449,7 @@ class PaymentService extends _$PaymentService {
       } catch (e) {
         if (attempt >= 3) {
           SlackLogService().sendErrorLogToSlack('*[MachineId: ${settings.kioskMachineId}]*\nupdate order error after 3 retries: $e');
-          rethrow;
+          throw OrderSaveFailedException(e);
         }
         await Future.delayed(const Duration(milliseconds: 500));
       }
@@ -457,6 +483,15 @@ class PaymentService extends _$PaymentService {
       rethrow;
     }
   }
+}
+
+class OrderSaveFailedException implements Exception {
+  OrderSaveFailedException(this.cause);
+
+  final Object cause;
+
+  @override
+  String toString() => 'OrderSaveFailedException: $cause';
 }
 
 class OrderCreationException implements Exception {

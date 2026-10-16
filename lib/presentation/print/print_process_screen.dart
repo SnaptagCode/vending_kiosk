@@ -77,9 +77,6 @@ class _PrintProcessScreenState extends ConsumerState<PrintProcessScreen> {
           _progressCompleted = true;
 
           final printJobId = ref.read(printJobIdProvider);
-          if (printJobId != null) {
-            await ref.read(kioskRepositoryProvider).succeedVendingPrintJob(printJobId);
-          }
 
           ref.read(paymentResponseStateProvider.notifier).reset();
           ref.read(createOrderInfoProvider.notifier).reset();

@@ -107,13 +107,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               '[$name ($id)] 임의출력/재출력 상태확인 실패했습니다 ($maxRetries회 시도 실패)',
             );
 
-            rethrow;
+            return;
           }
           await Future.delayed(const Duration(milliseconds: 500));
         }
       }
 
       if (!response.exists) return;
+
+      if (response.printJobId == null) {
+        SlackLogService().sendErrorLogToSlack(
+          '*[MachineId: ${kioskInfo.kioskMachineId}]*\n출력잡 번호(printJobId)가 없어 처리하지 않습니다 (type=${response.type})',
+        );
+        return;
+      }
 
       try {
         // 선점
@@ -157,22 +164,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
 
         // 배출 실행
-        ref.read(printProcessScreenProviderProvider.notifier).startPrint();
+        await ref.read(printProcessScreenProviderProvider.notifier).startPrint();
 
         ref.read(printJobIdProvider.notifier).state = null;
       } catch (e) {
         ref.read(printJobIdProvider.notifier).state = null;
-        if (response.printJobId != null) {
-          try {
-            final reason = response.type == VendingPrintJobType.refund ? '환불 선점 실패' : '임의출력 실패';
-            await ref.read(kioskRepositoryProvider).failVendingPrintJob(
-                  printJobId: response.printJobId!,
-                  failureReason: reason,
-                );
-          } catch (_) {}
+        final reason = response.type == VendingPrintJobType.refund ? '환불 선점 실패' : '임의출력 실패';
+        SlackLogService().sendErrorLogToSlack(
+          '*[MachineId: ${kioskInfo.kioskMachineId}]*\n출력잡(${response.printJobId}, type=${response.type}) $reason: $e',
+        );
+        try {
+          await ref.read(kioskRepositoryProvider).failVendingPrintJob(
+                printJobId: response.printJobId!,
+                failureReason: reason,
+              );
+        } catch (e2) {
+          SlackLogService().sendErrorLogToSlack(
+            '*[MachineId: ${kioskInfo.kioskMachineId}]*\n출력잡(${response.printJobId}) 실패 보고도 실패: $e2',
+          );
         }
       }
     } catch (e) {
+      SlackLogService().sendErrorLogToSlack(
+        '*[MachineId: ${ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 'unknown'}]*\n출력잡 폴링 처리 중 오류: $e',
+      );
       if (mounted) ref.read(printJobIdProvider.notifier).state = null;
     } finally {
       if (mounted && !_awaitingRefundDialog) _startPrintJobPolling();
@@ -252,7 +267,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ref.read(kioskInfoServiceProvider)!.kioskMachineId,
                         UpdateMaintenanceRequest(isUnderMaintenance: true),
                       );
-                  _startMaintenancePolling();
                 }
                 handled = true;
               } else if (error is TimeoutPaymentException) {
@@ -277,6 +291,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               await DialogHelper.showPurchaseFailedDialog(context);
             }
 
+            if (!mounted) return;
+            _startMaintenancePolling();
             _startPrintJobPolling();
           },
           loading: () => null,

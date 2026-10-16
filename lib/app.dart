@@ -101,7 +101,8 @@ class _AppState extends ConsumerState<App> with WindowListener {
 
   @override
   void onWindowClose() {
-    performAppExit();
+    logger.w('바깥에서 창 닫기 요청을 받았지만 무시합니다');
+    SlackLogService().sendErrorLogToSlack('바깥에서 창 닫기 요청을 받았지만 무시했습니다 (앱 유지)');
   }
 
   /// 시리얼 포트를 정리하여 재시작 시 정상 연결 보장
@@ -128,6 +129,7 @@ class _AppState extends ConsumerState<App> with WindowListener {
       await windowManager.waitUntilReadyToShow(windowOptions, () async {
         await windowManager.setPosition(const Offset(-6, 0.0));
         await windowManager.setResizable(false);
+        await windowManager.setPreventClose(true);
         await windowManager.show();
       });
 

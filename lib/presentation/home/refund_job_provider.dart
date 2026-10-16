@@ -92,10 +92,20 @@ class RefundJobNotifier extends _$RefundJobNotifier {
             originalApprovalDate: refundInfo.originalApprovalDate,
           );
     } catch (e) {
+      final kioskInfo = ref.read(kioskInfoServiceProvider);
+      reportRefundResultUnknown(
+        source: '원격 환불 job $printJobId',
+        machineId: kioskInfo?.kioskMachineId ?? 'unknown',
+        orderId: kioskOrderId,
+        approvalNo: refundInfo.originalApprovalNo,
+        amount: refundInfo.amount,
+        terminalId: kioskInfo?.cardTerminalId,
+        error: e,
+      );
       try {
         await ref.read(kioskRepositoryProvider).failVendingPrintJob(
               printJobId: printJobId,
-              failureReason: '환불 실패: $e',
+              failureReason: refundUnknownReason(e),
             );
       } catch (e2) {
         SlackLogService().sendErrorLogToSlack('환불 job($printJobId) failVendingPrintJob 실패: $e2');
@@ -136,11 +146,9 @@ class RefundJobNotifier extends _$RefundJobNotifier {
         kioskMachineId: kioskInfo.kioskMachineId,
         status: isSuccess ? OrderStatus.refunded : OrderStatus.refunded_failed,
         amount: refundInfo.amount,
-        authSeqNumber: isSuccess ? (paymentResponse.approvalNo ?? '-') : '-',
-        approvalNumber: isSuccess ? (paymentResponse.approvalNo ?? '-') : '-',
-        description: isSuccess
-            ? null
-            : (paymentResponse.msg?.isNotEmpty == true ? paymentResponse.msg : paymentResponse.message1),
+        authSeqNumber: refundInfo.originalApprovalNo,
+        approvalNumber: refundInfo.originalApprovalNo,
+        description: isSuccess ? null : refundReasonFor(paymentResponse),
         detail: paymentResponse.KSNET,
       );
     } catch (e) {

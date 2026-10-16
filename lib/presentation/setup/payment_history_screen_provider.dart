@@ -100,6 +100,15 @@ class PaymentHistoryNotifier extends _$PaymentHistoryNotifier {
   // ─────────────────────────────────────────────
 
   Future<void> startRefund(VendingPrintItemEntity order) async {
+    final missing = order.purchaseAuthNumber.isEmpty
+        ? '승인번호 없음'
+        : (order.completedAt == null ? '결제 완료 일시 없음' : null);
+    if (missing != null) {
+      SlackLogService().sendErrorLogToSlack(
+        '*[MachineId: ${ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 'unknown'}]*\n'
+        '관리자 환불 시작 불가 - $missing (주문 ${order.kioskOrderId})',
+      );
+    }
     if (order.purchaseAuthNumber.isEmpty) {
       state = state.copyWith(
         refundState: AsyncValue.error(Exception('No payment auth number available'), StackTrace.current),
@@ -117,11 +126,26 @@ class PaymentHistoryNotifier extends _$PaymentHistoryNotifier {
       final Invoice invoice = Invoice.calculate(order.amount);
       state = state.copyWith(refundState: const AsyncValue.loading());
 
-      final response = await ref.read(paymentGatewayProvider).cancel(
-            totalAmount: invoice.total,
-            originalApprovalNo: order.purchaseAuthNumber,
-            originalApprovalDate: DateFormat('yyMMdd').format(DateTime.parse(order.completedAt!)),
-          );
+      final PaymentResponse response;
+      try {
+        response = await ref.read(paymentGatewayProvider).cancel(
+              totalAmount: invoice.total,
+              originalApprovalNo: order.purchaseAuthNumber,
+              originalApprovalDate: DateFormat('yyMMdd').format(DateTime.parse(order.completedAt!)),
+            );
+      } catch (e) {
+        final settings = ref.read(kioskInfoServiceProvider);
+        reportRefundResultUnknown(
+          source: '관리자 환불',
+          machineId: settings?.kioskMachineId ?? 'unknown',
+          orderId: order.kioskOrderId,
+          approvalNo: order.purchaseAuthNumber,
+          amount: order.amount.toInt(),
+          terminalId: settings?.cardTerminalId,
+          error: e,
+        );
+        rethrow;
+      }
       final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId.toString() ?? 'unknown';
       SlackLogService().sendLogToSlack('*[MachineId: $machineId]*\nrefund response: $response');
 

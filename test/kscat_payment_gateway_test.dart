@@ -15,6 +15,10 @@ class FakeKscat extends PaymentApiClient {
   Probe probe = Probe.busy;
   final approval = Completer<PaymentResponse>();
   int probes = 0;
+  Duration? reader;
+
+  @override
+  Future<Duration?> readerTimeout() async => reader;
 
   @override
   Future<PaymentResponse> requestPayment(String callback, String request,
@@ -78,6 +82,40 @@ void main() {
     final sw = Stopwatch()..start();
     await expectLater(gateway.approve(totalAmount: 1000), unknown('초과'));
     expect(sw.elapsedMilliseconds, greaterThanOrEqualTo(400));
+  });
+
+  group('최종 타임아웃을 주지 않으면 KS-CAT 카드 대기 시간에 여유를 더한다', () {
+    KscatPaymentGateway gatewayWithoutTimeout() => container.read(Provider(
+          (ref) => KscatPaymentGateway(
+            kscat,
+            ref,
+            watchInterval: const Duration(milliseconds: 20),
+            approveMargin: const Duration(milliseconds: 150),
+            defaultApproveTimeout: const Duration(milliseconds: 500),
+          ),
+        ));
+
+    test('카드 대기 시간 + 여유가 지나야 중단한다', () async {
+      kscat.reader = const Duration(milliseconds: 200);
+      final sw = Stopwatch()..start();
+      await expectLater(gatewayWithoutTimeout().approve(totalAmount: 1000), unknown('초과'));
+      expect(sw.elapsedMilliseconds, greaterThanOrEqualTo(350));
+      expect(sw.elapsedMilliseconds, lessThan(500));
+    });
+
+    test('카드 대기 시간을 읽지 못하면 기본값에서 중단한다', () async {
+      final sw = Stopwatch()..start();
+      await expectLater(gatewayWithoutTimeout().approve(totalAmount: 1000), unknown('초과'));
+      expect(sw.elapsedMilliseconds, greaterThanOrEqualTo(500));
+    });
+
+    test('KS-CAT 이 시간 초과(1004)를 먼저 돌려주면 그 응답으로 끝난다', () async {
+      kscat.reader = const Duration(milliseconds: 200);
+      Timer(const Duration(milliseconds: 200),
+          () => kscat.approval.complete(const PaymentResponse(res: '1004')));
+      final res = await gatewayWithoutTimeout().approve(totalAmount: 1000);
+      expect(res.res, '1004');
+    });
   });
 
   test('결제 중 단말기가 응답하지 않으면 최종 타임아웃 전에 중단한다', () async {
