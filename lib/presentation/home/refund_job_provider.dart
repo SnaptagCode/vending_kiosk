@@ -146,11 +146,9 @@ class RefundJobNotifier extends _$RefundJobNotifier {
         kioskMachineId: kioskInfo.kioskMachineId,
         status: isSuccess ? OrderStatus.refunded : OrderStatus.refunded_failed,
         amount: refundInfo.amount,
-        authSeqNumber: isSuccess ? (paymentResponse.approvalNo ?? '-') : '-',
-        approvalNumber: isSuccess ? (paymentResponse.approvalNo ?? '-') : '-',
-        description: isSuccess
-            ? null
-            : (paymentResponse.msg?.isNotEmpty == true ? paymentResponse.msg : paymentResponse.message1),
+        authSeqNumber: refundInfo.originalApprovalNo,
+        approvalNumber: refundInfo.originalApprovalNo,
+        description: isSuccess ? null : refundReasonFor(paymentResponse),
         detail: paymentResponse.KSNET,
       );
     } catch (e) {
