@@ -117,11 +117,26 @@ class PaymentHistoryNotifier extends _$PaymentHistoryNotifier {
       final Invoice invoice = Invoice.calculate(order.amount);
       state = state.copyWith(refundState: const AsyncValue.loading());
 
-      final response = await ref.read(paymentGatewayProvider).cancel(
-            totalAmount: invoice.total,
-            originalApprovalNo: order.purchaseAuthNumber,
-            originalApprovalDate: DateFormat('yyMMdd').format(DateTime.parse(order.completedAt!)),
-          );
+      final PaymentResponse response;
+      try {
+        response = await ref.read(paymentGatewayProvider).cancel(
+              totalAmount: invoice.total,
+              originalApprovalNo: order.purchaseAuthNumber,
+              originalApprovalDate: DateFormat('yyMMdd').format(DateTime.parse(order.completedAt!)),
+            );
+      } catch (e) {
+        final settings = ref.read(kioskInfoServiceProvider);
+        reportRefundResultUnknown(
+          source: '관리자 환불',
+          machineId: settings?.kioskMachineId ?? 'unknown',
+          orderId: order.kioskOrderId,
+          approvalNo: order.purchaseAuthNumber,
+          amount: order.amount.toInt(),
+          terminalId: settings?.cardTerminalId,
+          error: e,
+        );
+        rethrow;
+      }
       final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId.toString() ?? 'unknown';
       SlackLogService().sendLogToSlack('*[MachineId: $machineId]*\nrefund response: $response');
 

@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:vending_kiosk/core/common/logger/slack_log_service.dart';
 import 'package:vending_kiosk/core/data/models/response/payment_response.dart';
 
 /// KSCAT 환불(취소) 응답코드 → 한글 사유 매핑. 필요 시 줄만 추가/삭제하면 확장 가능.
@@ -34,4 +37,30 @@ String refundReasonFor(PaymentResponse? p) {
 
   final code = (respCode != null && respCode.isNotEmpty) ? respCode : res;
   return '확인필요 (코드: $code)';
+}
+
+String refundUnknownReason(Object error) =>
+    error is TimeoutException ? '단말 응답 시간 초과' : '단말 통신 오류';
+
+void reportRefundResultUnknown({
+  required String source,
+  required Object machineId,
+  required Object? orderId,
+  required String approvalNo,
+  required int amount,
+  required String? terminalId,
+  required Object error,
+}) {
+  SlackLogService().sendErrorLogToSlack('*[MachineId: $machineId]*\n'
+      '환불 결과 확인필요 - 단말 응답 없음 ($source)\n'
+      '- 사유: ${refundUnknownReason(error)} (${_briefError(error)})\n'
+      '- 주문번호: ${orderId ?? '없음'}\n'
+      '- 원 승인번호: $approvalNo\n'
+      '- 금액: $amount\n'
+      '- 단말기ID: ${terminalId ?? '없음'}');
+}
+
+String _briefError(Object error) {
+  final text = '$error'.split(', uri=').first.split('\n').first;
+  return text.length > 120 ? '${text.substring(0, 120)}...' : text;
 }
