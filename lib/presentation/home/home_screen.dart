@@ -252,7 +252,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ref.read(kioskInfoServiceProvider)!.kioskMachineId,
                         UpdateMaintenanceRequest(isUnderMaintenance: true),
                       );
-                  _startMaintenancePolling();
                 }
                 handled = true;
               } else if (error is TimeoutPaymentException) {
@@ -277,6 +276,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               await DialogHelper.showPurchaseFailedDialog(context);
             }
 
+            if (!mounted) return;
+            _startMaintenancePolling();
             _startPrintJobPolling();
           },
           loading: () => null,
