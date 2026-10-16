@@ -21,7 +21,9 @@ class KscatPaymentGateway implements PaymentGateway {
     this.checkTimeout = const Duration(seconds: 5),
     this.watchInterval = const Duration(seconds: 3),
     this.resultGrace = const Duration(seconds: 5),
-    this.approveTimeout = const Duration(seconds: 60),
+    this.approveTimeout,
+    this.approveMargin = const Duration(seconds: 15),
+    this.defaultApproveTimeout = const Duration(seconds: 60),
     this.cancelTimeout = const Duration(seconds: 60),
   });
 
@@ -30,8 +32,16 @@ class KscatPaymentGateway implements PaymentGateway {
   final Duration checkTimeout;
   final Duration watchInterval;
   final Duration resultGrace;
-  final Duration approveTimeout;
+  final Duration? approveTimeout;
+  final Duration approveMargin;
+  final Duration defaultApproveTimeout;
   final Duration cancelTimeout;
+
+  Future<Duration> _resolveApproveTimeout() async {
+    if (approveTimeout != null) return approveTimeout!;
+    final reader = await _client.readerTimeout();
+    return reader == null ? defaultApproveTimeout : reader + approveMargin;
+  }
 
   String _getCallback() {
     final kioskMachineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId;
@@ -88,6 +98,7 @@ class KscatPaymentGateway implements PaymentGateway {
   }
 
   Future<PaymentResponse> _approveWatched(PaymentRequest request) async {
+    final timeout = await _resolveApproveTimeout();
     final httpClient = http.Client();
     final result = Completer<PaymentResponse>();
 
@@ -102,7 +113,7 @@ class KscatPaymentGateway implements PaymentGateway {
       onError: (Object e, StackTrace s) => stop('결제 중 단말기 연결 끊김 ($e)'),
     );
 
-    final deadline = Timer(approveTimeout, () => stop('결제 응답 ${approveTimeout.inSeconds}초 초과'));
+    final deadline = Timer(timeout, () => stop('결제 응답 ${timeout.inSeconds}초 초과'));
     unawaited(_watch(result, stop));
 
     try {
