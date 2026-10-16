@@ -27,15 +27,12 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
       if (printJobId != null && ref.read(reprintIdsProvider) != null) {
         // REPRINT: 기존 출력 로직 그대로
         await _executePrintJob();
-        await ref.read(kioskRepositoryProvider).succeedVendingPrintJob(printJobId);
       } else if (printJobId != null) {
         // ARBITRARY: 배출기 동작만 — 재고 차감은 서버가 job success 시점에 수행
         await _executeDispenserOnlyJob();
-        await ref.read(kioskRepositoryProvider).succeedVendingPrintJob(printJobId);
       } else {
         await _executePrintJob();
       }
-      state = const AsyncData(null);
     } catch (e, st) {
       logger.e('PrintProcessScreenProvider.print failure', error: e, stackTrace: st);
 
@@ -59,6 +56,21 @@ class PrintProcessScreenProvider extends _$PrintProcessScreenProvider {
             .read(kioskRepositoryProvider)
             .failVendingPrintJob(printJobId: printJobId, failureReason: e.toString());
       }
+      return;
+    }
+
+    if (printJobId != null) await _succeedJob(printJobId);
+    state = const AsyncData(null);
+  }
+
+  Future<void> _succeedJob(int printJobId) async {
+    try {
+      await ref.read(kioskRepositoryProvider).succeedVendingPrintJob(printJobId);
+    } catch (e) {
+      SlackLogService().sendErrorLogToSlack(
+        '*[MachineId: ${ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 'unknown'}]*\n'
+        '출력잡($printJobId) 성공 보고 실패 — 배출은 끝났음: $e',
+      );
     }
   }
 
