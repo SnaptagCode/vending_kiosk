@@ -164,7 +164,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
 
         // 배출 실행
-        ref.read(printProcessScreenProviderProvider.notifier).startPrint();
+        await ref.read(printProcessScreenProviderProvider.notifier).startPrint();
 
         ref.read(printJobIdProvider.notifier).state = null;
       } catch (e) {
