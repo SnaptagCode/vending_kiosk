@@ -204,7 +204,7 @@ class PaymentService extends _$PaymentService {
     final orderId = ref.read(createOrderInfoProvider)?.order.id;
     final amount = (settings?.photoCardPrice.toInt() ?? 0) * ref.read(printQuantityNotifierProvider).total;
     SlackLogService().sendErrorLogToSlack('*[MachineId: ${settings?.kioskMachineId ?? 'unknown'}]*\n'
-        '결제 단말기 응답 없음 - 결제 여부 확인필요 (주문 PENDING 유지)\n'
+        '결제 단말기 응답 없음 - 결제 여부 확인필요 (주문 결제 실패 처리)\n'
         '- 사유: $reason\n'
         '- 주문번호: ${orderId ?? '없음'}\n'
         '- 금액: $amount\n'
@@ -219,7 +219,7 @@ class PaymentService extends _$PaymentService {
     final request = UpdateVendingOrderStatusRequest(
       kioskEventId: settings.kioskEventId,
       kioskMachineId: settings.kioskMachineId,
-      status: OrderStatus.pending,
+      status: OrderStatus.failed,
       description: '결제확인필요 - $reason',
       amount: settings.photoCardPrice.toInt() * ref.read(printQuantityNotifierProvider).total,
       authSeqNumber: '-',

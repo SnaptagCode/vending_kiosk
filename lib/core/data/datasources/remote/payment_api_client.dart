@@ -105,6 +105,17 @@ class PaymentApiClient {
     }
   }
 
+  Future<Duration?> readerTimeout() async {
+    try {
+      final ini = await File(_configPath).readAsString();
+      final seconds = int.tryParse((_parseIniSection(ini, 'reader')['timeout'] ?? '').trim());
+      if (seconds != null && seconds > 0) return Duration(seconds: seconds);
+    } catch (e) {
+      logger.w('KSCAT [reader] timeout 을 읽지 못했습니다 ($_configPath): $e');
+    }
+    return null;
+  }
+
   /// Minimal INI parser (key=value) for a single section like [daemon].
   /// - Ignores blank lines and comment-like lines starting with ';' or '#'
   /// - Case-insensitive section name & keys
