@@ -210,11 +210,9 @@ class _SetupMainScreenState extends ConsumerState<SetupMainScreen> {
     final currentVersion = versionState.currentVersion;
     final latestVersion = versionState.latestVersion;
     final machineId = ref.read(kioskInfoServiceProvider)?.kioskMachineId ?? 0;
-    final kioskEventId = ref.read(kioskInfoServiceProvider)?.kioskEventId ?? 0;
     final cardCountState = ref.read(cardCountProvider);
 
     await ref.read(kioskRepositoryProvider).deleteEndMark(
-          kioskEventId: kioskEventId,
           machineId: machineId,
           remainingSingleSidedCount: cardCountState.remainingSingleSidedCount,
         );

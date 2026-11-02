@@ -176,13 +176,11 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
       final versionState = ref.read(versionStateProvider);
 
       final machineId = kioskInfo?.kioskMachineId ?? 0;
-      final kioskEventId = kioskInfo?.kioskEventId ?? 0;
       final currentVersion = versionState.currentVersion;
       final latestVersion = versionState.latestVersion;
 
       // End mark 삭제
       await ref.read(kioskRepositoryProvider).deleteEndMark(
-            kioskEventId: kioskEventId,
             machineId: machineId,
             remainingSingleSidedCount: cardCountState.remainingSingleSidedCount,
           );
@@ -248,7 +246,6 @@ class SetupMainScreenNotifier extends _$SetupMainScreenNotifier {
       final kioskInfo = ref.read(kioskInfoServiceProvider);
 
       await ref.read(kioskRepositoryProvider).endKioskApplication(
-            kioskEventId: kioskInfo?.kioskEventId ?? 0,
             machineId: kioskInfo?.kioskMachineId ?? 0,
           );
     } catch (e) {
