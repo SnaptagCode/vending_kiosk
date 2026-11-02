@@ -119,16 +119,14 @@ abstract class KioskApiClient {
     @Body() required FormData body,
   });
 
-  @POST('/v1/internal/event/{kioskEventId}/machine/{machineId}/end')
+  @POST('/v1/internal/event/machine/{machineId}/end')
   Future<void> endKioskApplication({
-    @Path('kioskEventId') required int kioskEventId,
     @Path('machineId') required int machineId,
   });
 
-  @DELETE('/v1/internal/event/{kioskEventId}/machine/{machineId}/end')
+  @DELETE('/v1/internal/event/machine/{machineId}/end')
   Future<void> deleteEndMark(
-      {@Path('kioskEventId') required int kioskEventId,
-      @Path('machineId') required int machineId,
+      {@Path('machineId') required int machineId,
       @Path('remainingSingleSidedCount') required String remainingSingleSidedCount});
 
   @POST('/v1/internal/event/check/{kioskEventId}/{machineId}')

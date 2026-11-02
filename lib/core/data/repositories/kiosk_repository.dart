@@ -259,24 +259,21 @@ class _KioskRepository {
   }
 
   Future<void> endKioskApplication({
-    required int kioskEventId,
     required int machineId,
   }) async {
     try {
-      await _apiClient.endKioskApplication(kioskEventId: kioskEventId, machineId: machineId);
+      await _apiClient.endKioskApplication(machineId: machineId);
     } catch (e) {
       rethrow;
     }
   }
 
   Future<void> deleteEndMark({
-    required int kioskEventId,
     required int machineId,
     required String remainingSingleSidedCount,
   }) async {
     try {
-      await _apiClient.deleteEndMark(
-          kioskEventId: kioskEventId, machineId: machineId, remainingSingleSidedCount: remainingSingleSidedCount);
+      await _apiClient.deleteEndMark(machineId: machineId, remainingSingleSidedCount: remainingSingleSidedCount);
     } catch (e) {
       rethrow;
     }
